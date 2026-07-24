@@ -1,0 +1,20 @@
+--- src/components/StaffAttendance.tsx
++++ src/components/StaffAttendance.tsx
+@@ -1,510 +1,100 @@
+-import React, { useState, useEffect } from 'react';
+-import { 
+-  getAttendanceSettings, 
+-  AttendanceSettings as AppAttendanceSettings 
+-} from '../utils/attendance';
+-import { 
+-  getStaffAttendanceSheets, 
+-  saveStaffAttendanceSheets, 
+-  StaffAttendanceSheet, 
+-  getCurrentUser, 
+-  UserAccount 
+-} from '../utils/db';
+-import { 
+-  Clock, MapPin, ShieldCheck, LogIn, LogOut, 
+-  CheckCircle, XCircle, AlertTriangle, Save 
+-} from 'lucide-react';
+-

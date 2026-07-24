@@ -1,0 +1,6 @@
+{
+  "name": "School Admin Suite",
+  "description": "A simple school administration dashboard for managing profiles, staff, subjects, and marks.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

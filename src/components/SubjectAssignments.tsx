@@ -1,0 +1,293 @@
+import React, { useState, useEffect } from 'react';
+import { getUsers, getSubjects, getGrades, getSubjectAssignments, saveSubjectAssignments, getClassTeacherAssignments, saveClassTeacherAssignments } from '../utils/db';
+
+export default function SubjectAssignments() {
+  const [assignments, setAssignments] = useState<any[]>(() => getSubjectAssignments());
+  const [classTeachers, setClassTeachers] = useState<any[]>(() => getClassTeacherAssignments());
+
+  const [teachersList, setTeachersList] = useState<any[]>([]);
+  const [subjectsList, setSubjectsList] = useState<any[]>([]);
+  const [gradesList, setGradesList] = useState<any[]>([]);
+
+  // Selected values for Subject Assignment Form
+  const [selTeacher, setSelTeacher] = useState('');
+  const [selSubject, setSelSubject] = useState('');
+  const [selGrade, setSelGrade] = useState('');
+  const [selStream, setSelStream] = useState('All Streams');
+
+  // Selected values for Class Teacher Assignment Form
+  const [selClassTeacher, setSelClassTeacher] = useState('');
+  const [selClassGrade, setSelClassGrade] = useState('');
+  const [selClassStream, setSelClassStream] = useState('');
+
+  const [isClassStreamDisabled, setIsClassStreamDisabled] = useState(true);
+
+  useEffect(() => {
+    setTeachersList(getUsers().filter(u => u.role !== 'Parent'));
+    setSubjectsList(getSubjects());
+    setGradesList(getGrades());
+  }, []);
+
+  // Auto-save effect for subject assignments
+  useEffect(() => {
+    saveSubjectAssignments(assignments);
+  }, [assignments]);
+
+  // Auto-save effect for class teacher assignments
+  useEffect(() => {
+    saveClassTeacherAssignments(classTeachers);
+  }, [classTeachers]);
+
+  const handleClassGradeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    setSelClassGrade(value);
+    setIsClassStreamDisabled(value === '');
+    setSelClassStream('');
+  };
+
+  const assignSubject = () => {
+    if (!selTeacher || !selSubject || !selGrade) {
+      alert('⚠️ Please select a Teacher, Subject, and Grade.');
+      return;
+    }
+    const teacherName = teachersList.find(t => t.id === selTeacher)?.fullName || 'Unknown';
+    const subjectName = subjectsList.find(s => s.id === selSubject)?.name || 'Unknown';
+    const gradeName = gradesList.find(g => g.id === selGrade)?.name || 'Unknown';
+
+    const nextAssignments = [
+      ...assignments,
+      { teacher: teacherName, subject: subjectName, grade: gradeName, stream: selStream }
+    ];
+    setAssignments(nextAssignments);
+    saveSubjectAssignments(nextAssignments);
+
+    // Reset selects
+    setSelTeacher('');
+    setSelSubject('');
+    setSelGrade('');
+    setSelStream('All Streams');
+  };
+
+  const assignClassTeacher = () => {
+    if (!selClassTeacher || !selClassGrade || !selClassStream) {
+      alert('⚠️ Please select a Teacher, Grade, and Stream.');
+      return;
+    }
+    const teacherId = selClassTeacher;
+    const teacherName = teachersList.find(t => t.id === selClassTeacher)?.fullName || 'Unknown';
+    const gradeId = selClassGrade;
+    const gradeName = gradesList.find(g => g.id === selClassGrade)?.name || 'Unknown';
+
+    const nextClassTeachers = [
+      ...classTeachers,
+      { teacherId, teacher: teacherName, gradeId, grade: gradeName, stream: selClassStream }
+    ];
+    setClassTeachers(nextClassTeachers);
+    saveClassTeacherAssignments(nextClassTeachers);
+
+    // Reset selects
+    setSelClassTeacher('');
+    setSelClassGrade('');
+    setSelClassStream('');
+    setIsClassStreamDisabled(true);
+  };
+
+  const deleteAssignment = (index: number) => {
+    if(confirm('⚠️ Remove this assignment?')) {
+        const nextAssignments = assignments.filter((_, i) => i !== index);
+        setAssignments(nextAssignments);
+        saveSubjectAssignments(nextAssignments);
+    }
+  }
+
+  const deleteClassTeacher = (index: number) => {
+    if(confirm('⚠️ Remove this assignment?')) {
+        const nextClassTeachers = classTeachers.filter((_, i) => i !== index);
+        setClassTeachers(nextClassTeachers);
+        saveClassTeacherAssignments(nextClassTeachers);
+    }
+  }
+
+  const Hint = ({text}: {text: string}) => <p className="text-xs text-slate-400 italic mb-4 flex items-center gap-1">ℹ️ {text}</p>;
+
+  // Get unassigned teachers (teachers who are not class teachers)
+  const classTeacherNames = new Set(classTeachers.map(ct => ct.teacher));
+  const unassignedTeachers = teachersList.filter(t => t.role !== 'Admin' && !classTeacherNames.has(t.fullName));
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Subject Assignments Card */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200">
+          <h3 className="text-lg font-bold text-blue-800 mb-1">Subject Assignments</h3>
+          <p className="text-sm text-slate-600 mb-4">Which teacher teaches which subject in which class</p>
+          <Hint text="Select: Teacher → Subject → Grade → Stream" />
+          <div className="flex gap-3 mb-3 flex-wrap">
+            <select 
+              value={selTeacher}
+              onChange={(e) => setSelTeacher(e.target.value)}
+              className="flex-1 p-2 border border-slate-300 rounded-lg text-sm"
+            >
+              <option value="">— Select Teacher —</option>
+              {teachersList.map(t => (
+                <option key={t.id} value={t.id}>{t.fullName} ({t.role})</option>
+              ))}
+            </select>
+            <select 
+              value={selSubject}
+              onChange={(e) => setSelSubject(e.target.value)}
+              className="flex-1 p-2 border border-slate-300 rounded-lg text-sm"
+            >
+              <option value="">— Select Subject —</option>
+              {subjectsList.map(s => (
+                <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-3 mb-4 flex-wrap">
+            <select 
+              value={selGrade}
+              onChange={(e) => {
+                setSelGrade(e.target.value);
+                setSelStream('All Streams');
+              }}
+              className="flex-1 p-2 border border-slate-300 rounded-lg text-sm"
+            >
+              <option value="">— Select Grade —</option>
+              {gradesList.map(g => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+            </select>
+            <select 
+              value={selStream}
+              onChange={(e) => setSelStream(e.target.value)}
+              className="flex-1 p-2 border border-slate-300 rounded-lg text-sm"
+            >
+              <option value="All Streams">All Streams</option>
+              {selGrade && gradesList.find(g => g.id === selGrade)?.streams.map((st: any) => (
+                <option key={st.id} value={st.name}>{st.name}</option>
+              ))}
+            </select>
+          </div>
+          <button className="bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-2 rounded-lg text-sm font-semibold shadow-md transition-all cursor-pointer" onClick={assignSubject}>+ Assign Subject</button>
+        </div>
+
+        {/* Class Teacher Assignments Card */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200">
+          <h3 className="text-lg font-bold text-blue-800 mb-1">Class Teacher Assignments</h3>
+          <p className="text-sm text-slate-600 mb-4">One class teacher per grade + stream</p>
+          <Hint text="First select Grade, then Stream will unlock" />
+          <div className="flex gap-3 mb-3 flex-wrap">
+            <select 
+              value={selClassTeacher}
+              onChange={(e) => setSelClassTeacher(e.target.value)}
+              className="flex-1 p-2 border border-slate-300 rounded-lg text-sm"
+            >
+              <option value="">— Select Teacher —</option>
+              {teachersList.map(t => (
+                <option key={t.id} value={t.id}>{t.fullName} ({t.role})</option>
+              ))}
+            </select>
+            <select 
+              value={selClassGrade}
+              onChange={handleClassGradeChange}
+              className="flex-1 p-2 border border-slate-300 rounded-lg text-sm"
+            >
+              <option value="">— Select Grade —</option>
+              {gradesList.map(g => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-3 mb-4 flex-wrap">
+            <select 
+              value={selClassStream}
+              onChange={(e) => setSelClassStream(e.target.value)}
+              className="flex-1 p-2 border border-slate-300 rounded-lg text-sm" 
+              disabled={isClassStreamDisabled}
+            >
+              <option value="">{isClassStreamDisabled ? '— Select Grade first —' : '— Select Stream —'}</option>
+              {!isClassStreamDisabled && selClassGrade && gradesList.find(g => g.id === selClassGrade)?.streams.map((st: any) => (
+                <option key={st.id} value={st.name}>{st.name}</option>
+              ))}
+            </select>
+          </div>
+          <button className="bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-2 rounded-lg text-sm font-semibold shadow-md transition-all cursor-pointer" onClick={assignClassTeacher}>+ Assign Class Teacher</button>
+        </div>
+      </div>
+
+      {/* Current Subject Assignments Table */}
+      <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200">
+        <h3 className="text-lg font-bold mb-4">Current Subject Assignments</h3>
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-slate-50 text-left text-xs font-semibold text-slate-600 uppercase">
+              <th className="p-3 border-b">TEACHER</th>
+              <th className="p-3 border-b">ROLE</th>
+              <th className="p-3 border-b">SUBJECT</th>
+              <th className="p-3 border-b">GRADE</th>
+              <th className="p-3 border-b">STREAM</th>
+              <th className="p-3 border-b"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {assignments.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-slate-400 border-dashed border-2 rounded-xl">No subject assignments yet</td></tr>}
+            {assignments.map((a, i) => (
+              <tr key={i} className="border-b hover:bg-slate-50 transition-colors">
+                <td className="p-3 text-sm font-medium text-slate-700">{a.teacher}</td>
+                <td className="p-3 text-xs"><span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">Subject Teacher</span></td>
+                <td className="p-3 text-sm text-slate-600">{a.subject}</td>
+                <td className="p-3 text-sm text-slate-600">{a.grade}</td>
+                <td className="p-3 text-sm text-slate-600">{a.stream}</td>
+                <td className="p-3 text-right"><button onClick={() => deleteAssignment(i)} className="w-7 h-7 bg-red-50 text-red-600 rounded-lg flex items-center justify-center hover:bg-red-100 font-bold transition-all cursor-pointer">×</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Bottom Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm p-6 border border-slate-200">
+            <h3 className="text-lg font-bold mb-4">Current Class Teachers</h3>
+            <table className="w-full border-collapse">
+            <thead>
+                <tr className="bg-slate-50 text-left text-xs font-semibold text-slate-600 uppercase">
+                <th className="p-3 border-b">CLASS TEACHER</th>
+                <th className="p-3 border-b">GRADE</th>
+                <th className="p-3 border-b">STREAM</th>
+                <th className="p-3 border-b"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {classTeachers.length === 0 && <tr><td colSpan={4} className="p-8 text-center text-slate-400 border-dashed border-2 rounded-xl">No class teachers assigned yet</td></tr>}
+                {classTeachers.map((a, i) => (
+                <tr key={i} className="border-b hover:bg-slate-50 transition-colors">
+                    <td className="p-3 text-sm font-medium text-slate-700">{a.teacher}</td>
+                    <td className="p-3 text-sm text-slate-600">{a.grade}</td>
+                    <td className="p-3 text-sm text-slate-600">{a.stream}</td>
+                    <td className="p-3 text-right"><button onClick={() => deleteClassTeacher(i)} className="w-7 h-7 bg-red-50 text-red-600 rounded-lg flex items-center justify-center hover:bg-red-100 font-bold transition-all cursor-pointer">×</button></td>
+                </tr>
+                ))}
+            </tbody>
+            </table>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200">
+            <h3 className="text-lg font-bold mb-4">Unassigned Teachers</h3>
+            {unassignedTeachers.length === 0 ? (
+              <div className="p-8 text-center text-slate-400 border-dashed border-2 rounded-xl">No unassigned teachers</div>
+            ) : (
+              <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+                {unassignedTeachers.map(t => (
+                  <div key={t.id} className="flex justify-between items-center p-2.5 rounded-lg bg-slate-50 border border-slate-100 text-xs font-semibold text-slate-700">
+                    <span>{t.fullName}</span>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 bg-slate-200/50 px-2 py-0.5 rounded">{t.role}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+        </div>
+      </div>
+    </div>
+  );
+}
