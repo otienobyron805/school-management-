@@ -57,3 +57,19 @@ export function getViewAccess(): 'FULL' | 'FULL_TOD' | 'RESTRICTED' {
 
   return 'RESTRICTED';
 }
+
+export function canDelete(): boolean {
+  const user = getCurrentUser();
+  if (!user) return false;
+  const permissions = user.permissions || [];
+  if (permissions.includes('perm_cannot_delete')) {
+    return false;
+  }
+  const userRole = (user.role || '').toLowerCase();
+  const ADMIN_ROLES = ['admin', 'headteacher', 'deputy', 'senior', 'administrator', 'principal', 'deputy principal', 'senior teacher', 'super admin', 'head teacher'];
+  if (ADMIN_ROLES.some(r => userRole.includes(r))) {
+    return true;
+  }
+  return permissions.includes('perm_del_staff') || permissions.includes('perm_can_delete');
+}
+

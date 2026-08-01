@@ -35,6 +35,8 @@ import {
   Subject,
   GradingRule
 } from '../utils/db';
+import { VerificationQRCode } from './VerificationQRCode';
+import { PrintHeader } from './PrintHeader';
 
 // Fallback Mock Exams if none exist in localStorage
 const FALLBACK_EXAMS: any[] = [];
@@ -1128,10 +1130,10 @@ export default function GenerateReport() {
               </div>
               <div className="flex items-center justify-end gap-2 shrink-0">
                 <button 
-                  onClick={handlePrint}
-                  className="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition cursor-pointer"
+                  onClick={() => window.print()}
+                  className="p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition cursor-pointer"
                 >
-                  <Printer size={14} /> Print Report
+                  <FileText size={14} /> Print Report
                 </button>
                 <button 
                   onClick={() => setActiveReportModal(null)}
@@ -2533,6 +2535,7 @@ export default function GenerateReport() {
               {/* Report Body: INDIVIDUAL LEARNER REPORT CARD */}
               {activeReportModal.type === 'learner_single' && (
                 <div className="max-w-4xl mx-auto bg-white p-8 border border-slate-300 rounded-2xl shadow-sm text-slate-900 relative print:border-none print:shadow-none print:p-0 overflow-hidden">
+                  <PrintHeader />
                   
                   {/* School Logo Watermark */}
                   <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none select-none z-0">
@@ -2727,6 +2730,15 @@ export default function GenerateReport() {
                     </div>
                   </div>
 
+                  {/* Verification QR Code Badge */}
+                  <div className="mt-8 pt-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                    <VerificationQRCode admissionNo={activeReportModal.data.admissionNo} learnerName={activeReportModal.data.name} />
+                    <div className="text-right text-[10px] font-mono text-slate-400">
+                      <span>Official Academic Evaluation Report</span>
+                      <span className="block">Generated dynamically · Page 1 of 1</span>
+                    </div>
+                  </div>
+
                 </div>
               )}
 
@@ -2740,6 +2752,7 @@ export default function GenerateReport() {
 
                   {activeReportModal.data.reportCards.map((card: any, idx: number) => (
                     <div key={card.learner.id} className="bg-white p-8 border border-slate-300 rounded-2xl shadow-sm text-slate-900 relative page-break-after print:border-none print:shadow-none print:p-0 overflow-hidden">
+                      <PrintHeader />
                       
                       {/* School Logo Watermark */}
                       <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none select-none z-0">
@@ -2894,6 +2907,15 @@ export default function GenerateReport() {
                         <div>
                           <div className="border-b border-slate-300 w-24 mx-auto mb-1"></div>
                           <span className="text-[9px] text-slate-400 font-black block">Parent Seal</span>
+                        </div>
+                      </div>
+
+                      {/* Verification QR Code Badge */}
+                      <div className="mt-8 pt-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                        <VerificationQRCode admissionNo={card.admNo} learnerName={card.name} />
+                        <div className="text-right text-[10px] font-mono text-slate-400">
+                          <span>Official Academic Evaluation Report</span>
+                          <span className="block">Generated dynamically · Page 1 of 1</span>
                         </div>
                       </div>
 

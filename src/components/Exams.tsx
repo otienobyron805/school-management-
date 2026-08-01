@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, Pencil } from 'lucide-react';
-import { secureGet, secureSet } from '../utils/db';
+import { secureGet, secureSet, deleteRecord, saveToBackend } from '../utils/db';
+import { canDelete } from '../utils/permissions';
 
 interface Exam {
   id: string;
@@ -25,12 +26,20 @@ const Exams: React.FC<ExamsProps> = ({ setActiveView }) => {
   const [newExamYear, setNewExamYear] = useState('2026');
   const [newExamTerm, setNewExamTerm] = useState('Term 1');
 
-  // Load from secure db
-  useEffect(() => {
+  const refreshExams = () => {
     const stored = secureGet('exams');
     if (stored) {
       setExams(JSON.parse(stored));
+    } else {
+      setExams([]);
     }
+  };
+
+  // Load from secure db and listen to live sync updates
+  useEffect(() => {
+    refreshExams();
+    window.addEventListener('storage', refreshExams);
+    return () => window.removeEventListener('storage', refreshExams);
   }, []);
 
   const addExam = () => {
@@ -48,16 +57,18 @@ const Exams: React.FC<ExamsProps> = ({ setActiveView }) => {
     const updated = [...exams, newExam];
     setExams(updated);
     secureSet('exams', JSON.stringify(updated));
+    saveToBackend('exams', updated);
     setNewExamName('');
     setIsModalOpen(false);
   };
 
   const deleteExam = (id: string) => {
-    if (confirm('🗑️ Are you sure you want to delete this exam? This will remove it from all reports.')) {
-      const updated = exams.filter(exam => exam.id !== id);
-      setExams(updated);
-      secureSet('exams', JSON.stringify(updated));
+    if (!canDelete()) {
+      alert('⚠️ Access denied: You have a restriction ("cannot delete") preventing you from deleting items in this software.');
+      return;
     }
+    const updated = deleteRecord<Exam>('exams', id, 'Exam');
+    setExams(updated);
   };
 
   const navigateToTrash = () => {
@@ -121,9 +132,11 @@ const Exams: React.FC<ExamsProps> = ({ setActiveView }) => {
                  <button className="text-xs bg-slate-100 p-2 rounded-lg text-slate-600 hover:bg-slate-200 active:scale-90 transition">
                     <Pencil size={14} />
                  </button>
-                 <button onClick={() => deleteExam(exam.id)} className="text-xs bg-red-50 p-2 rounded-lg text-red-600 hover:bg-red-100 active:scale-90 transition">
-                    <Trash2 size={14} />
-                 </button>
+                 {canDelete() && (
+                   <button onClick={() => deleteExam(exam.id)} className="text-xs bg-red-50 p-2 rounded-lg text-red-600 hover:bg-red-100 active:scale-90 transition">
+                      <Trash2 size={14} />
+                   </button>
+                 )}
               </div>
             </div>
           ))

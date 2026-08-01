@@ -4,30 +4,49 @@ import {
   getSubjects, 
   saveSubjects, 
   getLearners, 
+  getGrades,
   getSubjectEnrollments, 
   saveSubjectEnrollments, 
+  SORT_RULES,
+  sortList,
   Subject, 
-  Learner 
+  Learner,
+  Grade
 } from '../utils/db';
+import { canDelete } from '../utils/permissions';
 
 export default function Subjects() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [learners, setLearners] = useState<Learner[]>([]);
   const [enrollments, setEnrollments] = useState<Record<string, string[]>>({});
+  const [dbGrades, setDbGrades] = useState<Grade[]>([]);
+
+  // Filters for main view
   const [selectedGrade, setSelectedGrade] = useState<number | 'all'>('all');
+  const [selectedStream, setSelectedStream] = useState<string | 'all'>('all');
 
   // Subjects lists CRUD states
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newSubject, setNewSubject] = useState({ name: '', code: '' });
+  const [newSubject, setNewSubject] = useState<{
+    name: string;
+    code: string;
+    selectedGrades: number[];
+    selectedStreams: string[];
+  }>({
+    name: '',
+    code: '',
+    selectedGrades: [],
+    selectedStreams: ['All Streams']
+  });
   const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);
 
-  // Grade Assignment modal state
+  // Grade & Stream Assignment modal state
   const [isGradeModalOpen, setIsGradeModalOpen] = useState(false);
   const [selectedSubjectForGrades, setSelectedSubjectForGrades] = useState<Subject | null>(null);
 
   // --- SUBJECT ENROLLMENT STATE ---
   const [activeEnrollmentSubject, setActiveEnrollmentSubject] = useState<Subject | null>(null);
-  const [activeGradeTab, setActiveGradeTab] = useState<number>(8); // Defaults to Grade 8
+  const [activeGradeTab, setActiveGradeTab] = useState<number>(1);
   
   // Filters for enrollment screen
   const [streamFilter, setStreamFilter] = useState<string>('all');
@@ -41,6 +60,7 @@ export default function Subjects() {
   useEffect(() => {
     setSubjects(getSubjects());
     setLearners(getLearners());
+    setDbGrades(getGrades());
     setEnrollments(getSubjectEnrollments());
   }, []);
 
@@ -58,6 +78,71 @@ export default function Subjects() {
     }
   }, [enrollments]);
 
+  // Derive robust system grades list combining getGrades(), SORT_RULES.gradeOrder, and learners
+  const allGradeNames = new Map<string, string[]>(); // label -> streams
+  
+  // 1. Add standard grades from SORT_RULES.gradeOrder
+  SORT_RULES.gradeOrder.forEach(gName => {
+    allGradeNames.set(gName, []);
+  });
+
+  // 2. Add grades from dbGrades
+  dbGrades.forEach(g => {
+    if (!g || !g.name) return;
+    const cleanName = g.name.trim();
+    const streams = (g.streams || []).map(s => s.name).filter(Boolean);
+    if (allGradeNames.has(cleanName)) {
+      const existing = allGradeNames.get(cleanName)!;
+      allGradeNames.set(cleanName, Array.from(new Set([...existing, ...streams])));
+    } else {
+      allGradeNames.set(cleanName, streams);
+    }
+  });
+
+  // 3. Add grades from learners
+  learners.forEach(l => {
+    const gLabel = l.gradeLabel || (l.grade ? `Grade ${l.grade}` : '');
+    if (gLabel && !allGradeNames.has(gLabel)) {
+      allGradeNames.set(gLabel, []);
+    }
+  });
+
+  // Sort grade names using sortList
+  const sortedGradeNames = sortList(Array.from(allGradeNames.keys()), 'grade');
+
+  const systemGradeList = sortedGradeNames.map((name, index) => {
+    const num = index + 1;
+    return {
+      num,
+      label: name,
+      streams: allGradeNames.get(name) || []
+    };
+  });
+
+  // Ensure default selected grades for new subjects if not set
+  useEffect(() => {
+    if (newSubject.selectedGrades.length === 0 && systemGradeList.length > 0) {
+      setNewSubject(prev => ({
+        ...prev,
+        selectedGrades: systemGradeList.map(g => g.num)
+      }));
+    }
+  }, [systemGradeList.length]);
+
+  // Ensure activeGradeTab defaults to first available grade if current is invalid
+  useEffect(() => {
+    if (systemGradeList.length > 0 && !systemGradeList.some(g => g.num === activeGradeTab)) {
+      setActiveGradeTab(systemGradeList[0].num);
+    }
+  }, [systemGradeList]);
+
+  // Derive all unique streams across grades and learners
+  const streamsFromGrades = dbGrades.flatMap(g => (g.streams || []).map(s => s.name));
+  const streamsFromLearners = learners.map(l => l.stream);
+  const availableStreams = Array.from(
+    new Set(['All Streams', ...streamsFromGrades, ...streamsFromLearners])
+  ).filter(Boolean);
+
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -67,19 +152,33 @@ export default function Subjects() {
 
   const handleAddSubject = () => {
     setEditingSubjectId(null);
-    setNewSubject({ name: '', code: '' });
+    setNewSubject({ 
+      name: '', 
+      code: '', 
+      selectedGrades: systemGradeList.map(g => g.num), 
+      selectedStreams: ['All Streams'] 
+    });
     setIsModalOpen(true);
   };
 
   const handleEditSubject = (subject: Subject) => {
     setEditingSubjectId(subject.id);
-    setNewSubject({ name: subject.name, code: subject.code });
+    setNewSubject({ 
+      name: subject.name, 
+      code: subject.code,
+      selectedGrades: subject.grades && subject.grades.length > 0 ? subject.grades : systemGradeList.map(g => g.num),
+      selectedStreams: subject.streams && subject.streams.length > 0 ? subject.streams : ['All Streams']
+    });
     setIsModalOpen(true);
   };
 
   const saveSubject = () => {
     if (!newSubject.name.trim() || !newSubject.code.trim()) {
-      alert('Please fill out all fields.');
+      alert('Please fill out Subject Name and Subject Code.');
+      return;
+    }
+    if (newSubject.selectedGrades.length === 0) {
+      alert('Please select at least one grade for this subject.');
       return;
     }
 
@@ -87,16 +186,23 @@ export default function Subjects() {
     if (editingSubjectId) {
       updated = subjects.map(s => 
         s.id === editingSubjectId 
-          ? { ...s, name: newSubject.name.trim(), code: newSubject.code.trim() } 
+          ? { 
+              ...s, 
+              name: newSubject.name.trim(), 
+              code: newSubject.code.trim().toUpperCase(),
+              grades: newSubject.selectedGrades,
+              streams: newSubject.selectedStreams.length > 0 ? newSubject.selectedStreams : ['All Streams']
+            } 
           : s
       );
-      triggerToast(`Subject updated to "${newSubject.name.trim()}"`);
+      triggerToast(`Subject updated: "${newSubject.name.trim()}"`);
     } else {
       const newSub: Subject = {
         id: 's_' + Date.now(),
         name: newSubject.name.trim(),
         code: newSubject.code.trim().toUpperCase(),
-        grades: [7, 8, 9] // Default to middle grades for testing
+        grades: newSubject.selectedGrades,
+        streams: newSubject.selectedStreams.length > 0 ? newSubject.selectedStreams : ['All Streams']
       };
       updated = [...subjects, newSub];
       triggerToast(`Added subject "${newSubject.name.trim()}"`);
@@ -108,6 +214,10 @@ export default function Subjects() {
   };
 
   const deleteSubject = (id: string, name: string) => {
+    if (!canDelete()) {
+      alert('⚠️ Access denied: You have a restriction ("cannot delete") preventing you from deleting items in this software.');
+      return;
+    }
     if (confirm(`⚠️ Are you sure you want to delete "${name}"?`)) {
       const updated = subjects.filter(s => s.id !== id);
       setSubjects(updated);
@@ -121,16 +231,18 @@ export default function Subjects() {
     setIsGradeModalOpen(true);
   };
 
-  const saveGradeAssignment = (newGrades: number[]) => {
+  const saveGradeAssignment = (newGrades: number[], newStreams: string[]) => {
     if (selectedSubjectForGrades) {
       const updated = subjects.map(s => 
-        s.id === selectedSubjectForGrades.id ? { ...s, grades: newGrades } : s
+        s.id === selectedSubjectForGrades.id 
+          ? { ...s, grades: newGrades, streams: newStreams.length > 0 ? newStreams : ['All Streams'] } 
+          : s
       );
       setSubjects(updated);
       saveSubjects(updated);
       setIsGradeModalOpen(false);
       setSelectedSubjectForGrades(null);
-      triggerToast(`Grade assignments updated`);
+      triggerToast(`Grade & Stream assignments updated`);
     }
   };
 
@@ -149,9 +261,14 @@ export default function Subjects() {
     }
   };
 
-  const filteredSubjects = selectedGrade === 'all' 
-    ? subjects 
-    : subjects.filter(s => s.grades.includes(selectedGrade));
+  const filteredSubjects = subjects.filter(s => {
+    const matchesGrade = selectedGrade === 'all' || (s.grades && s.grades.includes(selectedGrade as number));
+    const matchesStream = selectedStream === 'all' || 
+      !s.streams || 
+      s.streams.includes('All Streams') || 
+      s.streams.includes(selectedStream as string);
+    return matchesGrade && matchesStream;
+  });
 
   // --- ENROLLMENT LOGIC ---
   const handleToggleEnrollment = (learnerId: string, admNo: string) => {
@@ -196,7 +313,6 @@ export default function Subjects() {
     const subjectEnrolledIds = enrollments[currentSubjectId] || [];
 
     const idsToEnroll = shownLearners.map(l => l.id);
-    // Merge without duplicates
     const nextEnrolled = Array.from(new Set([...subjectEnrolledIds, ...idsToEnroll]));
     
     const addedCount = nextEnrolled.length - subjectEnrolledIds.length;
@@ -240,7 +356,7 @@ export default function Subjects() {
 
   const allAvailableStreams = Array.from(new Set(learners.map(l => l.stream))).filter(Boolean);
 
-  // If in Enrollment Subject Management mode, render the full design requested
+  // If in Enrollment Subject Management mode, render enrollment view
   if (activeEnrollmentSubject) {
     const currentSubjectId = activeEnrollmentSubject.id;
     const enrolledIds = enrollments[currentSubjectId] || [];
@@ -279,23 +395,23 @@ export default function Subjects() {
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-indigo-50/80">
           <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-3">Select Grade:</span>
           <div className="flex flex-wrap gap-2">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((grade) => {
-              const isAssigned = activeEnrollmentSubject.grades.includes(grade);
-              const isActive = activeGradeTab === grade;
+            {systemGradeList.map((g) => {
+              const isAssigned = activeEnrollmentSubject.grades.includes(g.num);
+              const isActive = activeGradeTab === g.num;
               return (
                 <button
-                  key={grade}
+                  key={g.num}
                   onClick={() => {
-                    setActiveGradeTab(grade);
-                    triggerToast(`Grade ${grade} selected`);
+                    setActiveGradeTab(g.num);
+                    triggerToast(`${g.label} selected`);
                   }}
-                  className={`flex-1 min-w-[72px] py-2.5 rounded-xl text-sm font-bold border-2 transition-all min-h-[44px] text-center ${
+                  className={`flex-1 min-w-[80px] py-2.5 rounded-xl text-sm font-bold border-2 transition-all min-h-[44px] text-center ${
                     isActive 
                       ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white border-blue-700 shadow-md shadow-blue-500/10' 
                       : 'bg-slate-50 border-slate-100 text-slate-600 hover:border-blue-400 hover:text-blue-600'
                   }`}
                 >
-                  Grade {grade} {!isAssigned && <span className="text-[10px] text-slate-400 block font-normal">(unassigned)</span>}
+                  {g.label} {!isAssigned && <span className="text-[10px] text-slate-400 block font-normal">(unassigned)</span>}
                 </button>
               );
             })}
@@ -317,7 +433,7 @@ export default function Subjects() {
             </div>
             {!activeEnrollmentSubject.grades.includes(activeGradeTab) && (
               <div className="bg-amber-50 border border-amber-200 text-amber-800 text-xs px-3.5 py-2.5 rounded-xl font-semibold flex items-center gap-2">
-                ⚠️ This subject is not assigned to Grade {activeGradeTab} yet. Go to Subjects and click "Change Grades" to assign it.
+                ⚠️ This subject is not assigned to Grade {activeGradeTab} yet. Go to Subjects and click "Change Grades & Streams" to assign it.
               </div>
             )}
           </div>
@@ -470,7 +586,7 @@ export default function Subjects() {
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
             <BookOpen className="w-6 h-6 text-blue-600" /> Subjects
           </h1>
-          <p className="text-sm text-slate-500">Manage school subjects and their grade assignments.</p>
+          <p className="text-sm text-slate-500">Manage school subjects and their assigned grades & streams.</p>
         </div>
         <button 
           onClick={handleAddSubject}
@@ -480,82 +596,289 @@ export default function Subjects() {
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button 
-            className={`px-4 py-2 rounded-xl font-medium text-sm transition-all ${selectedGrade === 'all' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200 hover:border-blue-300'}`}
-            onClick={() => setSelectedGrade('all')}
-        >
-            All Grades
-        </button>
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(grade => (
-            <button 
-                key={grade}
-                className={`px-4 py-2 rounded-xl font-medium text-sm transition-all ${selectedGrade === grade ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200 hover:border-blue-300'}`}
-                onClick={() => setSelectedGrade(grade)}
+      {/* FILTER BAR: GRADE & STREAM */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+        <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+          <div className="space-y-1.5">
+            <span className="text-xs font-extrabold text-slate-500 uppercase tracking-wider block">Filter by Grade:</span>
+            <div className="flex flex-wrap gap-1.5">
+              <button 
+                className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all ${selectedGrade === 'all' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-50 text-slate-700 border border-slate-200 hover:border-blue-300'}`}
+                onClick={() => setSelectedGrade('all')}
+              >
+                All Grades
+              </button>
+              {systemGradeList.map(g => (
+                <button 
+                  key={g.num}
+                  className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all ${selectedGrade === g.num ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-50 text-slate-700 border border-slate-200 hover:border-blue-300'}`}
+                  onClick={() => setSelectedGrade(g.num)}
+                >
+                  {g.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1.5 w-full md:w-auto">
+            <span className="text-xs font-extrabold text-slate-500 uppercase tracking-wider block">Filter by Stream:</span>
+            <select
+              value={selectedStream}
+              onChange={(e) => setSelectedStream(e.target.value)}
+              className="w-full md:w-auto px-4 py-2 rounded-xl font-bold text-xs bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:border-blue-500"
             >
-                Grade {grade}
-            </button>
-        ))}
+              <option value="all">All Streams</option>
+              {availableStreams.filter(s => s !== 'All Streams').map(str => (
+                <option key={str} value={str}>Stream {str}</option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
 
+      {/* ADD / EDIT SUBJECT MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-xl space-y-4">
-            <h2 className="text-lg font-bold text-slate-800">
-              {editingSubjectId ? 'Edit Subject Details' : 'Add / Assign Subject'}
-            </h2>
-            <input 
-              type="text"
-              value={newSubject.name}
-              onChange={(e) => setNewSubject({ ...newSubject, name: e.target.value })}
-              placeholder="Subject Name (e.g., Mathematics)"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <input 
-              type="text"
-              value={newSubject.code}
-              onChange={(e) => setNewSubject({ ...newSubject, code: e.target.value })}
-              placeholder="Subject Code (e.g., MAT-101)"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <div className="flex gap-2">
-                <button onClick={() => setIsModalOpen(false)} className="flex-1 px-4 py-2 rounded-xl text-slate-600 font-semibold hover:bg-slate-100">Cancel</button>
-                <button onClick={saveSubject} className="flex-1 px-4 py-2 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 flex items-center justify-center gap-2">
-                  <Save className="w-4 h-4" /> Save
-                </button>
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white p-6 rounded-2xl w-full max-w-md shadow-xl space-y-5 my-8">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h2 className="text-lg font-extrabold text-slate-800">
+                {editingSubjectId ? 'Edit Subject Details' : 'Add / Assign New Subject'}
+              </h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                  Subject Name *
+                </label>
+                <input 
+                  type="text"
+                  value={newSubject.name}
+                  onChange={(e) => setNewSubject({ ...newSubject, name: e.target.value })}
+                  placeholder="e.g., Mathematics, Kiswahili, Agriculture"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                  Subject Code *
+                </label>
+                <input 
+                  type="text"
+                  value={newSubject.code}
+                  onChange={(e) => setNewSubject({ ...newSubject, code: e.target.value })}
+                  placeholder="e.g., MAT-101 or ENG"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-sm"
+                />
+              </div>
+
+              {/* LINK GRADES SECTION */}
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Linked Grades ({newSubject.selectedGrades.length} selected) *
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setNewSubject({ ...newSubject, selectedGrades: systemGradeList.map(g => g.num) })}
+                      className="text-[11px] font-bold text-blue-600 hover:underline"
+                    >
+                      Select All
+                    </button>
+                    <span className="text-slate-300 text-[11px]">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setNewSubject({ ...newSubject, selectedGrades: [] })}
+                      className="text-[11px] font-bold text-slate-500 hover:underline"
+                    >
+                      Deselect All
+                    </button>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500">Check all grades where this subject is taught:</p>
+                <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1.5 bg-slate-50 rounded-xl border border-slate-100">
+                  {systemGradeList.map(g => {
+                    const isSelected = newSubject.selectedGrades.includes(g.num);
+                    return (
+                      <button
+                        key={g.num}
+                        type="button"
+                        onClick={() => {
+                          const next = isSelected
+                            ? newSubject.selectedGrades.filter(gn => gn !== g.num)
+                            : [...newSubject.selectedGrades, g.num];
+                          setNewSubject({ ...newSubject, selectedGrades: next });
+                        }}
+                        className={`px-2.5 py-2 rounded-xl text-xs font-bold border transition-all text-center flex items-center justify-center gap-1 ${
+                          isSelected
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                            : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300'
+                        }`}
+                      >
+                        {isSelected && <Check className="w-3.5 h-3.5" />}
+                        {g.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* LINK STREAMS SECTION */}
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                  Linked Streams ({newSubject.selectedStreams.length} selected)
+                </label>
+                <p className="text-xs text-slate-500">Select target streams or "All Streams":</p>
+                <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto p-1.5 bg-slate-50 rounded-xl border border-slate-100">
+                  {availableStreams.map(str => {
+                    const isSelected = newSubject.selectedStreams.includes(str);
+                    return (
+                      <button
+                        key={str}
+                        type="button"
+                        onClick={() => {
+                          let next: string[];
+                          if (str === 'All Streams') {
+                            next = isSelected ? [] : ['All Streams'];
+                          } else {
+                            const filtered = newSubject.selectedStreams.filter(s => s !== 'All Streams');
+                            next = isSelected
+                              ? filtered.filter(s => s !== str)
+                              : [...filtered, str];
+                          }
+                          setNewSubject({ ...newSubject, selectedStreams: next });
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                            : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-300'
+                        }`}
+                      >
+                        {isSelected && <Check className="w-3 h-3" />}
+                        {str === 'All Streams' ? '🌐 All Streams' : `Stream ${str}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-3 border-t border-slate-100">
+              <button 
+                onClick={() => setIsModalOpen(false)} 
+                className="flex-1 px-4 py-2.5 rounded-xl text-slate-600 font-semibold hover:bg-slate-100 text-sm"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={saveSubject} 
+                className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 flex items-center justify-center gap-2 text-sm shadow-md"
+              >
+                <Save className="w-4 h-4" /> Save Subject
+              </button>
             </div>
           </div>
         </div>
       )}
 
+      {/* CHANGE GRADES & STREAMS MODAL */}
       {isGradeModalOpen && selectedSubjectForGrades && (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-xl space-y-4">
-            <h2 className="text-lg font-bold text-slate-800">Assign Grades to {selectedSubjectForGrades.name}</h2>
-            <div className="grid grid-cols-3 gap-2">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(grade => {
-                const hasGrade = selectedSubjectForGrades.grades.includes(grade);
-                return (
-                  <button
-                    key={grade}
-                    onClick={() => {
-                        const newGrades = hasGrade
-                            ? selectedSubjectForGrades.grades.filter(g => g !== grade)
-                            : [...selectedSubjectForGrades.grades, grade];
-                        setSelectedSubjectForGrades({...selectedSubjectForGrades, grades: newGrades});
-                    }}
-                    className={`px-3 py-2 rounded-xl text-sm font-semibold transition-all ${
-                      hasGrade ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    Grade {grade}
-                  </button>
-                );
-              })}
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white p-6 rounded-2xl w-full max-w-md shadow-xl space-y-4 my-8">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h2 className="text-lg font-extrabold text-slate-800">
+                Grades & Streams for {selectedSubjectForGrades.name}
+              </h2>
+              <button onClick={() => setIsGradeModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <div className="flex gap-2 pt-2">
-                <button onClick={() => setIsGradeModalOpen(false)} className="flex-1 px-4 py-2 rounded-xl text-slate-600 font-semibold hover:bg-slate-100">Cancel</button>
-                <button onClick={() => saveGradeAssignment(selectedSubjectForGrades.grades)} className="flex-1 px-4 py-2 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 flex items-center justify-center gap-2"><Save className="w-4 h-4" /> Save</button>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-2">
+                  Assign Grades:
+                </label>
+                <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1.5 bg-slate-50 rounded-xl border border-slate-100">
+                  {systemGradeList.map(g => {
+                    const hasGrade = selectedSubjectForGrades.grades.includes(g.num);
+                    return (
+                      <button
+                        key={g.num}
+                        type="button"
+                        onClick={() => {
+                          const newGrades = hasGrade
+                            ? selectedSubjectForGrades.grades.filter(gn => gn !== g.num)
+                            : [...selectedSubjectForGrades.grades, g.num];
+                          setSelectedSubjectForGrades({ ...selectedSubjectForGrades, grades: newGrades });
+                        }}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all text-center flex items-center justify-center gap-1 ${
+                          hasGrade ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300'
+                        }`}
+                      >
+                        {hasGrade && <Check className="w-3.5 h-3.5" />}
+                        {g.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-2">
+                  Assign Streams:
+                </label>
+                <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto p-1.5 bg-slate-50 rounded-xl border border-slate-100">
+                  {availableStreams.map(str => {
+                    const currentStreams = selectedSubjectForGrades.streams || ['All Streams'];
+                    const hasStream = currentStreams.includes(str);
+                    return (
+                      <button
+                        key={str}
+                        type="button"
+                        onClick={() => {
+                          let nextStreams: string[];
+                          if (str === 'All Streams') {
+                            nextStreams = hasStream ? [] : ['All Streams'];
+                          } else {
+                            const filtered = currentStreams.filter(s => s !== 'All Streams');
+                            nextStreams = hasStream
+                              ? filtered.filter(s => s !== str)
+                              : [...filtered, str];
+                          }
+                          setSelectedSubjectForGrades({ ...selectedSubjectForGrades, streams: nextStreams });
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 ${
+                          hasStream ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-300'
+                        }`}
+                      >
+                        {hasStream && <Check className="w-3 h-3" />}
+                        {str === 'All Streams' ? '🌐 All Streams' : `Stream ${str}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-3 border-t border-slate-100">
+              <button 
+                onClick={() => setIsGradeModalOpen(false)} 
+                className="flex-1 px-4 py-2 rounded-xl text-slate-600 font-semibold hover:bg-slate-100 text-sm"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => saveGradeAssignment(selectedSubjectForGrades.grades, selectedSubjectForGrades.streams || ['All Streams'])} 
+                className="flex-1 px-4 py-2 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 flex items-center justify-center gap-2 text-sm shadow-md"
+              >
+                <Save className="w-4 h-4" /> Save Changes
+              </button>
             </div>
           </div>
         </div>
@@ -564,8 +887,8 @@ export default function Subjects() {
       {filteredSubjects.length === 0 ? (
         <div className="bg-white rounded-2xl p-16 text-center border-2 border-dashed border-slate-200 shadow-sm">
           <span className="text-5xl mb-4 block opacity-70">📖</span>
-          <p className="text-slate-500 font-medium text-lg">No subjects configured yet.</p>
-          <p className="text-slate-400">Click "Add / Assign Subject" to get started.</p>
+          <p className="text-slate-500 font-medium text-lg">No subjects match the selected filters.</p>
+          <p className="text-slate-400">Click "Add / Assign Subject" or adjust filter criteria above.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -581,18 +904,47 @@ export default function Subjects() {
                     </div>
                     <div className="flex gap-1">
                       <button onClick={() => handleEditSubject(subject)} className="p-2 text-amber-600 hover:bg-amber-50 rounded-xl transition-all" title="Edit Subject"><Edit2 className="w-4 h-4" /></button>
-                      <button onClick={() => deleteSubject(subject.id, subject.name)} className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all" title="Delete Subject"><Trash2 className="w-4 h-4" /></button>
+                      {canDelete() && (
+                        <button onClick={() => deleteSubject(subject.id, subject.name)} className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all" title="Delete Subject"><Trash2 className="w-4 h-4" /></button>
+                      )}
                     </div>
                   </div>
                   
-                  <div className="flex flex-wrap gap-1.5 mb-4">
-                    {subject.grades.length === 0 ? (
-                      <span className="text-xs text-slate-400 font-medium italic">No grades assigned</span>
-                    ) : (
-                      subject.grades.map(grade => (
-                        <span key={grade} className="bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full text-xs font-semibold">Grade {grade}</span>
-                      ))
-                    )}
+                  {/* LINKED GRADES */}
+                  <div className="space-y-1 mb-3">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Linked Grades:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(!subject.grades || subject.grades.length === 0) ? (
+                        <span className="text-xs text-slate-400 font-medium italic">No grades assigned</span>
+                      ) : (
+                        subject.grades.map(gradeNum => {
+                          const gInfo = systemGradeList.find(g => g.num === gradeNum);
+                          return (
+                            <span key={gradeNum} className="bg-blue-50 border border-blue-100 text-blue-700 px-2.5 py-0.5 rounded-full text-xs font-semibold">
+                              {gInfo ? gInfo.label : `Grade ${gradeNum}`}
+                            </span>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  {/* LINKED STREAMS */}
+                  <div className="space-y-1 mb-4">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Linked Streams:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(!subject.streams || subject.streams.length === 0 || subject.streams.includes('All Streams')) ? (
+                        <span className="bg-emerald-50 border border-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full text-xs font-semibold">
+                          🌐 All Streams
+                        </span>
+                      ) : (
+                        subject.streams.map(str => (
+                          <span key={str} className="bg-indigo-50 border border-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full text-xs font-semibold">
+                            Stream {str}
+                          </span>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -608,7 +960,7 @@ export default function Subjects() {
                     onClick={() => changeGradeAssignment(subject)} 
                     className="text-slate-600 font-semibold text-sm flex items-center gap-2 hover:text-slate-700 transition-colors"
                   >
-                    <Filter className="w-4 h-4" /> Change Grades
+                    <Filter className="w-4 h-4" /> Change Grades & Streams
                   </button>
                 </div>
               </div>

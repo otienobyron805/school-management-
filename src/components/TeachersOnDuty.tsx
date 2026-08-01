@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUsers, UserAccount, getCurrentUser } from '../utils/db';
+import { getUsers, UserAccount, getCurrentUser, secureGet, secureSet } from '../utils/db';
 import { 
   ShieldCheck, 
   Calendar, 
@@ -113,7 +113,7 @@ const TeachersOnDuty: React.FC<TeachersOnDutyProps> = ({ onNavigate }) => {
 
     // Load initial roster
     try {
-      const savedRoster = localStorage.getItem(STORAGE_KEY_ROSTER);
+      const savedRoster = secureGet(STORAGE_KEY_ROSTER);
       if (savedRoster) {
         setRoster(JSON.parse(savedRoster));
       } else if (allUsers.length > 0) {
@@ -141,7 +141,7 @@ const TeachersOnDuty: React.FC<TeachersOnDutyProps> = ({ onNavigate }) => {
           }] : [])
         ];
         setRoster(seedRoster);
-        localStorage.setItem(STORAGE_KEY_ROSTER, JSON.stringify(seedRoster));
+        secureSet(STORAGE_KEY_ROSTER, JSON.stringify(seedRoster));
       }
     } catch (e) {
       console.error('Error loading TOD roster:', e);
@@ -149,7 +149,7 @@ const TeachersOnDuty: React.FC<TeachersOnDutyProps> = ({ onNavigate }) => {
 
     // Load duty logs
     try {
-      const savedLogs = localStorage.getItem(STORAGE_KEY_LOGS);
+      const savedLogs = secureGet(STORAGE_KEY_LOGS);
       if (savedLogs) {
         setDutyLogs(JSON.parse(savedLogs));
       }
@@ -161,7 +161,7 @@ const TeachersOnDuty: React.FC<TeachersOnDutyProps> = ({ onNavigate }) => {
   const saveRoster = (newRoster: DutyAssignment[]) => {
     setRoster(newRoster);
     try {
-      localStorage.setItem(STORAGE_KEY_ROSTER, JSON.stringify(newRoster));
+      secureSet(STORAGE_KEY_ROSTER, JSON.stringify(newRoster));
     } catch (e) {
       console.error(e);
     }
@@ -170,7 +170,7 @@ const TeachersOnDuty: React.FC<TeachersOnDutyProps> = ({ onNavigate }) => {
   const saveLogs = (newLogs: DutyLog[]) => {
     setDutyLogs(newLogs);
     try {
-      localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(newLogs));
+      secureSet(STORAGE_KEY_LOGS, JSON.stringify(newLogs));
     } catch (e) {
       console.error(e);
     }

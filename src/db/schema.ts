@@ -168,3 +168,10 @@ export const dbSubjectPapers = pgTable('db_subject_papers', {
   data: jsonb('data').notNull(), // SubjectPaper[]
   updatedAt: timestamp('updated_at').defaultNow(),
 });
+
+// 18. Schemes of Work table
+export const dbSchemesOfWork = pgTable('db_schemes_of_work', {
+  key: text('key').primaryKey(), // 'schemes_of_work'
+  data: jsonb('data').notNull(), // SchemeOfWork[]
+  updatedAt: timestamp('updated_at').defaultNow(),
+});

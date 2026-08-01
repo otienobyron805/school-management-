@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { secureGet, secureSet } from './db';
+
 export interface AlertConfig {
   primaryEmail: string;
   enableSecurityBreach: boolean;
@@ -36,9 +38,9 @@ const DEFAULT_ALERT_CONFIG: AlertConfig = {
 };
 
 export function getAlertConfig(): AlertConfig {
-  const stored = localStorage.getItem('school_alert_config');
+  const stored = secureGet('school_alert_config');
   if (!stored) {
-    localStorage.setItem('school_alert_config', JSON.stringify(DEFAULT_ALERT_CONFIG));
+    secureSet('school_alert_config', JSON.stringify(DEFAULT_ALERT_CONFIG));
     return DEFAULT_ALERT_CONFIG;
   }
   try {
@@ -49,11 +51,11 @@ export function getAlertConfig(): AlertConfig {
 }
 
 export function saveAlertConfig(config: AlertConfig): void {
-  localStorage.setItem('school_alert_config', JSON.stringify(config));
+  secureSet('school_alert_config', JSON.stringify(config));
 }
 
 export function getAlertLogs(): AlertLog[] {
-  const stored = localStorage.getItem('school_alert_logs');
+  const stored = secureGet('school_alert_logs');
   if (!stored) return [];
   try {
     return JSON.parse(stored);
@@ -63,7 +65,7 @@ export function getAlertLogs(): AlertLog[] {
 }
 
 export function clearAlertLogs(): void {
-  localStorage.setItem('school_alert_logs', JSON.stringify([]));
+  secureSet('school_alert_logs', JSON.stringify([]));
 }
 
 export function addAlertLog(
@@ -140,7 +142,7 @@ export function addAlertLog(
 
   const existing = getAlertLogs();
   const updated = [newLog, ...existing].slice(0, 100); // Keep last 100 logs
-  localStorage.setItem('school_alert_logs', JSON.stringify(updated));
+  secureSet('school_alert_logs', JSON.stringify(updated));
 
   // Also dispatch a custom browser event so active UI views can listen/refresh in real-time
   window.dispatchEvent(new Event('security_alert_logged'));

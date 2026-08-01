@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { getSchoolProfile, SchoolProfile, secureGet, getLearners } from '../utils/db';
-import { Printer, X, Eye, Trash2, Plus, Sparkles, CheckCircle, HelpCircle, FileText, List, Award } from 'lucide-react';
+import { Printer, X, Eye, Trash2, Plus, Sparkles, CheckCircle, HelpCircle, FileText, List, Award, Download } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
+import { VerificationQRCode } from './VerificationQRCode';
+import { PrintHeader } from './PrintHeader';
 
 interface ComponentExam {
   name: string;
@@ -99,6 +103,39 @@ export default function TermReport() {
     if (total >= 60) return 'Consistently meets learning outcomes. Can apply mathematical and scientific concepts with ease.';
     if (total >= 40) return 'Grasps basic concepts well but requires consistent practice and support in analytical tasks.';
     return 'Requires targeted remedial sessions to improve concept mastery and self-confidence.';
+  };
+
+  const handleDownloadPDF = async () => {
+    const reportElement = document.getElementById('report-printable-card');
+    if (!reportElement) {
+      window.print();
+      return;
+    }
+    try {
+      const canvas = await html2canvas(reportElement, {
+        scale: 2,
+        useCORS: true,
+        logging: true,
+        windowWidth: reportElement.scrollWidth,
+        windowHeight: reportElement.scrollHeight,
+        onclone: (clonedDoc) => {
+          const el = clonedDoc.getElementById('report-printable-card');
+          if (el) {
+            el.style.overflow = 'visible';
+            el.style.height = 'auto';
+          }
+        }
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`${activeReportDef?.name || 'Report'}_Card.pdf`);
+    } catch (err) {
+      console.error("PDF download error:", err);
+      window.print();
+    }
   };
 
   return (
@@ -342,6 +379,20 @@ export default function TermReport() {
 
                 <button 
                   onClick={() => window.print()}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5"
+                >
+                  <FileText className="w-3.5 h-3.5" /> Print Report
+                </button>
+
+                <button 
+                  onClick={handleDownloadPDF}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" /> Download PDF
+                </button>
+
+                <button 
+                  onClick={() => window.print()}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5"
                 >
                   <Printer className="w-3.5 h-3.5" /> Print Report
@@ -358,7 +409,8 @@ export default function TermReport() {
 
             {/* Scrollable Document Container */}
             <div className="p-8 overflow-y-auto flex-1 bg-slate-100 print:bg-white print:p-0">
-              <div className="max-w-4xl mx-auto bg-white p-8 sm:p-10 border border-slate-300 rounded-3xl shadow-sm text-slate-900 relative print:border-none print:shadow-none print:p-0 print:rounded-none overflow-hidden">
+              <div id="report-printable-card" className="max-w-4xl mx-auto bg-white p-8 sm:p-10 border border-slate-300 rounded-3xl shadow-sm text-slate-900 relative print:border-none print:shadow-none print:p-0 print:rounded-none overflow-hidden">
+                <PrintHeader />
                 
                 {/* School Logo Watermark */}
                 <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none select-none z-0">
@@ -689,11 +741,19 @@ export default function TermReport() {
                   </div>
                 )}
 
-                {/* Footer terms */}
-                <div className="mt-8 border-t border-slate-200 pt-5 flex justify-between items-center text-[10px] font-mono text-slate-400">
-                  <span>Standard CBC Term Report Sheet</span>
-                  <span>Generated dynamically · Page 1 of 1</span>
-                </div>
+                {/* Verification QR Code Badge */}
+                {(() => {
+                  const currentLearner = learnersList.find(l => l.id === selectedLearnerId) || learnersList[0];
+                  return (
+                    <div className="mt-8 pt-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                      <VerificationQRCode admissionNo={currentLearner?.admNo} learnerName={currentLearner?.name} />
+                      <div className="text-right text-[10px] font-mono text-slate-400">
+                        <span>Standard CBC Term Report Sheet</span>
+                        <span className="block">Generated dynamically · Page 1 of 1</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 

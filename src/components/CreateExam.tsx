@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { secureGet, secureSet, getCurrentUser, logActivity } from '../utils/db';
+import { secureGet, secureSet, saveToBackend, getCurrentUser, logActivity } from '../utils/db';
 
 export default function CreateExam() {
   const [examName, setExamName] = useState('');
-  const [academicYear, setAcademicYear] = useState('');
-  const [term, setTerm] = useState('Term 1');
+  const [academicYear, setAcademicYear] = useState(new Date().getFullYear().toString());
+  const [term, setTerm] = useState('Term 1 ' + new Date().getFullYear());
   const [examDate, setExamDate] = useState('');
   const [openingDate, setOpeningDate] = useState('');
   const [closingDate, setClosingDate] = useState('');
@@ -29,6 +29,7 @@ export default function CreateExam() {
     const exams = storedExams ? JSON.parse(storedExams) : [];
     exams.push(newExam);
     secureSet('exams', JSON.stringify(exams));
+    saveToBackend('exams', exams);
 
     const user = getCurrentUser();
     if (user) logActivity('exam_created', `New exam "${examName}" created for academic year ${academicYear}.`, user.fullName);
@@ -37,8 +38,8 @@ export default function CreateExam() {
     
     // Clear fields
     setExamName('');
-    setAcademicYear('');
-    setTerm('Term 1');
+    setAcademicYear(new Date().getFullYear().toString());
+    setTerm('Term 1 ' + new Date().getFullYear());
     setExamDate('');
     setOpeningDate('');
     setClosingDate('');
@@ -79,9 +80,9 @@ export default function CreateExam() {
             onChange={(e) => setTerm(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500"
           >
-            <option>Term 1</option>
-            <option>Term 2</option>
-            <option>Term 3</option>
+            <option>Term 1 {new Date().getFullYear()}</option>
+            <option>Term 2 {new Date().getFullYear()}</option>
+            <option>Term 3 {new Date().getFullYear()}</option>
           </select>
         </div>
 

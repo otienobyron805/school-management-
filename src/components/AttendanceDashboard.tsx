@@ -156,10 +156,10 @@ export default function AttendanceDashboard() {
       cumulativeStaffAbsent += sAbsent;
 
       const totalL = lPresent + lAbsent;
-      const learnerRate = totalL > 0 ? Math.round((lPresent / totalL) * 100) : (learners.length > 0 ? 100 : 0);
+      const learnerRate = totalL > 0 ? Math.round((lPresent / totalL) * 100) : 0;
       
       const totalS = sPresent + sLate + sAbsent;
-      const staffRate = totalS > 0 ? Math.round(((sPresent + sLate) / totalS) * 100) : (staff.length > 0 ? 100 : 0);
+      const staffRate = totalS > 0 ? Math.round(((sPresent + sLate) / totalS) * 100) : 0;
 
       return {
         date: dateLabel,
@@ -208,7 +208,7 @@ export default function AttendanceDashboard() {
         });
       });
 
-      const rate = gTotal > 0 ? Math.round((gPresent / gTotal) * 100) : (gradeLearners.length > 0 ? 100 : 0);
+      const rate = gTotal > 0 ? Math.round((gPresent / gTotal) * 100) : 0;
 
       return {
         grade: g.name,
@@ -223,12 +223,12 @@ export default function AttendanceDashboard() {
 
     const overallLearnerPercent = (cumulativeLearnerPresent + cumulativeLearnerAbsent) > 0 
       ? Math.round((cumulativeLearnerPresent / (cumulativeLearnerPresent + cumulativeLearnerAbsent)) * 100) 
-      : (totalLCount > 0 ? 100 : 0);
+      : 0;
 
     const totalStaffRecords = cumulativeStaffPresent + cumulativeStaffLate + cumulativeStaffAbsent;
     const overallStaffPercent = totalStaffRecords > 0 
       ? Math.round(((cumulativeStaffPresent + cumulativeStaffLate) / totalStaffRecords) * 100) 
-      : (totalSCount > 0 ? 100 : 0);
+      : 0;
 
     const weeklyData = [
       { week: 'Current Week', Learners: overallLearnerPercent, Staff: overallStaffPercent, Overall: Math.round((overallLearnerPercent + overallStaffPercent) / 2) }

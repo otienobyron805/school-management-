@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Download, Upload, Database, CheckCircle2, AlertTriangle, RefreshCw, Layers } from 'lucide-react';
+import { Download, Upload, Database, CheckCircle2, AlertTriangle, RefreshCw, Layers, CloudUpload, History, RotateCcw, Trash2, Clock, FileText, ShieldCheck, HardDrive } from 'lucide-react';
+import CloudStorageCard from './CloudStorageCard';
 import { addAlertLog } from '../utils/alerts';
 import { 
   fetchMongoStatus, 
@@ -10,7 +11,14 @@ import {
   getFeeStructures, 
   getGrades, 
   getSubjects,
-  MongoStatusResponse 
+  getCurrentUser,
+  MongoStatusResponse,
+  secureSet,
+  triggerManualCloudSnapshot,
+  getCloudSnapshots,
+  deleteCloudSnapshot,
+  restoreCloudSnapshot,
+  CloudSnapshotMeta
 } from '../utils/db';
 
 export const exportAllData = () => {
@@ -50,6 +58,25 @@ export default function DataManagement() {
   const [isSyncingMongo, setIsSyncingMongo] = useState<boolean>(false);
   const [mongoSyncResult, setMongoSyncResult] = useState<string | null>(null);
 
+  // Cloud Backup Manager State
+  const [snapshots, setSnapshots] = useState<CloudSnapshotMeta[]>([]);
+  const [isLoadingSnapshots, setIsLoadingSnapshots] = useState<boolean>(false);
+  const [isCreatingSnapshot, setIsCreatingSnapshot] = useState<boolean>(false);
+  const [snapshotNote, setSnapshotNote] = useState<string>('');
+  const [snapshotMessage, setSnapshotMessage] = useState<string | null>(null);
+
+  const loadSnapshots = async () => {
+    setIsLoadingSnapshots(true);
+    try {
+      const list = await getCloudSnapshots();
+      setSnapshots(list);
+    } catch (err) {
+      console.error('Failed to load cloud snapshots:', err);
+    } finally {
+      setIsLoadingSnapshots(false);
+    }
+  };
+
   const checkMongo = async () => {
     setIsTestingMongo(true);
     setMongoSyncResult(null);
@@ -66,7 +93,64 @@ export default function DataManagement() {
 
   useEffect(() => {
     checkMongo();
+    loadSnapshots();
   }, []);
+
+  const handleTriggerSnapshot = async () => {
+    setIsCreatingSnapshot(true);
+    setSnapshotMessage(null);
+    try {
+      const res = await triggerManualCloudSnapshot(snapshotNote);
+      if (res.success && res.snapshot) {
+        setSnapshotMessage(`✅ Snapshot created successfully! (${res.snapshot.recordCount} total records backed up to Firebase)`);
+        setSnapshotNote('');
+        await loadSnapshots();
+      } else {
+        setSnapshotMessage(`❌ Snapshot creation failed: ${res.error || 'Unknown error'}`);
+      }
+    } catch (err: any) {
+      setSnapshotMessage(`❌ Snapshot error: ${err.message}`);
+    } finally {
+      setIsCreatingSnapshot(false);
+    }
+  };
+
+  const handleRestoreSnapshot = async (snap: CloudSnapshotMeta) => {
+    if (confirm(`⚠️ RESTORE SYSTEM DATABASE?\n\nAre you sure you want to restore the system state from snapshot taken on ${snap.formattedDate}?\n\nThis will restore all records and configuration stored in this snapshot.`)) {
+      const ok = await restoreCloudSnapshot(snap);
+      if (ok) {
+        alert('✅ System database successfully restored from Cloud Snapshot! Reloading application...');
+        location.reload();
+      } else {
+        alert('❌ Failed to restore snapshot. Snapshot data may be missing or corrupt.');
+      }
+    }
+  };
+
+  const handleDownloadSnapshot = (snap: CloudSnapshotMeta) => {
+    if (!snap.snapshotData) {
+      alert('❌ Snapshot data payload not available for download.');
+      return;
+    }
+    const blob = new Blob([JSON.stringify(snap.snapshotData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cloud-snapshot-${snap.id}-${snap.timestamp.slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDeleteSnapshot = async (id: string) => {
+    if (confirm('⚠️ Delete this cloud snapshot permanently from Firebase history?')) {
+      const ok = await deleteCloudSnapshot(id);
+      if (ok) {
+        await loadSnapshots();
+      } else {
+        alert('❌ Failed to delete snapshot record.');
+      }
+    }
+  };
 
   const handleSyncAllToMongo = async () => {
     setIsSyncingMongo(true);
@@ -111,7 +195,9 @@ export default function DataManagement() {
         
         localStorage.clear();
         Object.keys(data).forEach((key) => {
-          localStorage.setItem(key, data[key]);
+          if (data[key]) {
+            secureSet(key, data[key]);
+          }
         });
         
         // Log critical backup restore security alert before reloading
@@ -132,8 +218,18 @@ export default function DataManagement() {
     reader.readAsText(file);
   };
 
+  const currentUser = getCurrentUser();
+  const isSuperAdmin = currentUser?.role === 'Super Admin' || currentUser?.systemRole === 'super_admin';
+
   return (
     <div className="space-y-6">
+      {/* 📊 CLOUD STORAGE STAT METER (Super Admin Only) */}
+      {isSuperAdmin && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <CloudStorageCard />
+        </div>
+      )}
+
       {/* 🟢 MONGODB CLUSTER INTEGRATION CARD */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
@@ -240,6 +336,174 @@ export default function DataManagement() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* ☁️ CLOUD BACKUP MANAGER (Firebase Snapshots) */}
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-indigo-100 text-indigo-700 rounded-2xl">
+              <CloudUpload className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-black text-slate-900">Cloud Backup Manager</h2>
+                <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase border bg-indigo-50 text-indigo-700 border-indigo-200 flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3" /> Firebase Snapshots
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium">
+                Trigger manual database snapshots saved directly to Firebase Cloud storage and manage historical backup points.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={loadSnapshots}
+            disabled={isLoadingSnapshots}
+            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer self-start sm:self-center"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoadingSnapshots ? 'animate-spin' : ''}`} />
+            <span>Refresh History</span>
+          </button>
+        </div>
+
+        {/* Action Panel: Take New Manual Snapshot */}
+        <div className="bg-gradient-to-br from-indigo-50/70 to-slate-50 border border-indigo-100 rounded-2xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black uppercase text-indigo-950 tracking-wider flex items-center gap-1.5">
+              <HardDrive className="w-4 h-4 text-indigo-600" /> Create Instant Cloud Snapshot
+            </span>
+            <span className="text-[11px] font-semibold text-indigo-700 bg-white/80 px-2 py-0.5 rounded-md border border-indigo-100">
+              Manual Trigger
+            </span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <input
+              type="text"
+              value={snapshotNote}
+              onChange={(e) => setSnapshotNote(e.target.value)}
+              placeholder="Snapshot description (e.g., Pre-exam marks entry, Term 2 final setup)..."
+              className="flex-1 bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-medium placeholder:text-slate-400"
+            />
+            <button
+              onClick={handleTriggerSnapshot}
+              disabled={isCreatingSnapshot}
+              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-md shadow-indigo-600/20 cursor-pointer disabled:opacity-50 shrink-0"
+            >
+              {isCreatingSnapshot ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Saving to Firebase...</span>
+                </>
+              ) : (
+                <>
+                  <CloudUpload className="w-4 h-4" />
+                  <span>Take Cloud Snapshot</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {snapshotMessage && (
+            <div className={`p-3 rounded-xl text-xs font-bold ${
+              snapshotMessage.startsWith('✅') 
+                ? 'bg-emerald-50 border border-emerald-200 text-emerald-900' 
+                : 'bg-rose-50 border border-rose-200 text-rose-900'
+            }`}>
+              {snapshotMessage}
+            </div>
+          )}
+        </div>
+
+        {/* Previous Backup History List */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
+              <History className="w-4 h-4 text-slate-600" /> Firebase Snapshot History ({snapshots.length})
+            </h3>
+            <span className="text-[11px] text-slate-400 font-medium">Sorted by newest first</span>
+          </div>
+
+          {isLoadingSnapshots ? (
+            <div className="p-8 text-center text-slate-400 text-xs font-medium flex items-center justify-center gap-2">
+              <RefreshCw className="w-4 h-4 animate-spin text-indigo-600" /> Loading cloud snapshot history...
+            </div>
+          ) : snapshots.length === 0 ? (
+            <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 space-y-2">
+              <Clock className="w-8 h-8 text-slate-300 mx-auto" />
+              <p className="text-xs font-bold text-slate-600">No Manual Cloud Snapshots Found</p>
+              <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+                Click "Take Cloud Snapshot" above to create your first manual database snapshot stored securely in Cloud Firestore.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+              {snapshots.map((snap) => (
+                <div
+                  key={snap.id}
+                  className="p-4 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 rounded-2xl transition flex flex-col md:flex-row md:items-center justify-between gap-3"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-xs font-extrabold text-slate-900 flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-indigo-600" /> {snap.formattedDate}
+                      </span>
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
+                        {snap.id}
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                        {snap.recordCount} records
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-[11px] text-slate-500 font-medium">
+                      <span>Saved by: <strong className="text-slate-700">{snap.createdBy}</strong></span>
+                      {snap.tablesCount > 0 && (
+                        <span>• Datasets: <strong className="text-slate-700">{snap.tablesCount}</strong></span>
+                      )}
+                    </div>
+
+                    {snap.note && (
+                      <p className="text-xs font-semibold text-slate-800 bg-white/80 border border-slate-200/60 rounded-lg px-2.5 py-1 inline-block mt-1">
+                        💬 "{snap.note}"
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-200">
+                    <button
+                      onClick={() => handleRestoreSnapshot(snap)}
+                      className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer shadow-xs"
+                      title="Restore system state to this snapshot"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Restore</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleDownloadSnapshot(snap)}
+                      className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer shadow-xs"
+                      title="Download backup file"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Download</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleDeleteSnapshot(snap.id)}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                      title="Delete snapshot from cloud history"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 📄 LOCAL BACKUP & TRANSFER CARD */}

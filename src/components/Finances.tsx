@@ -38,6 +38,7 @@ import {
   saveFeeStructures, 
   getFeePayments, 
   saveFeePayments, 
+  clearAllFinanceData,
   getCurrentUser, 
   getSystemSettings, 
   getSchoolProfile,
@@ -45,6 +46,7 @@ import {
   FeeStructure, 
   FeePayment 
 } from '../utils/db';
+import { canDelete } from '../utils/permissions';
 
 export default function Finances() {
   const [activeTab, setActiveTab] = useState<'balances' | 'record' | 'structures' | 'transactions'>('balances');
@@ -67,10 +69,15 @@ export default function Finances() {
   const [payRemarks, setPayRemarks] = useState<string>('');
   const [payDate, setPayDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
-  // Modal / Receipt state
+  // Modal / Receipt / Add Structure state
   const [receiptModalPayment, setReceiptModalPayment] = useState<FeePayment | null>(null);
   const [copiedReceiptText, setCopiedReceiptText] = useState<boolean>(false);
   const [editStructureModal, setEditStructureModal] = useState<FeeStructure | null>(null);
+  const [addStructureModalOpen, setAddStructureModalOpen] = useState<boolean>(false);
+  const [newGradeLabel, setNewGradeLabel] = useState<string>('Grade 1');
+  const [newTuitionFee, setNewTuitionFee] = useState<number | ''>('');
+  const [newActivityFee, setNewActivityFee] = useState<number | ''>('');
+  const [newExamFee, setNewExamFee] = useState<number | ''>('');
 
   const currentUser = getCurrentUser();
   const systemSettings = getSystemSettings();
@@ -256,6 +263,61 @@ export default function Finances() {
     setEditStructureModal(null);
   };
 
+  // Add New Fee Structure
+  const handleAddStructure = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newGradeLabel) return;
+
+    const tuition = Number(newTuitionFee) || 0;
+    const activity = Number(newActivityFee) || 0;
+    const exam = Number(newExamFee) || 0;
+    const total = tuition + activity + exam;
+
+    const newStruct: FeeStructure = {
+      id: `fs-${Date.now()}`,
+      gradeLabel: newGradeLabel,
+      term: selectedTerm,
+      tuitionFee: tuition,
+      activityFee: activity,
+      examFee: exam,
+      totalFee: total
+    };
+
+    const updated = [...structures.filter(s => s.gradeLabel !== newGradeLabel), newStruct];
+    setStructures(updated);
+    saveFeeStructures(updated);
+    setAddStructureModalOpen(false);
+    setNewTuitionFee('');
+    setNewActivityFee('');
+    setNewExamFee('');
+  };
+
+  // Delete Individual Fee Structure
+  const handleDeleteStructure = (id: string) => {
+    if (!canDelete()) {
+      alert('⚠️ Access denied: You have a restriction ("cannot delete") preventing you from deleting items in this software.');
+      return;
+    }
+    if (window.confirm('Are you sure you want to delete this fee structure?')) {
+      const updated = structures.filter(s => s.id !== id);
+      setStructures(updated);
+      saveFeeStructures(updated);
+    }
+  };
+
+  // Delete Individual Payment
+  const handleDeletePayment = (id: string) => {
+    if (!canDelete()) {
+      alert('⚠️ Access denied: You have a restriction ("cannot delete") preventing you from deleting items in this software.');
+      return;
+    }
+    if (window.confirm('Are you sure you want to delete this payment record?')) {
+      const updated = payments.filter(p => p.id !== id);
+      setPayments(updated);
+      saveFeePayments(updated);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100 p-3 sm:p-5 md:p-6 space-y-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -281,7 +343,18 @@ export default function Finances() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => {
+                setAddStructureModalOpen(true);
+                setActiveTab('structures');
+              }}
+              className="px-3.5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-blue-200 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Fee Structure</span>
+            </button>
+
             <button
               onClick={() => setActiveTab('record')}
               className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-md shadow-emerald-600/20 cursor-pointer"
@@ -669,54 +742,90 @@ export default function Finances() {
         {/* TAB 3: FEE STRUCTURES */}
         {activeTab === 'structures' && (
           <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-5 sm:p-6 space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-base font-black text-slate-900">Grade Fee Structures ({selectedTerm})</h3>
                 <p className="text-xs text-slate-500">Configure tuition, activity, and exam fees per grade level.</p>
               </div>
+              <button
+                onClick={() => setAddStructureModalOpen(true)}
+                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Fee Structure</span>
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {structures.map((struct) => (
-                <div key={struct.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 relative">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-                    <span className="font-black text-sm text-slate-900">{struct.gradeLabel}</span>
-                    <span className="text-[10px] font-extrabold bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full">
-                      {struct.term}
-                    </span>
-                  </div>
+            {structures.length === 0 ? (
+              <div className="text-center py-12 px-4 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50 space-y-3">
+                <Wallet className="w-10 h-10 text-slate-400 mx-auto" />
+                <h4 className="font-bold text-slate-800 text-sm">No Fee Structures Added Yet</h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  Click the button below to add your school's tuition, activity, and exam fee breakdown for each grade.
+                </p>
+                <button
+                  onClick={() => setAddStructureModalOpen(true)}
+                  className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition inline-flex items-center gap-2 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Create First Fee Structure</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {structures.map((struct) => (
+                  <div key={struct.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 relative hover:border-slate-300 transition">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                      <span className="font-black text-sm text-slate-900">{struct.gradeLabel}</span>
+                      <span className="text-[10px] font-extrabold bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full">
+                        {struct.term}
+                      </span>
+                    </div>
 
-                  <div className="space-y-1.5 text-xs">
-                    <div className="flex justify-between text-slate-600">
-                      <span>Tuition Fee:</span>
-                      <span className="font-mono font-bold">KES {struct.tuitionFee.toLocaleString()}</span>
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between text-slate-600">
+                        <span>Tuition Fee:</span>
+                        <span className="font-mono font-bold">KES {struct.tuitionFee.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-600">
+                        <span>Activity & Sports:</span>
+                        <span className="font-mono font-bold">KES {struct.activityFee.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-600">
+                        <span>Exams & Assessments:</span>
+                        <span className="font-mono font-bold">KES {struct.examFee.toLocaleString()}</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between text-slate-600">
-                      <span>Activity & Sports:</span>
-                      <span className="font-mono font-bold">KES {struct.activityFee.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-slate-600">
-                      <span>Exams & Assessments:</span>
-                      <span className="font-mono font-bold">KES {struct.examFee.toLocaleString()}</span>
-                    </div>
-                  </div>
 
-                  <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 block uppercase">Total Term Fee</span>
-                      <span className="text-sm font-black text-blue-900 font-mono">KES {struct.totalFee.toLocaleString()}</span>
+                    <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 block uppercase">Total Term Fee</span>
+                        <span className="text-sm font-black text-blue-900 font-mono">KES {struct.totalFee.toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => setEditStructureModal(struct)}
+                          className="px-2.5 py-1.5 bg-white border border-slate-200 hover:bg-blue-50 hover:text-blue-700 text-slate-700 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                          title="Edit Structure"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>Edit</span>
+                        </button>
+                        {canDelete() && (
+                          <button
+                            onClick={() => handleDeleteStructure(struct.id)}
+                            className="p-1.5 bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-400 rounded-lg text-xs transition cursor-pointer"
+                            title="Delete Structure"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <button
-                      onClick={() => setEditStructureModal(struct)}
-                      className="px-2.5 py-1.5 bg-white border border-slate-200 hover:bg-blue-50 hover:text-blue-700 text-slate-700 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                      <span>Edit</span>
-                    </button>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -741,7 +850,7 @@ export default function Finances() {
                     <th className="p-3.5 text-right">Amount</th>
                     <th className="p-3.5">Method</th>
                     <th className="p-3.5">Ref No</th>
-                    <th className="p-3.5 pr-5 text-right">Receipt</th>
+                    <th className="p-3.5 pr-5 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-medium">
@@ -762,13 +871,25 @@ export default function Finances() {
                         <td className="p-3.5 font-bold text-slate-700">{p.paymentMethod}</td>
                         <td className="p-3.5 font-mono text-slate-500">{p.referenceNo}</td>
                         <td className="p-3.5 pr-5 text-right">
-                          <button
-                            onClick={() => setReceiptModalPayment(p)}
-                            className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-[11px] font-bold transition flex items-center gap-1 ml-auto cursor-pointer"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            <span>View</span>
-                          </button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => setReceiptModalPayment(p)}
+                              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                              title="View Receipt"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>View</span>
+                            </button>
+                            {canDelete() && (
+                              <button
+                                onClick={() => handleDeletePayment(p.id)}
+                                className="p-1.5 bg-slate-100 hover:bg-rose-100 hover:text-rose-700 text-slate-400 rounded-lg text-[11px] transition cursor-pointer"
+                                title="Delete Record"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -915,6 +1036,94 @@ export default function Finances() {
                   className="px-4 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl cursor-pointer"
                 >
                   Save Structure
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ADD NEW FEE STRUCTURE MODAL */}
+      {addStructureModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-100">
+            <div className="flex items-center justify-between border-b pb-3 border-slate-100">
+              <h3 className="font-black text-slate-900 text-sm">Add Grade Fee Structure</h3>
+              <button onClick={() => setAddStructureModalOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddStructure} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Grade Level / Class *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Grade 1, Playgroup, Form 1"
+                  value={newGradeLabel}
+                  onChange={(e) => setNewGradeLabel(e.target.value)}
+                  className="w-full text-xs font-bold p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Tuition Fee (KES) *</label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  placeholder="e.g. 15000"
+                  value={newTuitionFee}
+                  onChange={(e) => setNewTuitionFee(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full text-xs font-mono p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Activity & Sports Fee (KES)</label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 2500"
+                  value={newActivityFee}
+                  onChange={(e) => setNewActivityFee(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full text-xs font-mono p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Exam & Assessment Fee (KES)</label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 1500"
+                  value={newExamFee}
+                  onChange={(e) => setNewExamFee(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full text-xs font-mono p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-900"
+                />
+              </div>
+
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex justify-between items-center text-xs">
+                <span className="font-bold text-slate-700">Total Term Fee:</span>
+                <span className="font-mono font-black text-blue-900 text-sm">
+                  KES {((Number(newTuitionFee) || 0) + (Number(newActivityFee) || 0) + (Number(newExamFee) || 0)).toLocaleString()}
+                </span>
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAddStructureModalOpen(false)}
+                  className="px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md cursor-pointer"
+                >
+                  Create Structure
                 </button>
               </div>
             </form>

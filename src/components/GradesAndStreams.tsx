@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, BarChart, Save } from 'lucide-react';
+import { Plus, Edit2, Trash2, BarChart, Save, CheckCircle2, RefreshCw } from 'lucide-react';
 import { getGrades, saveGrades, Grade, Stream } from '../utils/db';
+import { canDelete } from '../utils/permissions';
 
 export default function GradesAndStreams() {
   const [grades, setGrades] = useState<Grade[]>(() => getGrades());
+  const [syncStatus, setSyncStatus] = useState<'saved' | 'syncing'>('saved');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newGradeName, setNewGradeName] = useState('');
   const [isStreamModalOpen, setIsStreamModalOpen] = useState(false);
@@ -14,12 +16,27 @@ export default function GradesAndStreams() {
   const [editValue, setEditValue] = useState('');
   const [editContext, setEditContext] = useState<{type: 'grade' | 'stream', gradeId: string, streamId?: string} | null>(null);
 
-  // Auto-save effect
+  // Sync / storage listeners
   useEffect(() => {
-    if (grades.length > 0) {
-      saveGrades(grades);
-    }
-  }, [grades]);
+    const refreshGrades = () => {
+      setGrades(getGrades());
+    };
+    window.addEventListener('storage', refreshGrades);
+    window.addEventListener('db_updated', refreshGrades);
+    return () => {
+      window.removeEventListener('storage', refreshGrades);
+      window.removeEventListener('db_updated', refreshGrades);
+    };
+  }, []);
+
+  const triggerSave = (nextGrades: Grade[]) => {
+    setSyncStatus('syncing');
+    setGrades(nextGrades);
+    saveGrades(nextGrades);
+    setTimeout(() => {
+      setSyncStatus('saved');
+    }, 600);
+  };
 
   const addGrade = () => {
     setIsModalOpen(true);
@@ -27,9 +44,8 @@ export default function GradesAndStreams() {
 
   const saveGrade = () => {
     if (newGradeName.trim()) {
-      const nextGrades = [...grades, { id: 'g' + Date.now(), name: newGradeName, streams: [] }];
-      setGrades(nextGrades);
-      saveGrades(nextGrades);
+      const nextGrades = [...grades, { id: 'g' + Date.now(), name: newGradeName.trim(), streams: [] }];
+      triggerSave(nextGrades);
       setNewGradeName('');
       setIsModalOpen(false);
     }
@@ -51,12 +67,11 @@ export default function GradesAndStreams() {
     if (editValue.trim() && editContext) {
       let nextGrades: Grade[];
       if (editContext.type === 'grade') {
-        nextGrades = grades.map(g => g.id === editContext.gradeId ? { ...g, name: editValue } : g);
+        nextGrades = grades.map(g => g.id === editContext.gradeId ? { ...g, name: editValue.trim() } : g);
       } else {
-        nextGrades = grades.map(g => g.id === editContext.gradeId ? { ...g, streams: g.streams.map(s => s.id === editContext.streamId ? { ...s, name: editValue } : s) } : g);
+        nextGrades = grades.map(g => g.id === editContext.gradeId ? { ...g, streams: g.streams.map(s => s.id === editContext.streamId ? { ...s, name: editValue.trim() } : s) } : g);
       }
-      setGrades(nextGrades);
-      saveGrades(nextGrades);
+      triggerSave(nextGrades);
       setIsEditModalOpen(false);
       setEditContext(null);
       setEditValue('');
@@ -64,10 +79,13 @@ export default function GradesAndStreams() {
   };
 
   const deleteGrade = (id: string) => {
+    if (!canDelete()) {
+      alert('⚠️ Access denied: You have a restriction ("cannot delete") preventing you from deleting items in this software.');
+      return;
+    }
     if(confirm('⚠️ Delete this grade and all its streams? This cannot be undone.')) {
         const nextGrades = grades.filter(g => g.id !== id);
-        setGrades(nextGrades);
-        saveGrades(nextGrades);
+        triggerSave(nextGrades);
     }
   };
 
@@ -78,9 +96,8 @@ export default function GradesAndStreams() {
 
   const saveStream = () => {
     if (newStreamName.trim() && selectedGradeId) {
-      const nextGrades = grades.map(g => g.id === selectedGradeId ? { ...g, streams: [...g.streams, { id: 's' + Date.now(), name: newStreamName }] } : g);
-      setGrades(nextGrades);
-      saveGrades(nextGrades);
+      const nextGrades = grades.map(g => g.id === selectedGradeId ? { ...g, streams: [...g.streams, { id: 's' + Date.now(), name: newStreamName.trim() }] } : g);
+      triggerSave(nextGrades);
       setNewStreamName('');
       setIsStreamModalOpen(false);
       setSelectedGradeId(null);
@@ -88,17 +105,39 @@ export default function GradesAndStreams() {
   };
 
   const deleteStream = (gradeId: string, streamId: string) => {
+    if (!canDelete()) {
+      alert('⚠️ Access denied: You have a restriction ("cannot delete") preventing you from deleting items in this software.');
+      return;
+    }
     if(confirm('⚠️ Delete this stream?')) {
         const nextGrades = grades.map(g => g.id === gradeId ? { ...g, streams: g.streams.filter(s => s.id !== streamId) } : g);
-        setGrades(nextGrades);
-        saveGrades(nextGrades);
+        triggerSave(nextGrades);
     }
   };
 
   return (
     <div className="p-6 space-y-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-slate-800">Grades & Streams</h1>
+      <div className="flex justify-between items-center flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-slate-800">Grades & Streams</h1>
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+            syncStatus === 'syncing' 
+              ? 'bg-amber-50 text-amber-700 border border-amber-200 shadow-sm' 
+              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+          }`}>
+            {syncStatus === 'syncing' ? (
+              <>
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-600" />
+                <span>Syncing...</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Saved</span>
+              </>
+            )}
+          </div>
+        </div>
         <button 
           onClick={addGrade}
           className="bg-gradient-to-br from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg"
@@ -181,7 +220,9 @@ export default function GradesAndStreams() {
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => openEditGrade(grade)} className="p-3 text-amber-600 bg-amber-50 rounded-xl hover:bg-amber-100 hover:scale-105 transition-all"><Edit2 className="w-5 h-5 pointer-events-none" /></button>
-                  <button onClick={() => deleteGrade(grade.id)} className="p-3 text-red-600 bg-red-50 rounded-xl hover:bg-red-100 hover:scale-105 transition-all"><Trash2 className="w-5 h-5 pointer-events-none" /></button>
+                  {canDelete() && (
+                    <button onClick={() => deleteGrade(grade.id)} className="p-3 text-red-600 bg-red-50 rounded-xl hover:bg-red-100 hover:scale-105 transition-all"><Trash2 className="w-5 h-5 pointer-events-none" /></button>
+                  )}
                 </div>
               </div>
               
@@ -192,7 +233,9 @@ export default function GradesAndStreams() {
                     <div className="flex gap-1 ml-2">
                         <button className="p-1 hover:bg-blue-100 rounded text-blue-600"><BarChart className="w-4 h-4" /></button>
                         <button onClick={() => openEditStream(grade.id, stream)} className="p-1 hover:bg-blue-100 rounded"><Edit2 className="w-3 h-3 pointer-events-none" /></button>
-                        <button onClick={() => deleteStream(grade.id, stream.id)} className="p-1 hover:bg-red-100 rounded text-red-500"><Trash2 className="w-3 h-3 pointer-events-none" /></button>
+                        {canDelete() && (
+                          <button onClick={() => deleteStream(grade.id, stream.id)} className="p-1 hover:bg-red-100 rounded text-red-500"><Trash2 className="w-3 h-3 pointer-events-none" /></button>
+                        )}
                     </div>
                   </div>
                 ))}

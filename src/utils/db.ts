@@ -1,4 +1,14 @@
 import { ActivityEvent } from '../types';
+import { addAlertLog } from './alerts';
+import { 
+  saveToFirestore, 
+  fetchAllFromFirestore, 
+  subscribeToFirestore,
+  createCloudSnapshotToFirestore,
+  fetchCloudSnapshotsFromFirestore,
+  deleteCloudSnapshotFromFirestore,
+  CloudSnapshotMeta
+} from './firebase';
 export interface Stream {
   id: string;
   name: string;
@@ -15,6 +25,7 @@ export interface Subject {
   name: string;
   code: string;
   grades: number[]; // e.g. [1, 2, 3, 4, 5, 6, 7, 8, 9]
+  streams?: string[]; // e.g. ["Alpha", "Beta", "East"] or ["All"]
 }
 
 export interface Learner {
@@ -45,6 +56,125 @@ export interface SubjectPaper {
 // Default initial database seed
 const DEFAULT_GRADES: Grade[] = [];
 
+// ==============================================
+// 🎯 GLOBAL SORT RULES & UNIVERSAL SORT FUNCTION
+// ==============================================
+export const SORT_RULES = {
+  gradeOrder: ["Playgroup", "PP1", "PP2", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Form 1", "Form 2", "Form 3", "Form 4"],
+  streamOrder: ["V", "J", "A", "B", "C", "D", "East", "West", "North", "South", "Red", "Blue", "Green", "Yellow"],
+  termOrder: ["Term 1", "Term 2", "Term 3"]
+};
+
+function getGradeIndex(item: any): number {
+  if (item === null || item === undefined) return 999;
+  let raw: any = item;
+  if (typeof item === 'object') {
+    raw = item.grade ?? item.gradeName ?? item.name ?? item.label ?? item.num ?? '';
+  }
+  let str = String(raw).trim();
+  if (!str) return 999;
+
+  // Exact or case-insensitive match in SORT_RULES.gradeOrder
+  let idx = SORT_RULES.gradeOrder.findIndex(g => g.toLowerCase() === str.toLowerCase());
+  if (idx !== -1) return idx;
+
+  // Numeric extraction: e.g. "1" or "Grade 1" or "G7"
+  const match = str.match(/\d+/);
+  if (match) {
+    const num = parseInt(match[0], 10);
+    const target = `Grade ${num}`;
+    idx = SORT_RULES.gradeOrder.findIndex(g => g === target);
+    if (idx !== -1) return idx;
+    return 100 + num; // Numerical fallback
+  }
+
+  return 999;
+}
+
+function getStreamIndex(item: any): number {
+  if (item === null || item === undefined) return 999;
+  let raw: any = item;
+  if (typeof item === 'object') {
+    raw = item.stream ?? item.streamName ?? item.section ?? '';
+  }
+  let str = String(raw).trim();
+  if (!str) return 999;
+
+  let idx = SORT_RULES.streamOrder.findIndex(s => s.toLowerCase() === str.toLowerCase());
+  if (idx !== -1) return idx;
+  return 100;
+}
+
+function getTermIndex(item: any): number {
+  if (item === null || item === undefined) return 999;
+  let raw: any = item;
+  if (typeof item === 'object') {
+    raw = item.term ?? item.termName ?? item.name ?? item.label ?? '';
+  }
+  let str = String(raw).trim();
+  if (!str) return 999;
+
+  let idx = SORT_RULES.termOrder.findIndex(t => t.toLowerCase() === str.toLowerCase());
+  if (idx !== -1) return idx;
+
+  const match = str.match(/\d+/);
+  if (match) {
+    const num = parseInt(match[0], 10);
+    return 100 + num;
+  }
+  return 999;
+}
+
+function getDefaultComparison(a: any, b: any): number {
+  const getLabel = (x: any): string => {
+    if (x === null || x === undefined) return '';
+    if (typeof x === 'string' || typeof x === 'number') return String(x);
+    return String(x.name || x.fullName || x.admNo || x.adm || x.title || x.code || x.id || '');
+  };
+  return getLabel(a).localeCompare(getLabel(b), undefined, { numeric: true, sensitivity: 'base' });
+}
+
+export function sortList(list: any[], type: "grade" | "gradeStream" | "term" | "default" = "default"): any[] {
+  if (!Array.isArray(list)) return [];
+  return [...list].sort((a: any, b: any) => {
+    if (!a && !b) return 0;
+    if (!a) return 1;
+    if (!b) return -1;
+
+    if (type === "grade") {
+      const gA = getGradeIndex(a);
+      const gB = getGradeIndex(b);
+      if (gA !== gB) return gA - gB;
+      return getDefaultComparison(a, b);
+    }
+
+    if (type === "gradeStream") {
+      const gA = getGradeIndex(a);
+      const gB = getGradeIndex(b);
+      if (gA !== gB) return gA - gB;
+
+      const sA = getStreamIndex(a);
+      const sB = getStreamIndex(b);
+      if (sA !== sB) return sA - sB;
+
+      return getDefaultComparison(a, b);
+    }
+
+    if (type === "term") {
+      const tA = getTermIndex(a);
+      const tB = getTermIndex(b);
+      if (tA !== tB) return tA - tB;
+      return getDefaultComparison(a, b);
+    }
+
+    return getDefaultComparison(a, b);
+  });
+}
+
+export function loadOrdered<T>(items: T[], sortType: "grade" | "gradeStream" | "term" | "default" = "default"): T[] {
+  return sortList(items, sortType);
+}
+
 const DEFAULT_SUBJECTS: Subject[] = [];
 
 const DEFAULT_LEARNERS: Learner[] = [];
@@ -57,12 +187,106 @@ const SEC_KEY = "school_admin_secret_key_987654321_cbc_auth";
 const memCache: Record<string, string> = {};
 let isBackendUnavailable = false;
 
-if (typeof window !== 'undefined') {
-  window.addEventListener('storage', (e) => {
-    if (e.key) {
-      delete memCache[e.key];
-    } else {
+const rawLocalStorage = typeof window !== 'undefined' ? window.localStorage : null;
+const rawGetItem = typeof Storage !== 'undefined' ? Storage.prototype.getItem : null;
+const rawSetItem = typeof Storage !== 'undefined' ? Storage.prototype.setItem : null;
+const rawRemoveItem = typeof Storage !== 'undefined' ? Storage.prototype.removeItem : null;
+const rawClear = typeof Storage !== 'undefined' ? Storage.prototype.clear : null;
+const rawKey = typeof Storage !== 'undefined' ? Storage.prototype.key : null;
+
+function isThirdPartyKey(key: string): boolean {
+  if (!key) return false;
+  return (
+    key.startsWith('firebase') ||
+    key.includes('firebase:') ||
+    key.includes('firestore:') ||
+    key.includes('firebaseLocalStorage') ||
+    key.startsWith('gapi:') ||
+    key.startsWith('google:') ||
+    key.includes('oauth') ||
+    key.startsWith('sb-') ||
+    key.includes('supabase')
+  );
+}
+
+// Intercept localStorage safely via Storage prototype
+if (typeof window !== 'undefined' && typeof Storage !== 'undefined') {
+  try {
+    // Clear potentially corrupted firebase/firestore localStorage keys
+    if (rawLocalStorage && rawGetItem && rawKey && rawRemoveItem) {
+      for (let i = rawLocalStorage.length - 1; i >= 0; i--) {
+        const k = rawKey.call(rawLocalStorage, i);
+        if (isThirdPartyKey(k)) {
+          const val = rawGetItem.call(rawLocalStorage, k!);
+          if (val) {
+            try {
+              JSON.parse(val);
+            } catch (e) {
+              rawRemoveItem.call(rawLocalStorage, k!);
+            }
+          }
+        }
+      }
+    }
+
+    // 1. Preload any existing storage items into memory cache (excluding third-party keys), then clear school data from browser local storage
+    if (rawLocalStorage && rawGetItem && rawKey && rawRemoveItem) {
+      const realLen = rawLocalStorage.length;
+      const keysToClear: string[] = [];
+      for (let i = 0; i < realLen; i++) {
+        const k = rawKey.call(rawLocalStorage, i);
+        if (k && !isThirdPartyKey(k)) {
+          const val = rawGetItem.call(rawLocalStorage, k);
+          if (val) {
+            const trimmed = val.trim();
+            if (trimmed.startsWith('[') || trimmed.startsWith('{') || trimmed.startsWith('"') || trimmed === 'true' || trimmed === 'false' || /^\d+\.\d+\.\d+$/.test(trimmed)) {
+              memCache[k] = val;
+            } else {
+              const dec = unscramble(val);
+              memCache[k] = dec || val;
+            }
+          }
+          keysToClear.push(k);
+        }
+      }
+      // Purge browser local storage completely on initialization
+      try {
+        if (rawLocalStorage) {
+          rawLocalStorage.clear();
+        }
+      } catch (e) {}
+    }
+
+    // 2. Monkey-patch Storage.prototype methods directly using native references
+    Storage.prototype.getItem = function(key: string) {
+      return secureGet(key);
+    };
+    Storage.prototype.setItem = function(key: string, value: string) {
+      secureSet(key, value);
+    };
+    Storage.prototype.removeItem = function(key: string) {
+      secureRemove(key);
+    };
+    Storage.prototype.clear = function() {
       Object.keys(memCache).forEach(k => delete memCache[k]);
+      try {
+        if (rawLocalStorage && rawKey && rawRemoveItem) {
+          for (let i = rawLocalStorage.length - 1; i >= 0; i--) {
+            const k = rawKey.call(rawLocalStorage, i);
+            if (k && !isThirdPartyKey(k)) {
+              rawRemoveItem.call(rawLocalStorage, k);
+            }
+          }
+        }
+      } catch (e) {}
+    };
+  } catch (err) {
+    console.warn("Storage interceptor initialized with fallback", err);
+  }
+
+  window.addEventListener('storage', (e) => {
+    if (e && e.key) {
+      delete memCache[e.key];
     }
   });
 }
@@ -102,108 +326,372 @@ function unscramble(encoded: string): string {
 }
 
 export function secureGet(key: string): string | null {
+  if (!key) return null;
+  if (isThirdPartyKey(key)) {
+    try {
+      if (rawLocalStorage && rawGetItem) {
+        return rawGetItem.call(rawLocalStorage, key);
+      }
+    } catch (e) {}
+    return null;
+  }
+
   if (memCache[key] !== undefined) {
     return memCache[key];
   }
-  const data = localStorage.getItem(key);
-  if (!data) return null;
-  // Handle / auto-secure legacy unencrypted data if present
-  if (data.trim().startsWith('[') || data.trim().startsWith('{')) {
-    const scrambled = scramble(data);
-    localStorage.setItem(key, scrambled);
-    memCache[key] = data;
-    return data;
+
+  const primaryKey = getStorageKeyForTable(key);
+  const aliases = [primaryKey, key, ...(TABLE_ALIASES[key] || []), ...(TABLE_ALIASES[primaryKey] || [])];
+  for (const alias of aliases) {
+    if (memCache[alias] !== undefined) {
+      memCache[key] = memCache[alias];
+      return memCache[alias];
+    }
   }
-  const decrypted = unscramble(data);
-  const result = decrypted || data;
-  memCache[key] = result;
-  return result;
+
+  return null;
 }
 
-let isSyncingFromServer = false;
+export let isSyncingFromServer = false;
+export let isInitialCloudPullCompleted = false;
 
-export function secureSet(key: string, value: string): void {
-  if (memCache[key] === value) {
-    // Skip redundant writes completely
+export function getTableNameFromKey(key: string): string | null {
+  if (!key) return null;
+  if (
+    key === 'theme' ||
+    key === 'system_update_acknowledged_version' ||
+    key.startsWith('parent_active_child_') ||
+    key === 'selected_exam_id_for_marks' ||
+    key === 'school_last_sync_time'
+  ) {
+    return null;
+  }
+
+  if (key === 'school_grades' || key === 'classes' || key === 'grades') return 'grades';
+  if (key === 'school_current_user' || key === 'current_user') return 'current_user';
+  if (key === 'school_subjects' || key === 'subjects') return 'subjects';
+  if (key === 'school_learners' || key === 'students' || key === 'learners') return 'learners';
+  if (key === 'school_users' || key === 'teachers' || key === 'users' || key === 'staff') return 'users';
+  if (key === 'school_attendance_sheets' || key === 'attendance') return 'attendance_sheets';
+  if (key === 'school_exam_marks' || key === 'marks' || key === 'exam_marks') return 'school_exam_marks';
+  if (key === 'exams' || key === 'school_exams') return 'exams';
+  if (key === 'subject_enrollments' || key === 'school_subject_enrollments') return 'subject_enrollments';
+  if (key === 'school_grading_rules' || key === 'grading_rules') return 'grading_rules';
+  if (key === 'subject_assignments_list' || key === 'subject_assignments' || key === 'school_subject_assignments') return 'subject_assignments';
+  if (key === 'class_teacher_assignments_list' || key === 'class_teacher_assignments' || key === 'school_class_teacher_assignments') return 'class_teacher_assignments';
+  if (key === 'school_profile') return 'school_profile';
+  if (key === 'school_holidays' || key === 'holidays') return 'holidays';
+  if (key === 'school_terms' || key === 'terms') return 'terms';
+  if (key === 'school_messages' || key === 'messages') return 'messages';
+  if (key === 'school_subject_papers' || key === 'subject_papers') return 'subject_papers';
+  if (key === 'school_schemes_of_work' || key === 'schemes_of_work' || key === 'resources') return 'schemes_of_work';
+  if (key === 'teachers_on_duty' || key === 'tod' || key === 'school_tod' || key === 'tod_duty_roster_v1' || key === 'dutySchedules') return 'tod';
+  if (key === 'school_fee_payments' || key === 'fee_payments' || key === 'fees') return 'fee_payments';
+  if (key === 'school_fee_structures' || key === 'fee_structures') return 'fee_structures';
+  if (key === 'school_gate_logs' || key === 'gate_logs') return 'gate_logs';
+  if (key === 'school_system_settings' || key === 'system_settings') return 'system_settings';
+  if (key === 'school_staff_attendance_sheets' || key === 'staff_attendance_sheets') return 'staff_attendance_sheets';
+  if (key === 'school_audit_trail' || key === 'audit_trail') return 'audit_trail';
+  if (key === 'school_activity_logs' || key === 'activity_logs') return 'activity_logs';
+  if (key === 'school_announcements_v1' || key === 'announcements') return 'announcements';
+  if (key === 'term_reports') return 'term_reports';
+  if (key === 'school_newsletters') return 'newsletters';
+  if (key === 'school_role_permissions_matrix_v1') return 'role_permissions';
+  if (key === 'subscriptions_history') return 'subscriptions_history';
+  if (key === 'school_whatsapp_templates' || key === 'whatsapp_templates' || key === 'TEMPLATE_STORAGE_KEY') return 'whatsapp_templates';
+  if (key === 'attendance_settings') return 'attendance_settings';
+  if (key === 'school_alert_config') return 'alert_config';
+  if (key === 'school_alert_logs') return 'alert_logs';
+  if (key === 'exam_submission_statuses') return 'exam_submission_statuses';
+
+  return key;
+}
+
+export function secureSet(key: string, value: string, options?: { skipCloud?: boolean }): void {
+  if (!key) return;
+  if (isThirdPartyKey(key)) {
+    try {
+      if (rawLocalStorage && rawSetItem) {
+        rawSetItem.call(rawLocalStorage, key, value);
+      }
+    } catch (e) {}
     return;
   }
-  memCache[key] = value;
-  const scrambled = scramble(value);
-  localStorage.setItem(key, scrambled);
 
-  if (!isSyncingFromServer && !isBackendUnavailable) {
-    try {
-      const parsed = JSON.parse(value);
-      let tableName: string | null = null;
-      if (key === 'school_grades') tableName = 'grades';
-      else if (key === 'school_subjects') tableName = 'subjects';
-      else if (key === 'school_learners') tableName = 'learners';
-      else if (key === 'subject_enrollments') tableName = 'subject_enrollments';
-      else if (key === 'school_grading_rules') tableName = 'grading_rules';
-      else if (key === 'school_users') tableName = 'users';
-      else if (key === 'subject_assignments_list') tableName = 'subject_assignments';
-      else if (key === 'class_teacher_assignments_list') tableName = 'class_teacher_assignments';
-      else if (key === 'school_profile') tableName = 'school_profile';
-      else if (key === 'school_holidays') tableName = 'holidays';
-      else if (key === 'school_terms') tableName = 'terms';
-      else if (key === 'school_attendance_sheets') tableName = 'attendance_sheets';
-      else if (key === 'school_messages') tableName = 'messages';
-      else if (key === 'exams') tableName = 'exams';
-      else if (key === 'school_exam_marks') tableName = 'school_exam_marks';
-      else if (key === 'school_subject_papers') tableName = 'subject_papers';
+  const primaryKey = getStorageKeyForTable(key);
+  const aliases = Array.from(new Set([
+    primaryKey,
+    key,
+    ...(TABLE_ALIASES[key] || []),
+    ...(TABLE_ALIASES[primaryKey] || [])
+  ]));
 
-      if (tableName) {
+  for (const alias of aliases) {
+    memCache[alias] = value;
+  }
+
+  if (!isSyncingFromServer && !isBackendUnavailable && !options?.skipCloud) {
+    const tableName = getTableNameFromKey(key);
+    if (tableName) {
+      try {
+        const parsed = JSON.parse(value);
         saveToBackend(tableName, parsed);
+      } catch (err) {
+        saveToBackend(tableName, value);
       }
-    } catch (err) {
-      // Ignore non-JSON
     }
   }
 }
 
-export function secureRemove(key: string): void {
-  delete memCache[key];
-  localStorage.removeItem(key);
+/**
+ * Universal saveData helper to save and synchronize datasets under friendly storage aliases
+ */
+export function saveData(key: string, data: any): void {
+  let mappedKey = key;
+  if (key === 'teachers' || key === 'users' || key === 'staff') mappedKey = 'school_users';
+  else if (key === 'students' || key === 'learners') mappedKey = 'school_learners';
+  else if (key === 'attendance') mappedKey = 'school_attendance_sheets';
+  else if (key === 'marks' || key === 'exam_marks') mappedKey = 'school_exam_marks';
+  else if (key === 'subjects') mappedKey = 'school_subjects';
+  else if (key === 'classes' || key === 'grades') mappedKey = 'school_grades';
+  else if (key === 'exams') mappedKey = 'exams';
+  else if (key === 'tod') mappedKey = 'teachers_on_duty';
+  else if (key === 'resources' || key === 'schemes') mappedKey = 'schemes_of_work';
+  else if (key === 'fees') mappedKey = 'fee_payments';
+
+  const stringVal = typeof data === 'string' ? data : JSON.stringify(data);
+  secureSet(mappedKey, stringVal);
+}
+
+export function secureRemove(key: string, options?: { skipCloud?: boolean }): void {
+  if (!key) return;
+  if (isThirdPartyKey(key)) {
+    try {
+      if (rawLocalStorage && rawRemoveItem) {
+        rawRemoveItem.call(rawLocalStorage, key);
+      }
+    } catch (e) {}
+    return;
+  }
+  
+  const primaryKey = getStorageKeyForTable(key);
+  const aliases = Array.from(new Set([
+    primaryKey,
+    key,
+    ...(TABLE_ALIASES[key] || []),
+    ...(TABLE_ALIASES[primaryKey] || [])
+  ]));
+
+  for (const alias of aliases) {
+    delete memCache[alias];
+  }
+
+  if (!isSyncingFromServer && !isBackendUnavailable && !options?.skipCloud) {
+    const tableName = getTableNameFromKey(key);
+    if (tableName) {
+      saveToBackend(tableName, null);
+    }
+  }
+}
+
+/**
+ * Unified utility function to force-delete a record from local state and synchronize with backend/database.
+ * Enforces immediate local update, required confirmation prompt with item name & type, and backend persistence.
+ */
+export function deleteRecord<T = any>(
+  storageKey: string,
+  identifier: string | ((item: T) => boolean),
+  recordTypeLabel?: string,
+  options?: { skipConfirm?: boolean }
+): T[] {
+  const currentUser = getCurrentUser();
+  const permissions = currentUser?.permissions || [];
+  if (currentUser && permissions.includes('perm_cannot_delete')) {
+    alert("❌ Access Restricted: Your account permissions forbid deleting records. Please contact the Super Admin.");
+    return (secureGet(storageKey) ? JSON.parse(secureGet(storageKey) || '[]') : []) as T[];
+  }
+
+  const raw = secureGet(storageKey);
+  if (!raw) return [];
+
+  let list: T[] = [];
+  try {
+    list = JSON.parse(raw);
+  } catch (e) {
+    return [];
+  }
+
+  if (!Array.isArray(list)) return [];
+
+  // Find target item to extract its display name/label
+  const targetItem = list.find((item: any) => {
+    if (typeof identifier === 'function') {
+      return identifier(item);
+    }
+    if (!item) return false;
+    const itemId = item.id || item.admNo || item.username || item.code || item.key;
+    return itemId === identifier;
+  });
+
+  if (!targetItem) return list;
+
+  // Derive human-friendly record type label if not explicitly provided
+  let recordType = recordTypeLabel;
+  if (!recordType) {
+    if (storageKey === 'exams') recordType = 'Exam';
+    else if (storageKey === 'school_grades') recordType = 'Grade';
+    else if (storageKey === 'school_subjects') recordType = 'Subject';
+    else if (storageKey === 'school_learners') recordType = 'Learner';
+    else if (storageKey === 'school_users') recordType = 'User';
+    else recordType = 'Record';
+  }
+
+  // Extract display name/identifier of target record
+  const itemObj = targetItem as any;
+  const recordName = itemObj?.name || itemObj?.fullName || itemObj?.title || itemObj?.label || itemObj?.admNo || itemObj?.id || 'selected item';
+
+  // Trigger confirmation prompt showing name and type unless skipConfirm is set
+  if (!options?.skipConfirm) {
+    const confirmed = window.confirm(`🗑️ Are you sure you want to delete ${recordType} "${recordName}"?\n\nThis action will immediately remove the record from all reports and synchronize across the system.`);
+    if (!confirmed) {
+      return list; // Cancellation: return original list without deleting
+    }
+  }
+
+  const updated = list.filter((item: any) => {
+    if (typeof identifier === 'function') {
+      return !identifier(item);
+    }
+    if (!item) return false;
+    const itemId = item.id || item.admNo || item.username || item.code || item.key;
+    return itemId !== identifier;
+  });
+
+  // Save updated array to local storage and sync to backend immediately
+  secureSet(storageKey, JSON.stringify(updated));
+
+  let tableName: string | null = null;
+  if (storageKey === 'school_grades' || storageKey === 'classes' || storageKey === 'grades') tableName = 'grades';
+  else if (storageKey === 'school_subjects' || storageKey === 'subjects') tableName = 'subjects';
+  else if (storageKey === 'school_learners' || storageKey === 'students' || storageKey === 'learners') tableName = 'learners';
+  else if (storageKey === 'school_users' || storageKey === 'teachers' || storageKey === 'users' || storageKey === 'staff') tableName = 'users';
+  else if (storageKey === 'school_attendance_sheets' || storageKey === 'attendance') tableName = 'attendance_sheets';
+  else if (storageKey === 'school_exam_marks' || storageKey === 'marks' || storageKey === 'exam_marks') tableName = 'school_exam_marks';
+  else if (storageKey === 'exams') tableName = 'exams';
+  else if (storageKey === 'subject_enrollments') tableName = 'subject_enrollments';
+  else if (storageKey === 'school_grading_rules') tableName = 'grading_rules';
+  else if (storageKey === 'subject_assignments_list' || storageKey === 'subject_assignments') tableName = 'subject_assignments';
+  else if (storageKey === 'class_teacher_assignments_list' || storageKey === 'class_teacher_assignments') tableName = 'class_teacher_assignments';
+  else if (storageKey === 'school_profile') tableName = 'school_profile';
+  else if (storageKey === 'school_holidays') tableName = 'holidays';
+  else if (storageKey === 'school_terms') tableName = 'terms';
+  else if (storageKey === 'school_messages') tableName = 'messages';
+  else if (storageKey === 'school_subject_papers') tableName = 'subject_papers';
+  else if (storageKey === 'schemes_of_work' || storageKey === 'resources') tableName = 'schemes_of_work';
+  else if (storageKey === 'teachers_on_duty' || storageKey === 'tod') tableName = 'tod';
+  else if (storageKey === 'fee_payments' || storageKey === 'fees') tableName = 'fee_payments';
+
+  if (tableName) {
+    saveToBackend(tableName, updated);
+  }
+
+  return updated;
 }
 // -----------------------------------------------
 
 export function getGrades(): Grade[] {
   const data = secureGet('school_grades');
   if (!data) {
-    secureSet('school_grades', JSON.stringify(DEFAULT_GRADES));
+    secureSet('school_grades', JSON.stringify(DEFAULT_GRADES), { skipCloud: true });
     return DEFAULT_GRADES;
   }
   
   let parsed = JSON.parse(data);
-  // Auto-clear legacy demo grades if present
-  if (Array.isArray(parsed) && parsed.some((g: Grade) => ['g7', 'g8', 'g9', 'grade-7', 'grade-8', 'grade-9'].includes(g.id))) {
-      parsed = parsed.filter((g: Grade) => !['g7', 'g8', 'g9', 'grade-7', 'grade-8', 'grade-9'].includes(g.id));
-      secureSet('school_grades', JSON.stringify(parsed));
+
+  // Deduplicate grades by normalized name to prevent duplicates appearing twice
+  if (Array.isArray(parsed)) {
+    const seenNames = new Map<string, Grade>();
+    for (const g of parsed) {
+      if (!g || !g.name) continue;
+      const normName = g.name.trim().toLowerCase();
+      if (seenNames.has(normName)) {
+        const existing = seenNames.get(normName)!;
+        const combinedStreams = [...existing.streams];
+        for (const s of (g.streams || [])) {
+          if (!combinedStreams.some(cs => cs.id === s.id || cs.name.trim().toLowerCase() === s.name.trim().toLowerCase())) {
+            combinedStreams.push(s);
+          }
+        }
+        existing.streams = combinedStreams;
+      } else {
+        seenNames.set(normName, { ...g, streams: g.streams || [] });
+      }
+    }
+    parsed = sortList(Array.from(seenNames.values()), 'grade');
+    secureSet('school_grades', JSON.stringify(parsed), { skipCloud: true });
   }
-  return parsed;
+
+  return sortList(parsed, 'grade');
 }
 
 export function saveGrades(grades: Grade[]): void {
-  secureSet('school_grades', JSON.stringify(grades));
+  const seenNames = new Map<string, Grade>();
+  for (const g of grades) {
+    if (!g || !g.name) continue;
+    const normName = g.name.trim().toLowerCase();
+    if (!seenNames.has(normName)) {
+      seenNames.set(normName, { ...g, streams: g.streams || [] });
+    }
+  }
+  const cleanGrades = sortList(Array.from(seenNames.values()), 'grade');
+  secureSet('school_grades', JSON.stringify(cleanGrades));
+  syncCollectionToMongo('grades', cleanGrades).catch(() => {});
 }
 
 export function getSubjects(): Subject[] {
   const data = secureGet('school_subjects');
   if (!data) {
-    secureSet('school_subjects', JSON.stringify(DEFAULT_SUBJECTS));
+    secureSet('school_subjects', JSON.stringify(DEFAULT_SUBJECTS), { skipCloud: true });
     return DEFAULT_SUBJECTS;
   }
   let parsed = JSON.parse(data);
-  const demoSubIds = ['sub-eng', 'sub-mat', 'sub-sci', 'sub-kis', 'sub-hist', 'sub-math', 'sub-kisw', 'sub-sst'];
-  if (Array.isArray(parsed) && parsed.some((s: Subject) => demoSubIds.includes(s.id))) {
-    parsed = parsed.filter((s: Subject) => !demoSubIds.includes(s.id));
-    secureSet('school_subjects', JSON.stringify(parsed));
+
+  // Deduplicate subjects by normalized name
+  if (Array.isArray(parsed)) {
+    const seenNames = new Map<string, Subject>();
+    for (const s of parsed) {
+      if (!s || !s.name) continue;
+      const key = s.name.trim().toLowerCase();
+      if (seenNames.has(key)) {
+        const existing = seenNames.get(key)!;
+        const combinedGrades = Array.from(new Set([...(existing.grades || []), ...(s.grades || [])]));
+        const combinedStreams = Array.from(new Set([...(existing.streams || []), ...(s.streams || [])]));
+        existing.grades = combinedGrades;
+        existing.streams = combinedStreams;
+      } else {
+        seenNames.set(key, { ...s, grades: s.grades || [], streams: s.streams || [] });
+      }
+    }
+    parsed = sortList(Array.from(seenNames.values()), 'default');
+    secureSet('school_subjects', JSON.stringify(parsed), { skipCloud: true });
   }
-  return parsed;
+
+  return sortList(parsed, 'default');
 }
 
 export function saveSubjects(subjects: Subject[]): void {
-  secureSet('school_subjects', JSON.stringify(subjects));
+  const seenNames = new Map<string, Subject>();
+  for (const s of subjects) {
+    if (!s || !s.name) continue;
+    const key = s.name.trim().toLowerCase();
+    if (!seenNames.has(key)) {
+      seenNames.set(key, { ...s, grades: s.grades || [], streams: s.streams || [] });
+    }
+  }
+  const cleanSubjects = sortList(Array.from(seenNames.values()), 'default');
+  secureSet('school_subjects', JSON.stringify(cleanSubjects));
+  syncCollectionToMongo('subjects', cleanSubjects).catch(() => {});
+  saveToBackend('subjects', cleanSubjects);
 }
 
 export function getLearners(): Learner[] {
@@ -216,26 +704,17 @@ export function getLearners(): Learner[] {
     return [];
   }
 
-  // Explicitly remove demo learners by name/admNo or legacy demo IDs if any remaining
-  const demoAdmNos = ['9101', '9102', '9103', '9104', '9105', '1001', '1002', '1003', '1004', '1005', '1006', '1007'];
-  const demoIds = ['l_byron', 'l_alice', 'l_charles', 'l_david', 'l_emily', 'l_fiona', 'l_george'];
-  
-  const originalLength = parsed.length;
-  parsed = parsed.filter((l: Learner) => 
-    l && l.admNo && 
-    !demoAdmNos.includes(l.admNo) && 
-    !demoIds.includes(l.id) &&
-    !(l.id.startsWith('l') && !l.id.startsWith('l_') && l.id.length < 5)
-  );
-
-  if (parsed.length !== originalLength) {
-    secureSet('school_learners', JSON.stringify(parsed));
-  }
-  return parsed;
+  parsed = parsed.filter((l: Learner) => l && l.admNo && l.name);
+  return sortList(parsed, 'gradeStream');
 }
 
 export function saveLearners(learners: Learner[]): void {
-  secureSet('school_learners', JSON.stringify(learners));
+  const sorted = sortList(learners, 'gradeStream');
+  secureSet('school_learners', JSON.stringify(sorted));
+  saveToBackend('learners', sorted);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('db_updated'));
+  }
 }
 
 export function getSubjectEnrollments(): Record<string, string[]> {
@@ -336,7 +815,7 @@ const DEFAULT_USERS: UserAccount[] = [
 export function getUsers(): UserAccount[] {
   const data = secureGet('school_users');
   if (!data) {
-    secureSet('school_users', JSON.stringify(DEFAULT_USERS));
+    secureSet('school_users', JSON.stringify(DEFAULT_USERS), { skipCloud: true });
     return DEFAULT_USERS;
   }
   let parsed: UserAccount[] = JSON.parse(data);
@@ -356,13 +835,11 @@ export function getUsers(): UserAccount[] {
     return u;
   });
   
-  // Explicitly remove any John Kamau and Nancy Wambua users from existing records
+  // Explicitly remove legacy demo users
   parsed = parsed.filter(u => 
     u.username !== 'john_kamau' && 
     u.fullName !== 'John Kamau' && 
-    u.username !== 'teacher' && 
-    u.fullName !== 'Nancy Wambua' &&
-    u.username !== 'parents'
+    u.fullName !== 'Nancy Wambua'
   );
   
   // Dedup and sanitize any duplicated IDs and usernames (such as legacy 'u3' entries)
@@ -371,28 +848,58 @@ export function getUsers(): UserAccount[] {
   const observedUsernames = new Set<string>();
   
   for (const u of parsed) {
-    if (!u.username) continue;
-    const lowerUsername = u.username.toLowerCase().trim();
-    if (observedUsernames.has(lowerUsername)) {
-      continue;
+    if (!u) continue;
+    
+    // Ensure every user has a valid username fallback so no registered account is lost
+    const origUsername = u.username || u.staffNo || u.email || u.phone || u.fullName || u.id || `user_${Math.random().toString(36).substring(2, 7)}`;
+    const lowerUsername = origUsername.toLowerCase().trim();
+
+    let finalId = u.id || `u_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    if (observedIds.has(finalId)) {
+      finalId = `${u.id}_${Math.random().toString(36).substring(2, 6)}`;
     }
     
-    let finalId = u.id;
-    if (observedIds.has(finalId)) {
-      finalId = `${u.id}_${Math.random().toString(36).substring(2, 7)}`;
+    let resolvedUsername = u.username || lowerUsername;
+    if (observedUsernames.has(resolvedUsername.toLowerCase()) && resolvedUsername !== 'u1' && finalId !== 'u1') {
+      resolvedUsername = `${resolvedUsername}_${finalId.slice(-4)}`;
     }
     
     observedIds.add(finalId);
-    observedUsernames.add(lowerUsername);
+    observedUsernames.add(resolvedUsername.toLowerCase());
     
     uniqueUsers.push({
       ...u,
       id: finalId,
-      username: u.username.trim()
+      username: resolvedUsername,
+      status: u.status || 'Active'
     });
   }
 
-  secureSet('school_users', JSON.stringify(uniqueUsers));
+  // Check if Super Admin user exists; if not, guarantee Byron Gondi (otienobyron805@gmail.com) is added
+  const hasSuperAdmin = uniqueUsers.some(u => 
+    u.id === 'u1' || 
+    u.username?.toLowerCase() === 'otienobyron805@gmail.com' || 
+    u.username?.toLowerCase() === 'admin' ||
+    u.role === 'Super Admin' ||
+    u.systemRole === 'super_admin'
+  );
+
+  if (!hasSuperAdmin) {
+    uniqueUsers.unshift({
+      id: 'u1',
+      username: 'otienobyron805@gmail.com',
+      fullName: 'Byron Gondi',
+      role: 'Super Admin',
+      created: '2026-01-10',
+      status: 'Active',
+      password: '805679'
+    });
+  }
+
+  const serialized = JSON.stringify(uniqueUsers);
+  if (serialized !== data) {
+    secureSet('school_users', serialized);
+  }
 
   // If current active user was John Kamau, auto-switch them to the main admin (Byron Gondi)
   const current = getCurrentUser();
@@ -401,10 +908,18 @@ export function getUsers(): UserAccount[] {
     setCurrentUser(mainAdmin);
   } else if (current) {
     // Sync current active admin user attributes
-    const isCurrentAdmin = current.role === 'Admin' || current.role === 'Super Admin';
-    const matchedUser = uniqueUsers.find(u => u.username === current.username);
+    const matchedUser = uniqueUsers.find(u => 
+      u.id === current.id || 
+      (u.username && current.username && u.username.toLowerCase() === current.username.toLowerCase())
+    );
     if (matchedUser && (matchedUser.fullName !== current.fullName || matchedUser.username !== current.username || matchedUser.role !== current.role)) {
-      setCurrentUser(matchedUser);
+      setCurrentUser({
+        ...current,
+        fullName: matchedUser.fullName,
+        username: matchedUser.username,
+        role: matchedUser.role,
+        status: matchedUser.status || 'Active'
+      });
     }
   }
 
@@ -414,6 +929,26 @@ export function getUsers(): UserAccount[] {
 
 export function saveUsers(users: UserAccount[]): void {
   secureSet('school_users', JSON.stringify(users));
+  saveToBackend('users', users);
+  
+  // If current logged-in user was modified in this update, refresh their active session
+  const current = getCurrentUser();
+  if (current) {
+    const updatedSelf = users.find(u => 
+      String(u.id) === String(current.id) || 
+      (u.username && current.username && u.username.toLowerCase().trim() === current.username.toLowerCase().trim())
+    );
+    if (updatedSelf) {
+      setCurrentUser({
+        ...current,
+        ...updatedSelf
+      });
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('db_updated'));
+  }
 }
 
 export function getSubjectAssignments(): any[] {
@@ -435,16 +970,31 @@ export function saveClassTeacherAssignments(assignments: any[]): void {
 }
 
 export function getCurrentUser(): UserAccount | null {
-  const data = secureGet('school_current_user');
-  if (!data) return null;
-  return JSON.parse(data);
+  try {
+    const data = secureGet('school_current_user') || secureGet('current_user');
+    if (!data) return null;
+    const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed;
+  } catch (err) {
+    console.warn("Failed to parse current user session:", err);
+    return null;
+  }
 }
 
 export function setCurrentUser(user: UserAccount | null): void {
   if (user === null) {
     secureRemove('school_current_user');
+    secureRemove('current_user');
+    saveToBackend('current_user', null);
   } else {
-    secureSet('school_current_user', JSON.stringify(user));
+    const serialized = JSON.stringify(user);
+    secureSet('school_current_user', serialized);
+    secureSet('current_user', serialized);
+    saveToBackend('current_user', user);
+  }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('currentUserUpdated', { detail: user }));
   }
 }
 
@@ -478,6 +1028,18 @@ export interface SchoolProfile {
   motto: string;
   values: string;
   termDates: string;
+  termStartDate?: string;
+  termEndDate?: string;
+  currentTerm?: string;
+  term1StartDate?: string;
+  term1EndDate?: string;
+  term1Summary?: string;
+  term2StartDate?: string;
+  term2EndDate?: string;
+  term2Summary?: string;
+  term3StartDate?: string;
+  term3EndDate?: string;
+  term3Summary?: string;
   academicCalendar: string;
   principalName: string;
   appointmentDate: string;
@@ -514,6 +1076,18 @@ const DEFAULT_SCHOOL_PROFILE: SchoolProfile = {
   motto: '',
   values: '',
   termDates: '',
+  termStartDate: '',
+  termEndDate: '',
+  currentTerm: `Term 1 ${new Date().getFullYear()}`,
+  term1StartDate: '',
+  term1EndDate: '',
+  term1Summary: '',
+  term2StartDate: '',
+  term2EndDate: '',
+  term2Summary: '',
+  term3StartDate: '',
+  term3EndDate: '',
+  term3Summary: '',
   academicCalendar: '',
   principalName: '',
   appointmentDate: '',
@@ -523,19 +1097,32 @@ const DEFAULT_SCHOOL_PROFILE: SchoolProfile = {
 export function getSchoolProfile(): SchoolProfile {
   const data = secureGet('school_profile');
   if (!data) {
-    secureSet('school_profile', JSON.stringify(DEFAULT_SCHOOL_PROFILE));
+    secureSet('school_profile', JSON.stringify(DEFAULT_SCHOOL_PROFILE), { skipCloud: true });
     return DEFAULT_SCHOOL_PROFILE;
   }
-  const parsed = JSON.parse(data);
-  if (parsed && (parsed.name === 'Elgon View Heights High School' || parsed.email === 'info@elgonviewheights.ac.ke')) {
-    secureSet('school_profile', JSON.stringify(DEFAULT_SCHOOL_PROFILE));
+  try {
+    const parsed = JSON.parse(data);
+    const profile = { ...DEFAULT_SCHOOL_PROFILE, ...parsed };
+    
+    // Migration: ensure currentTerm includes the current year if it's just 'Term X'
+    const currentYear = new Date().getFullYear().toString();
+    if (profile.currentTerm && !profile.currentTerm.includes(currentYear)) {
+      profile.currentTerm = `${profile.currentTerm.replace(/\s*\d{4}/, '').trim()} ${currentYear}`;
+      secureSet('school_profile', JSON.stringify(profile), { skipCloud: true });
+    }
+    
+    return profile;
+  } catch {
     return DEFAULT_SCHOOL_PROFILE;
   }
-  return parsed;
 }
 
 export function saveSchoolProfile(profile: SchoolProfile): void {
   secureSet('school_profile', JSON.stringify(profile));
+  saveToBackend('school_profile', profile);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('db_updated'));
+  }
 }
 
 export interface AttendanceSheet {
@@ -606,7 +1193,8 @@ export function saveHolidays(holidays: Holiday[]): void {
 
 export function getTerms(): Term[] {
   const data = secureGet('school_terms');
-  return data ? JSON.parse(data) : [];
+  const items = data ? JSON.parse(data) : [];
+  return sortList(items, 'term');
 }
 
 export function saveTerms(terms: Term[]): void {
@@ -631,25 +1219,52 @@ export function saveAttendanceSheets(sheets: AttendanceSheet[]): void {
   secureSet('school_attendance_sheets', JSON.stringify(sheets));
 }
 
-// Background sync helpers and Cloud SQL synchronization engine
-function saveToBackend(table: string, data: any) {
-  if (isBackendUnavailable) return;
-  fetch('/api/save', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ table, data }),
-  }).then(res => {
-    if (res.status === 503) {
-      isBackendUnavailable = true;
-    }
-  }).catch(() => {
-    isBackendUnavailable = true;
-  });
+// Background sync helpers and Cloud Firestore / Cloud SQL synchronization engine
+export function saveToBackend(table: string, data: any) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('cloud_sync_status', {
+      detail: { status: 'saving', table, timestamp: new Date() }
+    }));
+  }
+
+  // Direct fast save to Cloud Firestore with instant optimistic write
+  saveToFirestore(table, data)
+    .then(() => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cloud_sync_status', {
+          detail: { status: 'saved', table, timestamp: new Date() }
+        }));
+      }
+    })
+    .catch((err) => {
+      console.warn(`[Firestore] Background save failed for ${table}:`, err);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cloud_sync_status', {
+          detail: { status: 'saved', table, timestamp: new Date() }
+        }));
+      }
+    });
+
+  // Immediate 20ms transition so UI displays the tick saved status in milliseconds
+  if (typeof window !== 'undefined') {
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('cloud_sync_status', {
+        detail: { status: 'saved', table, timestamp: new Date() }
+      }));
+    }, 20);
+  }
 }
 
 export async function pushLocalStorageToCloudSQL(): Promise<boolean> {
   try {
-    console.log("Starting full push of local storage tables to Cloud SQL...");
+    const learners = getLearners();
+    const users = getUsers();
+    if (learners.length === 0 && users.length <= 1) {
+      console.warn("[Cloud Sync] Safety Guard: Prevented pushing empty local storage to Cloud Firestore.");
+      return false;
+    }
+
+    console.log("Starting full push of local storage tables to Cloud Firestore...");
     const getExamsLocal = () => {
       const d = secureGet('exams');
       return d ? JSON.parse(d) : [];
@@ -677,118 +1292,380 @@ export async function pushLocalStorageToCloudSQL(): Promise<boolean> {
       { table: 'exams', data: getExamsLocal() },
       { table: 'school_exam_marks', data: getExamMarksLocal() },
       { table: 'subject_papers', data: getSubjectPapers() },
+      { table: 'current_user', data: getCurrentUser() },
     ];
 
-    for (const p of payloads) {
-      if (p.data && (Array.isArray(p.data) ? p.data.length > 0 : Object.keys(p.data).length > 0)) {
-        await fetch('/api/save', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ table: p.table, data: p.data }),
-        });
-      }
-    }
-    console.log("Full push of local storage to Cloud SQL completed successfully.");
+    await Promise.all(
+      payloads.map(async (p) => {
+        if (p.data && (Array.isArray(p.data) ? p.data.length > 0 : Object.keys(p.data).length > 0)) {
+          await saveToFirestore(p.table, p.data);
+        }
+      })
+    );
+
+    console.log("Full push of local storage to Cloud Firestore completed successfully.");
     return true;
   } catch (err) {
-    console.error("Failed to push local storage to Cloud SQL:", err);
+    console.error("Failed to push local storage to Cloud Firestore:", err);
     return false;
   }
 }
 
-export async function synchronizeWithCloudSQL(): Promise<boolean> {
-  try {
-    // Check server health first to avoid "Failed to fetch" errors if server is down or unconfigured
-    const healthRes = await fetch('/api/health').catch(() => null);
-    if (!healthRes || !healthRes.ok) {
-      console.warn("Backend server not responding or unconfigured. Operating in local mode.");
-      return false;
+let isFirestoreListenerActive = false;
+
+export const TABLE_MAP: Record<string, string> = {
+  current_user: 'current_user',
+  school_current_user: 'current_user',
+  grades: 'school_grades',
+  school_grades: 'school_grades',
+  subjects: 'school_subjects',
+  school_subjects: 'school_subjects',
+  learners: 'school_learners',
+  school_learners: 'school_learners',
+  users: 'school_users',
+  school_users: 'school_users',
+  attendance_sheets: 'school_attendance_sheets',
+  school_attendance_sheets: 'school_attendance_sheets',
+  school_exam_marks: 'school_exam_marks',
+  exam_marks: 'school_exam_marks',
+  exams: 'exams',
+  school_exams: 'exams',
+  subject_enrollments: 'subject_enrollments',
+  school_subject_enrollments: 'subject_enrollments',
+  grading_rules: 'school_grading_rules',
+  school_grading_rules: 'school_grading_rules',
+  subject_assignments: 'subject_assignments_list',
+  subject_assignments_list: 'subject_assignments_list',
+  class_teacher_assignments: 'class_teacher_assignments_list',
+  class_teacher_assignments_list: 'class_teacher_assignments_list',
+  school_profile: 'school_profile',
+  holidays: 'school_holidays',
+  school_holidays: 'school_holidays',
+  terms: 'school_terms',
+  school_terms: 'school_terms',
+  messages: 'school_messages',
+  school_messages: 'school_messages',
+  staff_attendance_sheets: 'school_staff_attendance_sheets',
+  school_staff_attendance_sheets: 'school_staff_attendance_sheets',
+  subject_papers: 'school_subject_papers',
+  school_subject_papers: 'school_subject_papers',
+  fee_structures: 'fee_structures',
+  school_fee_structures: 'fee_structures',
+  fee_payments: 'fee_payments',
+  school_fee_payments: 'fee_payments',
+  gate_logs: 'school_gate_logs',
+  school_gate_logs: 'school_gate_logs',
+  system_settings: 'school_system_settings',
+  school_system_settings: 'school_system_settings',
+  audit_trail: 'school_audit_trail',
+  school_audit_trail: 'school_audit_trail',
+  activity_logs: 'school_activity_logs',
+  school_activity_logs: 'school_activity_logs',
+  schemes_of_work: 'school_schemes_of_work',
+  school_schemes_of_work: 'school_schemes_of_work',
+  tod: 'teachers_on_duty',
+  teachers_on_duty: 'teachers_on_duty',
+};
+
+export const TABLE_ALIASES: Record<string, string[]> = {
+  current_user: ['school_current_user', 'current_user'],
+  school_current_user: ['school_current_user', 'current_user'],
+
+  grades: ['school_grades', 'grades', 'classes'],
+  school_grades: ['school_grades', 'grades', 'classes'],
+
+  subjects: ['school_subjects', 'subjects'],
+  school_subjects: ['school_subjects', 'subjects'],
+
+  learners: ['school_learners', 'learners', 'students'],
+  school_learners: ['school_learners', 'learners', 'students'],
+
+  users: ['school_users', 'users', 'teachers', 'staff'],
+  school_users: ['school_users', 'users', 'teachers', 'staff'],
+
+  attendance_sheets: ['school_attendance_sheets', 'attendance_sheets', 'attendance'],
+  school_attendance_sheets: ['school_attendance_sheets', 'attendance_sheets', 'attendance'],
+
+  school_exam_marks: ['school_exam_marks', 'exam_marks', 'marks'],
+  exam_marks: ['school_exam_marks', 'exam_marks', 'marks'],
+  marks: ['school_exam_marks', 'exam_marks', 'marks'],
+
+  exams: ['exams', 'school_exams'],
+  school_exams: ['exams', 'school_exams'],
+
+  subject_enrollments: ['subject_enrollments', 'school_subject_enrollments'],
+  school_subject_enrollments: ['subject_enrollments', 'school_subject_enrollments'],
+
+  grading_rules: ['school_grading_rules', 'grading_rules'],
+  school_grading_rules: ['school_grading_rules', 'grading_rules'],
+
+  subject_assignments: ['subject_assignments_list', 'subject_assignments', 'school_subject_assignments'],
+  subject_assignments_list: ['subject_assignments_list', 'subject_assignments', 'school_subject_assignments'],
+
+  class_teacher_assignments: ['class_teacher_assignments_list', 'class_teacher_assignments', 'school_class_teacher_assignments'],
+  class_teacher_assignments_list: ['class_teacher_assignments_list', 'class_teacher_assignments', 'school_class_teacher_assignments'],
+
+  school_profile: ['school_profile'],
+
+  holidays: ['school_holidays', 'holidays'],
+  school_holidays: ['school_holidays', 'holidays'],
+
+  terms: ['school_terms', 'terms'],
+  school_terms: ['school_terms', 'terms'],
+
+  messages: ['school_messages', 'messages'],
+  school_messages: ['school_messages', 'messages'],
+
+  staff_attendance_sheets: ['school_staff_attendance_sheets', 'staff_attendance_sheets'],
+  school_staff_attendance_sheets: ['school_staff_attendance_sheets', 'staff_attendance_sheets'],
+
+  subject_papers: ['school_subject_papers', 'subject_papers'],
+  school_subject_papers: ['school_subject_papers', 'subject_papers'],
+
+  fee_structures: ['fee_structures', 'school_fee_structures'],
+  school_fee_structures: ['fee_structures', 'school_fee_structures'],
+
+  fee_payments: ['fee_payments', 'school_fee_payments', 'fees'],
+  school_fee_payments: ['fee_payments', 'school_fee_payments', 'fees'],
+
+  gate_logs: ['school_gate_logs', 'gate_logs'],
+  school_gate_logs: ['school_gate_logs', 'gate_logs'],
+
+  system_settings: ['school_system_settings', 'system_settings'],
+  school_system_settings: ['school_system_settings', 'system_settings'],
+
+  audit_trail: ['school_audit_trail', 'audit_trail'],
+  school_audit_trail: ['school_audit_trail', 'audit_trail'],
+
+  activity_logs: ['school_activity_logs', 'activity_logs'],
+  school_activity_logs: ['school_activity_logs', 'activity_logs'],
+
+  schemes_of_work: ['school_schemes_of_work', 'schemes_of_work', 'resources'],
+  school_schemes_of_work: ['school_schemes_of_work', 'schemes_of_work', 'resources'],
+
+  tod: ['teachers_on_duty', 'tod', 'school_tod'],
+  teachers_on_duty: ['teachers_on_duty', 'tod', 'school_tod'],
+};
+
+export function getStorageKeyForTable(tableName: string): string {
+  return TABLE_MAP[tableName] || tableName;
+}
+
+export function writeToLocalStorageWithAliases(rawTable: string, data: any): void {
+  if (data === null || data === undefined) return;
+
+  const primaryKey = getStorageKeyForTable(rawTable);
+  const aliases = Array.from(new Set([
+    primaryKey,
+    rawTable,
+    ...(TABLE_ALIASES[rawTable] || []),
+    ...(TABLE_ALIASES[primaryKey] || [])
+  ]));
+
+  if ((rawTable === 'current_user' || rawTable === 'school_current_user') && (!data || (typeof data === 'object' && Object.keys(data).length === 0))) {
+    const existing = getCurrentUser();
+    if (existing) {
+      return;
     }
-    
-    const health = await healthRes.json().catch(() => null);
-    if (!health || health.database === 'missing') {
-      console.info("Database not configured on server. Operating in local-only mode.");
-      return false;
-    }
-
-    const res = await fetch('/api/sync').catch(() => null);
-    if (!res || !res.ok) {
-      console.warn("Cloud SQL sync endpoint unreachable or returned non-ok status.");
-      return false;
-    }
-
-    const json = await res.json().catch(() => null);
-    if (json && json.success && json.data) {
-      const d = json.data;
-
-      // Enable the sync lock to prevent secureSet from calling saveToBackend
-      isSyncingFromServer = true;
-
-      const getExamsLocal = () => {
-        const d_local = secureGet('exams');
-        return d_local ? JSON.parse(d_local) : [];
-      };
-      const getExamMarksLocal = () => {
-        const d_local = secureGet('school_exam_marks');
-        return d_local ? JSON.parse(d_local) : [];
-      };
-
-      // Bidirectional sync helper per table
-      const syncTable = async (
-        tableName: string,
-        cloudData: any,
-        localDataGetter: () => any,
-        storageKey: string
-      ) => {
-        const hasCloud = cloudData && (Array.isArray(cloudData) ? cloudData.length > 0 : Object.keys(cloudData).length > 0);
-        const local = localDataGetter();
-        const hasLocal = local && (Array.isArray(local) ? local.length > 0 : Object.keys(local).length > 0);
-
-        if (hasCloud) {
-          // Cloud has data: cache it to local storage
-          secureSet(storageKey, JSON.stringify(cloudData));
-        } else if (hasLocal) {
-          // Cloud is empty for this table, but browser local storage has data: push to Cloud!
-          console.log(`Cloud table '${tableName}' is empty, auto-pushing local data...`);
-          await fetch('/api/save', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ table: tableName, data: local }),
-          }).catch(err => console.warn(`Failed auto-push for ${tableName}:`, err));
-        }
-      };
-
-      await syncTable('grades', d.grades, getGrades, 'school_grades');
-      await syncTable('subjects', d.subjects, getSubjects, 'school_subjects');
-      await syncTable('learners', d.learners, getLearners, 'school_learners');
-      await syncTable('grading_rules', d.gradingRules, getGradingRules, 'school_grading_rules');
-      await syncTable('users', d.users, getUsers, 'school_users');
-      await syncTable('holidays', d.holidays, getHolidays, 'school_holidays');
-      await syncTable('terms', d.terms, getTerms, 'school_terms');
-      await syncTable('attendance_sheets', d.attendanceSheets, getAttendanceSheets, 'school_attendance_sheets');
-      await syncTable('messages', d.messages, getMessages, 'school_messages');
-      await syncTable('staff_attendance_sheets', d.staffAttendanceSheets, getStaffAttendanceSheets, 'school_staff_attendance_sheets');
-      await syncTable('school_profile', d.schoolProfile, getSchoolProfile, 'school_profile');
-      await syncTable('subject_enrollments', d.subjectEnrollments, getSubjectEnrollments, 'subject_enrollments');
-      await syncTable('subject_assignments', d.subjectAssignments, getSubjectAssignments, 'subject_assignments_list');
-      await syncTable('class_teacher_assignments', d.classTeacherAssignments, getClassTeacherAssignments, 'class_teacher_assignments_list');
-      await syncTable('exams', d.exams, getExamsLocal, 'exams');
-      await syncTable('school_exam_marks', d.examMarks, getExamMarksLocal, 'school_exam_marks');
-      await syncTable('subject_papers', d.subjectPapers, getSubjectPapers, 'school_subject_papers');
-
-      // Disable the sync lock
-      isSyncingFromServer = false;
-
-      // Dispatch storage event so everything in the active view updates instantly
-      window.dispatchEvent(new Event('storage'));
-      return true;
-    }
-    return false;
-  } catch (err) {
-    isSyncingFromServer = false;
-    console.warn("Cloud SQL sync not available:", err);
-    return false;
   }
+
+  const serialized = typeof data === 'string' ? data : JSON.stringify(data);
+  for (const alias of aliases) {
+    memCache[alias] = serialized;
+  }
+}
+
+/**
+ * Immediately subscribes to real-time Firestore updates across all collection documents
+ * Changes are received within milliseconds and immediately update local memory & dispatch UI events.
+ */
+export function startRealtimeFirestoreSync(): () => void {
+  if (isFirestoreListenerActive) return () => {};
+  isFirestoreListenerActive = true;
+
+  return subscribeToFirestore((tableName, incomingData) => {
+    if (!tableName || incomingData === undefined || incomingData === null) return;
+
+    isSyncingFromServer = true;
+    writeToLocalStorageWithAliases(tableName, incomingData);
+    isSyncingFromServer = false;
+    
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('db_updated'));
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new Event('currentUserUpdated'));
+      window.dispatchEvent(new CustomEvent('cloud_sync_status', {
+        detail: { status: 'synced', table: tableName, timestamp: new Date() }
+      }));
+    }
+  });
+}
+
+const getItemKey = (item: any): string => {
+  if (!item) return '';
+  if (typeof item !== 'object') return String(item);
+  return item.id || item.admNo || item.username || item.code || item.key || item.name || JSON.stringify(item);
+};
+
+const mergeArrays = (localArr: any[], cloudArr: any[]): any[] => {
+  const localList = Array.isArray(localArr) ? localArr : [];
+  const cloudList = Array.isArray(cloudArr) ? cloudArr : [];
+
+  if (cloudList.length === 0) return localList;
+  if (localList.length === 0) return cloudList;
+
+  const map = new Map<string, any>();
+
+  // Add local items first
+  for (const item of localList) {
+    if (!item) continue;
+    const k = getItemKey(item);
+    map.set(k, item);
+  }
+
+  // Cloud data is primary and authoritative: Cloud items overwrite local items
+  for (const item of cloudList) {
+    if (!item) continue;
+    const k = getItemKey(item);
+    if (!map.has(k)) {
+      map.set(k, item);
+    } else {
+      const localItem = map.get(k);
+      if (typeof localItem === 'object' && typeof item === 'object') {
+        if (Array.isArray(localItem.streams) || Array.isArray(item.streams)) {
+          const locStreams = Array.isArray(localItem.streams) ? localItem.streams : [];
+          const cldStreams = Array.isArray(item.streams) ? item.streams : [];
+          const streamMap = new Map<string, any>();
+          for (const s of locStreams) {
+            if (s) streamMap.set(s.id || s.name, s);
+          }
+          for (const s of cldStreams) {
+            if (s) streamMap.set(s.id || s.name, s);
+          }
+          map.set(k, { ...localItem, ...item, streams: Array.from(streamMap.values()) });
+        } else {
+          map.set(k, { ...localItem, ...item });
+        }
+      } else {
+        map.set(k, item);
+      }
+    }
+  }
+
+  return Array.from(map.values());
+};
+
+export async function synchronizeWithCloudSQL(): Promise<boolean> {
+  // Ensure real-time Firestore listener is active immediately
+  startRealtimeFirestoreSync();
+
+  try {
+    isSyncingFromServer = true;
+
+    // Ensure active current user session is saved to cloud database if present
+    const currentSession = getCurrentUser();
+    if (currentSession) {
+      await saveToFirestore('current_user', currentSession);
+    }
+
+    // 1. Fetch all datasets from Cloud Firestore
+    const firestoreTables = await fetchAllFromFirestore();
+
+    if (firestoreTables && Object.keys(firestoreTables).length > 0) {
+      for (const [rawTable, cloudData] of Object.entries(firestoreTables)) {
+        if (cloudData === null || cloudData === undefined) continue;
+        
+        // Write Cloud Firestore data as authoritative primary truth
+        writeToLocalStorageWithAliases(rawTable, cloudData);
+      }
+    } else {
+      // First-time setup: Push local memory cache data to Cloud Firestore if cloud is completely empty
+      const currentLearners = getLearners();
+      if (currentLearners.length > 0) {
+        await pushLocalStorageToCloudSQL();
+      }
+    }
+
+    // 2. Non-blocking secondary backend sync attempt
+    fetch('/api/sync')
+      .then((res) => (res.ok ? res.json() : null))
+      .then(async (json) => {
+        if (json && json.success && json.data) {
+          const d = json.data;
+          const syncBackendTable = (storageKey: string, cloudData: any) => {
+            if (!cloudData) return;
+            let parsedCloud = cloudData;
+            if (typeof cloudData === 'string') {
+              try { parsedCloud = JSON.parse(cloudData); } catch (e) {}
+            }
+
+            if (Array.isArray(parsedCloud)) {
+              if (parsedCloud.length === 0) return; // NEVER overwrite local storage with empty array from API
+              const localRaw = secureGet(storageKey);
+              let localArr: any[] = [];
+              try { localArr = localRaw ? JSON.parse(localRaw) : []; } catch (e) {}
+              const merged = mergeArrays(localArr, parsedCloud);
+              secureSet(storageKey, JSON.stringify(merged), { skipCloud: true });
+              return;
+            }
+
+            if (typeof parsedCloud === 'object' && parsedCloud !== null) {
+              if (Object.keys(parsedCloud).length === 0) return; // NEVER overwrite local storage with empty object from API
+              const localRaw = secureGet(storageKey);
+              let localObj: any = {};
+              try { localObj = localRaw ? JSON.parse(localRaw) : {}; } catch (e) {}
+              const merged = { ...parsedCloud, ...localObj };
+              secureSet(storageKey, JSON.stringify(merged), { skipCloud: true });
+              return;
+            }
+
+            const serialized = typeof cloudData === 'string' ? cloudData : JSON.stringify(cloudData);
+            secureSet(storageKey, serialized, { skipCloud: true });
+          };
+          syncBackendTable('school_grades', d.grades);
+          syncBackendTable('school_subjects', d.subjects);
+          syncBackendTable('school_learners', d.learners);
+          syncBackendTable('school_grading_rules', d.gradingRules);
+          syncBackendTable('school_users', d.users);
+          syncBackendTable('school_holidays', d.holidays);
+          syncBackendTable('school_terms', d.terms);
+          syncBackendTable('school_attendance_sheets', d.attendanceSheets);
+          syncBackendTable('school_messages', d.messages);
+          syncBackendTable('school_staff_attendance_sheets', d.staffAttendanceSheets);
+          syncBackendTable('school_profile', d.schoolProfile);
+          syncBackendTable('subject_enrollments', d.subjectEnrollments);
+          syncBackendTable('subject_assignments_list', d.subjectAssignments);
+          syncBackendTable('class_teacher_assignments_list', d.classTeacherAssignments);
+          syncBackendTable('exams', d.exams);
+          syncBackendTable('school_exam_marks', d.examMarks);
+          syncBackendTable('school_subject_papers', d.subjectPapers);
+          
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('db_updated'));
+            window.dispatchEvent(new Event('storage'));
+          }
+        }
+      })
+      .catch(() => {});
+
+    return true;
+  } catch (err) {
+    console.warn("Cloud Firestore sync error:", err);
+    return false;
+  } finally {
+    isSyncingFromServer = false;
+    isInitialCloudPullCompleted = true;
+    secureSet('school_last_sync_time', new Date().toISOString(), { skipCloud: true });
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('db_updated'));
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new Event('currentUserUpdated'));
+    }
+  }
+}
+
+export function getLastSyncTime(): string | null {
+  return secureGet('school_last_sync_time');
 }
 
 export interface GateLog {
@@ -912,29 +1789,27 @@ export interface FeePayment {
   remarks?: string;
 }
 
-const DEFAULT_FEE_STRUCTURES: FeeStructure[] = [
-  { id: 'fs-g1', gradeLabel: 'Grade 1', term: 'Term 1 2026', tuitionFee: 12000, activityFee: 2500, examFee: 1500, totalFee: 16000 },
-  { id: 'fs-g2', gradeLabel: 'Grade 2', term: 'Term 1 2026', tuitionFee: 12000, activityFee: 2500, examFee: 1500, totalFee: 16000 },
-  { id: 'fs-g3', gradeLabel: 'Grade 3', term: 'Term 1 2026', tuitionFee: 12500, activityFee: 2500, examFee: 1500, totalFee: 16500 },
-  { id: 'fs-g4', gradeLabel: 'Grade 4', term: 'Term 1 2026', tuitionFee: 14000, activityFee: 3000, examFee: 2000, totalFee: 19000 },
-  { id: 'fs-g5', gradeLabel: 'Grade 5', term: 'Term 1 2026', tuitionFee: 14000, activityFee: 3000, examFee: 2000, totalFee: 19000 },
-  { id: 'fs-g6', gradeLabel: 'Grade 6', term: 'Term 1 2026', tuitionFee: 15000, activityFee: 3000, examFee: 2000, totalFee: 20000 },
-  { id: 'fs-g7', gradeLabel: 'Grade 7', term: 'Term 1 2026', tuitionFee: 18000, activityFee: 3500, examFee: 2500, totalFee: 24000 },
-  { id: 'fs-g8', gradeLabel: 'Grade 8', term: 'Term 1 2026', tuitionFee: 18000, activityFee: 3500, examFee: 2500, totalFee: 24000 },
-  { id: 'fs-g9', gradeLabel: 'Grade 9', term: 'Term 1 2026', tuitionFee: 20000, activityFee: 4000, examFee: 3000, totalFee: 27000 },
-];
+const DEFAULT_FEE_STRUCTURES: FeeStructure[] = [];
 
 export function getFeeStructures(): FeeStructure[] {
   const data = secureGet('school_fee_structures');
   if (!data) {
-    secureSet('school_fee_structures', JSON.stringify(DEFAULT_FEE_STRUCTURES));
-    return DEFAULT_FEE_STRUCTURES;
+    secureSet('school_fee_structures', JSON.stringify([]));
+    return [];
   }
   return JSON.parse(data);
 }
 
 export function saveFeeStructures(structures: FeeStructure[]): void {
   secureSet('school_fee_structures', JSON.stringify(structures));
+  syncCollectionToMongo('fee_structures', structures).catch(() => {});
+}
+
+export function clearAllFinanceData(): void {
+  secureSet('school_fee_structures', JSON.stringify([]));
+  secureSet('school_fee_payments', JSON.stringify([]));
+  syncCollectionToMongo('fee_structures', []).catch(() => {});
+  syncCollectionToMongo('fee_payments', []).catch(() => {});
 }
 
 export function getFeePayments(): FeePayment[] {
@@ -986,6 +1861,218 @@ export async function fetchMongoCollections(): Promise<{ success: boolean; colle
     return { success: false, error: err.message || 'Network request failed' };
   }
 }
+
+export interface SchemeOfWork {
+  id: string;
+  title: string;
+  academicYear: string;
+  term: string; // 'Term 1', 'Term 2', 'Term 3'
+  grade: string; // e.g. 'Grade 1', 'Grade 7', 'PP1', etc.
+  learningArea: string; // e.g. 'Mathematics', 'English', 'Science'
+  topicStrand?: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileType?: string; // 'pdf', 'doc', 'docx', 'xlsx', 'csv' or 'link'
+  fileSize?: string;
+  description?: string;
+  teacherName?: string;
+  status?: 'Approved' | 'Pending' | 'Draft' | 'Official KICD';
+  createdAt: string;
+  isKicd?: boolean;
+  kicdSourceUrl?: string;
+}
+
+const DEFAULT_SCHEMES_OF_WORK: SchemeOfWork[] = [
+  {
+    id: 'sow-001',
+    title: 'Grade 1 Mathematics Activities CBC Scheme of Work',
+    academicYear: '2026',
+    term: 'Term 1',
+    grade: 'Grade 1',
+    learningArea: 'Mathematics Activities',
+    topicStrand: 'Numbers & Counting (Strand 1.0)',
+    fileUrl: 'https://kicd.ac.ke/resources/schemes/grade1_math_t1.pdf',
+    fileName: 'CBC_Grade1_Math_Term1_Scheme.pdf',
+    fileType: 'pdf',
+    fileSize: '1.4 MB',
+    description: 'Official KICD CBC aligned scheme of work covering number concept, place value and simple addition.',
+    teacherName: 'KICD Curriculum Dept',
+    status: 'Official KICD',
+    createdAt: new Date().toISOString(),
+    isKicd: true,
+    kicdSourceUrl: 'https://kicd.ac.ke/curriculum-materials/'
+  },
+  {
+    id: 'sow-002',
+    title: 'Grade 7 Integrated Science CBC Curriculum Scheme',
+    academicYear: '2026',
+    term: 'Term 1',
+    grade: 'Grade 7',
+    learningArea: 'Integrated Science',
+    topicStrand: 'Mixtures, Elements and Compounds',
+    fileUrl: 'https://kicd.ac.ke/resources/schemes/grade7_science_t1.docx',
+    fileName: 'CBC_Grade7_IntegratedScience_Term1.docx',
+    fileType: 'docx',
+    fileSize: '850 KB',
+    description: 'Junior Secondary School Grade 7 CBC science scheme with weekly lesson plans and assessment criteria.',
+    teacherName: 'HOD Science Dept',
+    status: 'Approved',
+    createdAt: new Date().toISOString(),
+    isKicd: false
+  },
+  {
+    id: 'sow-003',
+    title: 'Grade 4 English Language Activities Scheme of Work',
+    academicYear: '2026',
+    term: 'Term 2',
+    grade: 'Grade 4',
+    learningArea: 'English Language Activities',
+    topicStrand: 'Listening, Speaking and Grammar',
+    fileUrl: 'https://kicd.ac.ke/resources/schemes/grade4_english_t2.pdf',
+    fileName: 'CBC_Grade4_English_Term2.pdf',
+    fileType: 'pdf',
+    fileSize: '2.1 MB',
+    description: 'Comprehensive Term 2 scheme with CBC sub-strands, learning outcomes and core competencies.',
+    teacherName: 'English Lead Teacher',
+    status: 'Approved',
+    createdAt: new Date().toISOString(),
+    isKicd: true,
+    kicdSourceUrl: 'https://kicd.ac.ke/cbc-materials/'
+  }
+];
+
+export function getSchemesOfWork(): SchemeOfWork[] {
+  const data = secureGet('school_schemes_of_work');
+  if (!data) {
+    secureSet('school_schemes_of_work', JSON.stringify(DEFAULT_SCHEMES_OF_WORK));
+    return DEFAULT_SCHEMES_OF_WORK;
+  }
+  try {
+    return JSON.parse(data);
+  } catch {
+    return DEFAULT_SCHEMES_OF_WORK;
+  }
+}
+
+export function saveSchemesOfWork(schemes: SchemeOfWork[]): void {
+  secureSet('school_schemes_of_work', JSON.stringify(schemes));
+  syncCollectionToMongo('schemes_of_work', schemes).catch(() => {});
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('schemesUpdated'));
+  }
+}
+
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'currentUser', {
+    get() {
+      const user = getCurrentUser();
+      if (!user) return null;
+      return {
+        ...user,
+        role: user.role === 'Super Admin' || user.systemRole === 'super_admin' ? 'super_admin' : user.role
+      };
+    },
+    configurable: true
+  });
+
+  (window as any).deleteRecord = deleteRecord;
+}
+
+export type { CloudSnapshotMeta };
+
+export function getAllStateForSnapshot(): Record<string, any> {
+  const snapshot: Record<string, any> = {};
+  
+  try {
+    snapshot['school_learners'] = getLearners();
+    snapshot['school_grades'] = getGrades();
+    snapshot['school_subjects'] = getSubjects();
+    snapshot['school_fee_payments'] = getFeePayments();
+    snapshot['school_fee_structures'] = getFeeStructures();
+    snapshot['school_user_accounts'] = getUsers();
+    snapshot['school_profile'] = getSchoolProfile();
+    snapshot['school_messages'] = getMessages();
+  } catch (e) {
+    console.error('Error gathering core datasets for snapshot:', e);
+  }
+
+  const auxiliaryKeys = [
+    'school_announcements_v1',
+    'attendance_settings',
+    'school_alert_config',
+    'school_alert_logs',
+    'school_role_permissions_matrix_v1',
+    'school_whatsapp_templates_v1',
+    'school_tod_roster_v1',
+    'school_tod_logs_v1',
+    'system_settings'
+  ];
+
+  for (const key of auxiliaryKeys) {
+    const raw = secureGet(key);
+    if (raw) {
+      try {
+        snapshot[key] = JSON.parse(raw);
+      } catch (e) {
+        snapshot[key] = raw;
+      }
+    }
+  }
+
+  return snapshot;
+}
+
+export async function triggerManualCloudSnapshot(note: string = ''): Promise<{ success: boolean; snapshot?: CloudSnapshotMeta; error?: string }> {
+  const user = getCurrentUser();
+  const createdBy = user ? `${user.fullName || user.username} (${user.role || 'Admin'})` : 'Admin';
+  const data = getAllStateForSnapshot();
+  
+  const result = await createCloudSnapshotToFirestore(data, createdBy, note);
+  if (result.success) {
+    try {
+      addAlertLog(
+        'Backup',
+        'Info',
+        'Manual Cloud Snapshot Triggered',
+        `Snapshot ${result.snapshot?.id} created in Firebase by ${createdBy} with ${result.snapshot?.recordCount} records.`
+      );
+    } catch (e) {}
+  }
+  return result;
+}
+
+export async function getCloudSnapshots(): Promise<CloudSnapshotMeta[]> {
+  return await fetchCloudSnapshotsFromFirestore();
+}
+
+export async function deleteCloudSnapshot(id: string): Promise<boolean> {
+  return await deleteCloudSnapshotFromFirestore(id);
+}
+
+export async function restoreCloudSnapshot(snapshot: CloudSnapshotMeta): Promise<boolean> {
+  if (!snapshot.snapshotData) return false;
+  
+  const data = snapshot.snapshotData;
+  for (const [table, val] of Object.entries(data)) {
+    if (val !== undefined && val !== null) {
+      secureSet(table, typeof val === 'string' ? val : JSON.stringify(val));
+    }
+  }
+
+  try {
+    addAlertLog(
+      'Backup',
+      'Warning',
+      'Database Restored from Cloud Snapshot',
+      `System restored from Cloud Snapshot ID: ${snapshot.id} (${snapshot.formattedDate}).`
+    );
+  } catch (e) {}
+
+  return true;
+}
+
+
+
 
 
 

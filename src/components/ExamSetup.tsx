@@ -5,6 +5,7 @@ import {
   Edit3, X, Trash2, Save
 } from 'lucide-react';
 import { getGrades, getSubjects, Grade, Subject, getSubjectPapers, saveSubjectPapers, SubjectPaper } from '../utils/db';
+import { canDelete } from '../utils/permissions';
 
 export default function ExamSetup() {
   const [addedSubjects, setAddedSubjects] = useState<{id: string, grade: string, subject: string, maxMarks: number}[]>([]);
@@ -99,6 +100,10 @@ export default function ExamSetup() {
   };
 
   const deletePaper = (id: string) => {
+    if (!canDelete()) {
+      alert('⚠️ Access denied: You have a restriction ("cannot delete") preventing you from deleting items in this software.');
+      return;
+    }
     const updatedPapers = papers.filter(p => p.id !== id);
     setPapers(updatedPapers);
 
@@ -285,12 +290,14 @@ export default function ExamSetup() {
                       >
                         <Edit2 className="w-5 h-5" />
                       </button>
-                      <button 
-                        onClick={() => deletePaper(p.id)}
-                        className="p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                      {canDelete() && (
+                        <button 
+                          onClick={() => deletePaper(p.id)}
+                          className="p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

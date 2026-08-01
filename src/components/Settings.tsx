@@ -9,7 +9,9 @@ import {
   getLearners, 
   getSubjects, 
   getSchoolProfile,
-  UserAccount 
+  UserAccount,
+  secureGet,
+  secureSet
 } from '../utils/db';
 import { getAlertConfig, saveAlertConfig, getAlertLogs, addAlertLog, clearAlertLogs, AlertLog, AlertConfig } from '../utils/alerts';
 import { 
@@ -27,8 +29,11 @@ import {
   Send,
   Building,
   Key,
-  Users
+  Users,
+  Sun,
+  Moon
 } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
 
 export default function Settings() {
   const [usersCount, setUsersCount] = useState(0);
@@ -46,6 +51,40 @@ export default function Settings() {
   const [isTestingEmail, setIsTestingEmail] = useState(false);
   const [testStep, setTestStep] = useState<string>('');
   const [testResult, setTestResult] = useState<'success' | 'failed' | null>(null);
+
+  // Role-based permission matrix state
+  const [rolePermissions, setRolePermissions] = useState<Record<string, Record<string, boolean>>>(() => {
+    try {
+      const saved = secureGet('school_role_permissions_matrix_v1');
+      return saved ? JSON.parse(saved) : {
+        'Super Admin': { edit_learner: true, add_learner: true, attendance: true, edit_marks: true, print_exams: true, cannot_delete: false },
+        'Admin': { edit_learner: true, add_learner: true, attendance: true, edit_marks: true, print_exams: true, cannot_delete: false },
+        'Head Teacher': { edit_learner: true, add_learner: true, attendance: true, edit_marks: true, print_exams: true, cannot_delete: true },
+        'Deputy Head Teacher': { edit_learner: true, add_learner: true, attendance: true, edit_marks: true, print_exams: true, cannot_delete: true },
+        'Senior Teacher': { edit_learner: true, add_learner: true, attendance: true, edit_marks: true, print_exams: true, cannot_delete: true },
+        'Class Teacher': { edit_learner: true, add_learner: true, attendance: true, edit_marks: true, print_exams: true, cannot_delete: true },
+        'Teacher': { edit_learner: false, add_learner: false, attendance: true, edit_marks: true, print_exams: true, cannot_delete: true }
+      };
+    } catch {
+      return {
+        'Super Admin': { edit_learner: true, add_learner: true, attendance: true, edit_marks: true, print_exams: true, cannot_delete: false },
+        'Admin': { edit_learner: true, add_learner: true, attendance: true, edit_marks: true, print_exams: true, cannot_delete: false },
+        'Head Teacher': { edit_learner: true, add_learner: true, attendance: true, edit_marks: true, print_exams: true, cannot_delete: true },
+        'Deputy Head Teacher': { edit_learner: true, add_learner: true, attendance: true, edit_marks: true, print_exams: true, cannot_delete: true },
+        'Senior Teacher': { edit_learner: true, add_learner: true, attendance: true, edit_marks: true, print_exams: true, cannot_delete: true },
+        'Class Teacher': { edit_learner: true, add_learner: true, attendance: true, edit_marks: true, print_exams: true, cannot_delete: true },
+        'Teacher': { edit_learner: false, add_learner: false, attendance: true, edit_marks: true, print_exams: true, cannot_delete: true }
+      };
+    }
+  });
+
+  const handleToggleRolePermission = (role: string, permKey: string) => {
+    const current = rolePermissions[role] || {};
+    const nextRole = { ...current, [permKey]: !current[permKey] };
+    const nextMatrix = { ...rolePermissions, [role]: nextRole };
+    setRolePermissions(nextMatrix);
+    secureSet('school_role_permissions_matrix_v1', JSON.stringify(nextMatrix));
+  };
 
   useEffect(() => {
     // Load counts
@@ -132,6 +171,140 @@ export default function Settings() {
         </div>
         <div className="p-3 bg-blue-500/10 text-blue-300 rounded-2xl border border-blue-700/30 self-start sm:self-auto shrink-0">
           <Key size={24} />
+        </div>
+      </div>
+
+      {/* 📌 ROLE-BASED PERMISSIONS & RESTRICTIONS MATRIX */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-amber-500 text-white rounded-xl shadow-md shadow-amber-500/10">
+              <ShieldCheck size={22} className="text-white" />
+            </div>
+            <div>
+              <h4 className="text-sm font-black text-slate-900">Role-Based Permissions & Restrictions Matrix</h4>
+              <p className="text-xs text-slate-500">Configure exact privileges and restrictions for Super Admin, Admin, Head Teacher, Deputy, Senior, Class Teacher, and Teachers.</p>
+            </div>
+          </div>
+          <span className="text-[10px] font-extrabold px-2.5 py-1 bg-amber-50 text-amber-800 rounded-lg border border-amber-200 uppercase tracking-wider">
+            7 Staff Roles Enforced
+          </span>
+        </div>
+
+        <div className="space-y-4">
+          {Object.entries(rolePermissions).map(([roleName, rawPerms]) => {
+            const perms = rawPerms as Record<string, boolean>;
+            const isSuperOrAdmin = roleName === 'Super Admin' || roleName === 'Admin';
+            return (
+              <div key={roleName} className={`p-4 rounded-2xl border transition ${isSuperOrAdmin ? 'bg-blue-50/40 border-blue-200/80' : 'bg-slate-50/70 border-slate-200'}`}>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 pb-3 border-b border-slate-200/60">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-3 h-3 rounded-full ${isSuperOrAdmin ? 'bg-blue-600' : 'bg-amber-500'}`} />
+                    <h5 className="text-xs font-black text-slate-900 uppercase tracking-wide">{roleName}</h5>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-500 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+                    {isSuperOrAdmin ? 'Full Administrative Access' : 'Classroom & School Privileges'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {/* Edit Learner */}
+                  <div className="bg-white p-3 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2 shadow-2xs">
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-800 block">Edit Learner Details</span>
+                      <span className="text-[10px] text-slate-400">Update student profiles</span>
+                    </div>
+                    <button
+                      onClick={() => handleToggleRolePermission(roleName, 'edit_learner')}
+                      className={`w-9 h-5 rounded-full transition relative p-0.5 shrink-0 cursor-pointer ${perms.edit_learner ? 'bg-blue-600' : 'bg-slate-300'}`}
+                      title="Toggle permission"
+                    >
+                      <div className={`w-4 h-4 rounded-full bg-white transition shadow-xs ${perms.edit_learner ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+
+                  {/* Add Learner */}
+                  <div className="bg-white p-3 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2 shadow-2xs">
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-800 block">Add New Learners</span>
+                      <span className="text-[10px] text-slate-400">Register new students</span>
+                    </div>
+                    <button
+                      onClick={() => handleToggleRolePermission(roleName, 'add_learner')}
+                      className={`w-9 h-5 rounded-full transition relative p-0.5 shrink-0 cursor-pointer ${perms.add_learner ? 'bg-blue-600' : 'bg-slate-300'}`}
+                      title="Toggle permission"
+                    >
+                      <div className={`w-4 h-4 rounded-full bg-white transition shadow-xs ${perms.add_learner ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+
+                  {/* Attendance */}
+                  <div className="bg-white p-3 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2 shadow-2xs">
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-800 block">Mark Attendance Roll</span>
+                      <span className="text-[10px] text-slate-400">Class daily attendance</span>
+                    </div>
+                    <button
+                      onClick={() => handleToggleRolePermission(roleName, 'attendance')}
+                      className={`w-9 h-5 rounded-full transition relative p-0.5 shrink-0 cursor-pointer ${perms.attendance ? 'bg-blue-600' : 'bg-slate-300'}`}
+                      title="Toggle permission"
+                    >
+                      <div className={`w-4 h-4 rounded-full bg-white transition shadow-xs ${perms.attendance ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+
+                  {/* Edit Marks */}
+                  <div className="bg-white p-3 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2 shadow-2xs">
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-800 block">Edit Marks for Learners</span>
+                      <span className="text-[10px] text-slate-400">Input exam & test scores</span>
+                    </div>
+                    <button
+                      onClick={() => handleToggleRolePermission(roleName, 'edit_marks')}
+                      className={`w-9 h-5 rounded-full transition relative p-0.5 shrink-0 cursor-pointer ${perms.edit_marks ? 'bg-blue-600' : 'bg-slate-300'}`}
+                      title="Toggle permission"
+                    >
+                      <div className={`w-4 h-4 rounded-full bg-white transition shadow-xs ${perms.edit_marks ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+
+                  {/* Print Exams */}
+                  <div className="bg-white p-3 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2 shadow-2xs">
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-800 block">Print Exams & Reports</span>
+                      <span className="text-[10px] text-slate-400">Export terminal reports</span>
+                    </div>
+                    <button
+                      onClick={() => handleToggleRolePermission(roleName, 'print_exams')}
+                      className={`w-9 h-5 rounded-full transition relative p-0.5 shrink-0 cursor-pointer ${perms.print_exams ? 'bg-blue-600' : 'bg-slate-300'}`}
+                      title="Toggle permission"
+                    >
+                      <div className={`w-4 h-4 rounded-full bg-white transition shadow-xs ${perms.print_exams ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+
+                  {/* Cannot Delete */}
+                  <div className="bg-white p-3 rounded-xl border border-rose-200/80 flex items-center justify-between gap-2 shadow-2xs">
+                    <div>
+                      <span className="text-[11px] font-bold text-rose-900 block">Cannot Delete Anything</span>
+                      <span className="text-[10px] text-rose-600">Strict delete protection</span>
+                    </div>
+                    <button
+                      onClick={() => handleToggleRolePermission(roleName, 'cannot_delete')}
+                      className={`w-9 h-5 rounded-full transition relative p-0.5 shrink-0 cursor-pointer ${perms.cannot_delete ? 'bg-rose-600' : 'bg-slate-300'}`}
+                      title="Toggle restriction"
+                    >
+                      <div className={`w-4 h-4 rounded-full bg-white transition shadow-xs ${perms.cannot_delete ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="p-3 bg-blue-50/70 rounded-xl border border-blue-200/60 flex items-center justify-between text-xs text-blue-900">
+          <span>💡 Changes to role permission matrices are instantly saved and enforced across staff authentication sessions.</span>
         </div>
       </div>
 
@@ -252,6 +425,21 @@ export default function Settings() {
               </div>
             </div>
 
+
+            {/* Theme & Display Mode */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="block text-xs font-black text-slate-700 uppercase tracking-wider">
+                    Appearance & Theme
+                  </span>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Toggle between Light and Dark mode. Preference is automatically saved to your browser storage.
+                  </p>
+                </div>
+                <ThemeToggle showLabel={true} />
+              </div>
+            </div>
 
             {/* Access Control Settings */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">

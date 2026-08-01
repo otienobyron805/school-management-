@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-export default function ParentAccountManager() {
+export default function ParentAccountManager({ setActiveView }: { setActiveView: (view: string) => void }) {
   const [learners, setLearners] = useState<Learner[]>([]);
   const [grades, setGrades] = useState<Grade[]>([]);
   const [users, setUsers] = useState<UserAccount[]>([]);
@@ -122,6 +122,7 @@ export default function ParentAccountManager() {
     // Reset form partially
     setSelectedLearnerId('');
     setParentPhone('');
+    setActiveView('Parent Accounts');
   };
 
   const [searchTerm, setSearchTerm] = useState('');

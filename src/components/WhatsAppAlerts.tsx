@@ -30,7 +30,8 @@ import {
   Check,
   Share2
 } from 'lucide-react';
-import { getLearners, getSystemSettings, getSchoolProfile, getGrades, Learner } from '../utils/db';
+import { getLearners, getSystemSettings, getSchoolProfile, getGrades, Learner, secureGet, secureSet } from '../utils/db';
+import { canDelete } from '../utils/permissions';
 
 export interface AlertTemplate {
   id: string;
@@ -108,7 +109,7 @@ export default function WhatsAppAlerts() {
   // Templates state
   const [templates, setTemplates] = useState<AlertTemplate[]>(() => {
     try {
-      const saved = localStorage.getItem(TEMPLATE_STORAGE_KEY);
+      const saved = secureGet(TEMPLATE_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -145,11 +146,11 @@ export default function WhatsAppAlerts() {
     }
   }, []);
 
-  // Save templates to localStorage
+  // Save templates to storage and cloud
   const saveTemplates = (newTemplates: AlertTemplate[]) => {
     setTemplates(newTemplates);
     try {
-      localStorage.setItem(TEMPLATE_STORAGE_KEY, JSON.stringify(newTemplates));
+      secureSet(TEMPLATE_STORAGE_KEY, JSON.stringify(newTemplates));
     } catch (e) {
       console.error('Failed to save templates', e);
     }
@@ -373,6 +374,10 @@ export default function WhatsAppAlerts() {
 
   // Delete current template
   const handleDeleteTemplate = (id: string) => {
+    if (!canDelete()) {
+      alert('⚠️ Access denied: You have a restriction ("cannot delete") preventing you from deleting items in this software.');
+      return;
+    }
     if (templates.length <= 1) {
       alert('At least one template must remain in the system.');
       return;
@@ -932,7 +937,7 @@ export default function WhatsAppAlerts() {
               </div>
 
               <div className="flex items-center justify-between pt-2">
-                {editingTplId ? (
+                {editingTplId && canDelete() ? (
                   <button
                     type="button"
                     onClick={() => {

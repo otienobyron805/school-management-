@@ -11,31 +11,46 @@ export interface Notification {
 
 export const sendNotification = async (teacherId: string, message: string) => {
   try {
-    await addDoc(collection(getDb(), "notifications"), {
+    const db = getDb();
+    if (!db) return;
+    await addDoc(collection(db, "notifications"), {
       teacherId,
       message,
       createdAt: serverTimestamp(),
       read: false
     });
   } catch (e) {
-    console.error("Error adding notification: ", e);
+    console.warn("Could not save notification to Firestore: ", e);
   }
 };
 
 export const subscribeNotifications = (teacherId: string, callback: (notifications: Notification[]) => void) => {
-  const q = query(
-    collection(getDb(), "notifications"),
-    where("teacherId", "==", teacherId),
-    orderBy("createdAt", "desc")
-  );
+  try {
+    const db = getDb();
+    if (!db) {
+      callback([]);
+      return () => {};
+    }
 
-  return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
-    const notifications: Notification[] = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Notification));
-    callback(notifications);
-  }, (error) => {
-    console.warn("Firestore subscription unavailable. Notifications may not update in real-time.", error);
-  });
+    const q = query(
+      collection(db, "notifications"),
+      where("teacherId", "==", teacherId),
+      orderBy("createdAt", "desc")
+    );
+
+    return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
+      const notifications: Notification[] = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Notification));
+      callback(notifications);
+    }, (error) => {
+      console.warn("Firestore subscription unavailable. Notifications operating in offline mode.", error?.message || error);
+      callback([]);
+    });
+  } catch (err) {
+    console.warn("Error setting up notification subscription:", err);
+    callback([]);
+    return () => {};
+  }
 };

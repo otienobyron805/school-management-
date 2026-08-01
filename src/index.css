@@ -7,165 +7,182 @@
 }
 
 /* =========================================================
+   DARK MODE SYSTEM STYLES
+   ========================================================= */
+
+html.dark {
+  color-scheme: dark;
+  background-color: #090d16;
+  color: #f1f5f9;
+}
+
+html.dark body {
+  background-color: #090d16;
+  color: #f1f5f9;
+}
+
+/* Smooth theme transition */
+html {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Responsive Button & Tap Feedback */
+.btn:active, button:active, .nav-item:active {
+  transform: scale(0.96);
+  filter: brightness(0.95);
+  transition: transform 0.1s ease, filter 0.1s ease;
+}
+
+/* Instant responsive tap/click for delete buttons — NO DELAY anywhere */
+.delete-btn, .trash-btn, [class*="trash"], [aria-label*="Delete"], [title*="Delete"] {
+  cursor: pointer;
+  transition: all 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.delete-btn:active, .trash-btn:active, [class*="trash"]:active {
+  transform: scale(0.92);
+}
+
+/* Universal Empty State Messages */
+.empty-state {
+  padding: 48px 20px;
+  text-align: center;
+  color: #64748b;
+}
+
+.empty-state i, .empty-state svg {
+  margin: 0 auto 12px auto;
+  opacity: 0.6;
+}
+
+html.dark .bg-white {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+html.dark .bg-slate-50,
+html.dark .bg-slate-50\/60,
+html.dark .bg-slate-50\/30 {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark .bg-slate-100 {
+  background-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+html.dark .border-slate-100,
+html.dark .border-slate-200,
+html.dark .border-slate-200\/90 {
+  border-color: #334155 !important;
+}
+
+html.dark .text-slate-900,
+html.dark .text-slate-800,
+html.dark .text-slate-700 {
+  color: #f8fafc !important;
+}
+
+html.dark .text-slate-600,
+html.dark .text-slate-500 {
+  color: #cbd5e1 !important;
+}
+
+html.dark .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
+
+html.dark input::placeholder {
+  color: #64748b !important;
+}
+
+html.dark main {
+  background-color: #090d16 !important;
+}
+
+html.dark header {
+  background-color: #0f172a !important;
+  border-color: #1e293b !important;
+}
+
+html.dark aside,
+html.dark .sidebar {
+  background-color: #090d16 !important;
+  border-color: #1e293b !important;
+}
+
+
+/* =========================================================
    DEDICATED A4 PRINT STYLESHEET FOR ACADEMIC REPORT DECKS
    ========================================================= */
 
 @page {
   size: A4 portrait;
-  margin: 10mm 12mm;
+  margin: 12mm;
 }
 
 @page landscape {
   size: A4 landscape;
-  margin: 10mm 12mm;
+  margin: 12mm;
 }
 
 @media print {
-  /* 1. Global Page Reset */
-  html, body {
-    background: #ffffff !important;
-    color: #0f172a !important;
-    font-size: 11pt !important;
-    line-height: 1.4 !important;
-    width: 100% !important;
-    height: auto !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: visible !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  /* 2. Hide Non-Essential Dashboard & Interactive UI Elements */
-  aside,
-  header,
-  nav,
-  .sidebar,
-  .no-print,
-  .print\:hidden,
-  button,
-  select,
-  input,
-  textarea,
-  .backdrop-blur-sm,
-  .backdrop-blur-xs,
-  .fixed.inset-0.bg-slate-900\/50,
-  .fixed.inset-0.bg-slate-900\/60,
-  [title="Close Report"],
-  [title="Open Menu"],
-  .toast,
-  .notification-bell {
+  /* 1️⃣ HIDE BUTTONS & NAV — KEEP EVERYTHING ELSE */
+  .modal-header, .print-btn, .close-btn, .top-bar, .sidebar, 
+  button, select, input, textarea, .no-print, .print\:hidden {
     display: none !important;
   }
 
-  /* 3. Unwrap Modals & Fixed Containers for Unbounded Document Layout */
-  .fixed,
-  .absolute {
-    position: static !important;
-  }
-
-  body > div,
-  #root,
-  .flex,
-  .flex-1,
-  main {
-    display: block !important;
-    position: static !important;
+  /* 2️⃣ FORCE VISIBILITY — NO MORE BLANK PAGES */
+  * {
+    visibility: visible !important;
     overflow: visible !important;
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    box-shadow: none !important;
-    border: none !important;
-    background: transparent !important;
-  }
-
-  /* Remove modal wrapper background shadows & borders */
-  .max-w-5xl,
-  .max-w-4xl,
-  .max-w-6xl,
-  .rounded-3xl,
-  .rounded-2xl {
-    max-width: 100% !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-  }
-
-  .overflow-y-auto,
-  .overflow-x-auto,
-  .overflow-hidden {
-    overflow: visible !important;
-    max-height: none !important;
-    height: auto !important;
-  }
-
-  /* 4. Printable Document Formatting */
-  .printable-area,
-  .print-area,
-  .report-document {
-    display: block !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #ffffff !important;
-    color: #0f172a !important;
-    border: none !important;
-    box-shadow: none !important;
-  }
-
-  /* 5. Page Breaks & Table Formatting */
-  .page-break-after,
-  .break-after-page,
-  .report-card-break {
-    break-after: page !important;
-    page-break-after: always !important;
-  }
-
-  .page-break-before,
-  .break-before-page {
-    break-before: page !important;
-    page-break-before: always !important;
-  }
-
-  .avoid-break,
-  .break-inside-avoid,
-  .page-break-inside-avoid,
-  table,
-  tr,
-  .report-card,
-  .stamp-box {
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-  }
-
-  table {
-    width: 100% !important;
-    border-collapse: collapse !important;
-  }
-
-  th, td {
-    border-color: #cbd5e1 !important;
-  }
-
-  /* Preserve essential colored badges, headers & background fills */
-  .bg-blue-50, 
-  .bg-blue-100, 
-  .bg-blue-800, 
-  .bg-blue-900, 
-  .bg-emerald-50, 
-  .bg-emerald-100, 
-  .bg-emerald-600, 
-  .bg-slate-50, 
-  .bg-slate-100, 
-  .bg-slate-800, 
-  .bg-slate-900, 
-  .bg-\[\#0f172a\] {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  /* 3️⃣ REMOVE WIDTH LIMITS — FILL FULL PAGE */
+  .report-modal, .report-card, table, .max-w-5xl, .max-w-4xl, .max-w-6xl {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    background: white !important;
+    border: none !important;
+  }
+
+  /* 4️⃣ FIX BACKGROUND WATERMARK & LOGO */
+  .report-card {
+    background: white !important;
+  }
+
+  /* 5️⃣ PREVENT CUTTING TEXT IN HALF */
+  table, tr, td, th {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* 6️⃣ REMOVE EXTRA BLANK PAGES */
+  #root {
+    display: block !important;
+  }
+
+  html, body {
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
   }
 }
 

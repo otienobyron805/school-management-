@@ -4,6 +4,7 @@ import { getAttendanceSettings } from '../utils/attendance';
 import { Calendar, Clock, GraduationCap, ShieldCheck, User, Camera, Upload, X, Link, Check, AlertCircle, Trash2, ArrowRight, LogIn, LogOut, Lock, Pencil, Zap, UserPlus, FileText, Settings, BookOpen, TrendingUp, PieChart, Bell, Megaphone, CheckCircle2, ListTodo, Plus, Activity, ChevronRight, UserCheck } from 'lucide-react';
 import CurrentLocationDisplay from './CurrentLocationDisplay';
 import ActivityFeed from './ActivityFeed';
+import CloudStorageCard from './CloudStorageCard';
 
 export interface HomeDashboardProps {
   setActiveView?: (view: string) => void;
@@ -29,7 +30,7 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
   // Announcements & Bulletin Board State
   const [announcements, setAnnouncements] = useState<any[]>(() => {
     try {
-      const saved = localStorage.getItem('school_announcements_v1');
+      const saved = secureGet('school_announcements_v1');
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.error(e);
@@ -55,7 +56,7 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
     const updated = [item, ...announcements];
     setAnnouncements(updated);
     try {
-      localStorage.setItem('school_announcements_v1', JSON.stringify(updated));
+      secureSet('school_announcements_v1', JSON.stringify(updated));
     } catch (err) {
       console.error(err);
     }
@@ -68,24 +69,27 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
     const updated = announcements.filter(a => a.id !== id);
     setAnnouncements(updated);
     try {
-      localStorage.setItem('school_announcements_v1', JSON.stringify(updated));
+      secureSet('school_announcements_v1', JSON.stringify(updated));
     } catch (err) {
       console.error(err);
     }
   };
 
-  useEffect(() => {
+  const refreshExams = () => {
     const stored = secureGet('exams');
     if (stored) {
       const parsed = JSON.parse(stored);
-      // Clean out any demo exams if present
       const userExams = Array.isArray(parsed) ? parsed.filter((e: any) => !['exam-1', 'exam-2', 'exam-3'].includes(e.id)) : [];
       setExams(userExams);
-      secureSet('exams', JSON.stringify(userExams));
     } else {
       setExams([]);
-      secureSet('exams', JSON.stringify([]));
     }
+  };
+
+  useEffect(() => {
+    refreshExams();
+    window.addEventListener('storage', refreshExams);
+    return () => window.removeEventListener('storage', refreshExams);
   }, []);
 
   // Convert Check-In Start Time (scheduled time) to opening time (offset earlier)
@@ -116,7 +120,10 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
     femaleStudents: 0,
     staffActive: 0,
     staffTotal: 0,
-    absentsCount: 0
+    absentsCount: 0,
+    presentStudentsCount: 0,
+    isSheetMarked: false,
+    hasStaffSheet: false
   });
 
   const getNow = () => {
@@ -216,24 +223,16 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
     const curMinutes = now.getHours() * 60 + now.getMinutes();
     const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // 1. Opening Window Check
-    if (curMinutes < openMinutes) {
-      alert(`Clock In is not open yet. It opens at ${openTimeStr} (${attendanceSettings.checkInOpeningOffset || 2} hours before the scheduled check-in time of ${checkInStartStr}).`);
+    // 1. Scheduled Check-In Time Check (Cannot clock in after scheduled time)
+    if (curMinutes > startMinutes) {
+      alert(`⛔ Clock-In Restricted!\n\nYou cannot clock in after the scheduled check-in time (${checkInStartStr}). Current time is ${timeString}.`);
       return;
     }
 
-    // 2. Late & Cut-Off Window Check
-    const [lateH, lateM] = (attendanceSettings.lateThreshold || '08:00').split(':').map(Number);
-    const lateThresholdMinutes = (isNaN(lateH) ? 8 : lateH) * 60 + (isNaN(lateM) ? 0 : lateM);
-    const cutoffMinutes = Math.max(startMinutes + checkInAllowance, lateThresholdMinutes);
-
-    if (curMinutes > cutoffMinutes) {
-      if (attendanceSettings.restrictLateCheckIn !== false) {
-        alert(`⛔ Clock-In Restricted!\n\nThe late cut-off time (${attendanceSettings.lateThreshold || '08:00'}) has passed. Late check-ins are restricted by administration policy.\n\nPlease contact the school administrator if you need an attendance override.`);
-        return;
-      }
-      const confirmLate = confirm(`The scheduled check-in time was ${checkInStartStr} (cut-off: ${attendanceSettings.lateThreshold || '08:00'}).\n\nWould you like to submit a late clock-in now?`);
-      if (!confirmLate) return;
+    // 2. Opening Window Check
+    if (curMinutes < openMinutes) {
+      alert(`Clock In is not open yet. It opens at ${openTimeStr} (${attendanceSettings.checkInOpeningOffset || 2} hours before the scheduled check-in time of ${checkInStartStr}).`);
+      return;
     }
 
     const processCheckIn = () => {
@@ -337,10 +336,10 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
     const curMinutes = now.getHours() * 60 + now.getMinutes();
     const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // 1. Scheduled Check-out Time Check
+    // 1. Scheduled Check-Out Time Check (Cannot clock out before scheduled time)
     if (curMinutes < checkOutMinutes) {
-      const confirmEarly = confirm(`Scheduled check-out time is ${checkOutStr}.\n\nIt is currently ${timeString}. Would you like to record an early check-out now?`);
-      if (!confirmEarly) return;
+      alert(`⛔ Clock-Out Restricted!\n\nYou cannot clock out before the scheduled check-out time (${checkOutStr}). Current time is ${timeString}.`);
+      return;
     }
 
     // 2. Missing Clock-In Check
@@ -374,7 +373,7 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
         ...existing,
         userId: user.id,
         status: existing.status || 'Present',
-        checkInTime: existing.checkInTime || timeString,
+        checkInTime: existing.checkInTime,
         checkOutTime: timeString
       };
 
@@ -455,21 +454,23 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
     const todayStr = new Date().toISOString().split('T')[0];
     const todayStaffSheet = staffSheets.find(s => s.date === todayStr);
     
-    let staffActive = staffTotal; // Default to active staff if no sheet exists yet
-    if (todayStaffSheet) {
+    let staffActive = 0;
+    let hasStaffSheet = false;
+    if (todayStaffSheet && todayStaffSheet.records && Object.keys(todayStaffSheet.records).length > 0) {
+      hasStaffSheet = true;
       staffActive = Object.values(todayStaffSheet.records).filter(r => ['Present', 'Late', 'Half Day'].includes(r.status)).length;
     }
 
     const sheets = getAttendanceSheets();
     let latestSheet = sheets.find(s => s.date === todayStr);
-    if (!latestSheet && sheets.length > 0) {
-      // Find the most recent sheet based on date
-      latestSheet = [...sheets].sort((a, b) => b.date.localeCompare(a.date))[0];
-    }
     
     let absentsCount = 0;
-    if (latestSheet) {
+    let presentStudentsCount = 0;
+    let isSheetMarked = false;
+    if (latestSheet && latestSheet.records && Object.keys(latestSheet.records).length > 0) {
+      isSheetMarked = true;
       absentsCount = Object.values(latestSheet.records).filter(status => status === 'Absent').length;
+      presentStudentsCount = Object.values(latestSheet.records).filter(status => ['AM', 'PM', 'Full', 'Present'].includes(status)).length;
     }
 
     setStats({
@@ -478,7 +479,10 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
       femaleStudents,
       staffActive,
       staffTotal,
-      absentsCount
+      absentsCount,
+      presentStudentsCount,
+      isSheetMarked,
+      hasStaffSheet
     });
   }, []);
 
@@ -589,11 +593,19 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
   };
 
   // Calculated widget metrics
-  const presentStudents = Math.max(0, stats.totalStudents - stats.absentsCount);
-  const presentPercentage = stats.totalStudents > 0 ? Math.round((presentStudents / stats.totalStudents) * 100) : 100;
-  const absentPercentage = stats.totalStudents > 0 ? Math.round((stats.absentsCount / stats.totalStudents) * 100) : 0;
+  const isLearnerAttendanceMarked = stats.isSheetMarked;
+  const presentStudents = isLearnerAttendanceMarked ? stats.presentStudentsCount : 0;
+  const presentPercentage = (stats.totalStudents > 0 && isLearnerAttendanceMarked) 
+    ? Math.round((presentStudents / stats.totalStudents) * 100) 
+    : 0;
+  const absentPercentage = (stats.totalStudents > 0 && isLearnerAttendanceMarked) 
+    ? Math.round((stats.absentsCount / stats.totalStudents) * 100) 
+    : 0;
   const studentStaffRatio = stats.staffTotal > 0 ? (stats.totalStudents / stats.staffTotal).toFixed(1) : '0';
-  const staffPresentPercentage = stats.staffTotal > 0 ? Math.round((stats.staffActive / stats.staffTotal) * 100) : 100;
+  const isStaffAttendanceMarked = stats.hasStaffSheet;
+  const staffPresentPercentage = (stats.staffTotal > 0 && isStaffAttendanceMarked) 
+    ? Math.round((stats.staffActive / stats.staffTotal) * 100) 
+    : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/40 p-3 sm:p-5 md:p-6 animate-fadeIn">
@@ -723,11 +735,7 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
               <Clock className="w-3.5 h-3.5" /> Session
             </div>
             <div className="text-sm font-black truncate">
-              {schoolProfile?.academicCalendar ? (
-                schoolProfile.academicCalendar.includes("Term") 
-                  ? schoolProfile.academicCalendar.split(":")[0].trim() 
-                  : schoolProfile.academicCalendar
-              ) : "Term 1"}
+              {schoolProfile?.currentTerm || `Term 1 ${new Date().getFullYear()}`}
             </div>
           </div>
         </div>
@@ -892,8 +900,12 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
 
             <div className="p-3 bg-gradient-to-br from-emerald-50 to-teal-50/50 border border-emerald-100 rounded-xl">
               <div className="text-[10px] font-bold text-slate-500 uppercase">Attendance Rate</div>
-              <div className="text-lg font-black text-emerald-900 mt-0.5">{presentPercentage}%</div>
-              <div className="text-[9px] text-emerald-600 font-semibold mt-0.5">Daily presence</div>
+              <div className="text-lg font-black text-emerald-900 mt-0.5">
+                {isLearnerAttendanceMarked ? `${presentPercentage}%` : <span className="text-slate-400 italic text-sm font-semibold">Pending</span>}
+              </div>
+              <div className="text-[9px] text-emerald-600 font-semibold mt-0.5">
+                {isLearnerAttendanceMarked ? 'Daily presence' : 'Roll pending'}
+              </div>
             </div>
 
             <div className="p-3 bg-gradient-to-br from-purple-50 to-pink-50/50 border border-purple-100 rounded-xl">
@@ -906,8 +918,12 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
 
             <div className="p-3 bg-gradient-to-br from-amber-50 to-orange-50/50 border border-amber-100 rounded-xl">
               <div className="text-[10px] font-bold text-slate-500 uppercase">Staff Active</div>
-              <div className="text-lg font-black text-amber-900 mt-0.5">{staffPresentPercentage}%</div>
-              <div className="text-[9px] text-amber-600 font-semibold mt-0.5">{stats.staffActive} of {stats.staffTotal} staff</div>
+              <div className="text-lg font-black text-amber-900 mt-0.5">
+                {isStaffAttendanceMarked ? `${staffPresentPercentage}%` : <span className="text-slate-400 italic text-sm font-semibold">Pending</span>}
+              </div>
+              <div className="text-[9px] text-amber-600 font-semibold mt-0.5">
+                {isStaffAttendanceMarked ? `${stats.staffActive} of ${stats.staffTotal} staff` : 'Staff log pending'}
+              </div>
             </div>
           </div>
         </div>
@@ -935,18 +951,20 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between text-xs font-semibold">
                   <span className="text-slate-600">Student Attendance Rate</span>
-                  <span className="text-emerald-700 font-bold">{presentPercentage}% Present</span>
+                  <span className="text-emerald-700 font-bold">
+                    {isLearnerAttendanceMarked ? `${presentPercentage}% Present` : <span className="text-slate-400 italic font-normal">Pending (Roll Unmarked)</span>}
+                  </span>
                 </div>
 
                 {/* Stacked Progress Bar */}
                 <div className="w-full h-3.5 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
                   <div 
-                    style={{ width: `${presentPercentage}%` }} 
+                    style={{ width: `${isLearnerAttendanceMarked ? presentPercentage : 0}%` }} 
                     className="bg-emerald-500 h-full transition-all duration-500" 
                     title={`Present: ${presentStudents}`} 
                   />
                   <div 
-                    style={{ width: `${absentPercentage}%` }} 
+                    style={{ width: `${isLearnerAttendanceMarked ? absentPercentage : 0}%` }} 
                     className="bg-rose-500 h-full transition-all duration-500" 
                     title={`Absent: ${stats.absentsCount}`} 
                   />
@@ -956,15 +974,21 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
                 <div className="grid grid-cols-3 gap-2 pt-1">
                   <div className="bg-emerald-50 border border-emerald-100 p-2 rounded-lg text-center">
                     <div className="text-[10px] uppercase font-semibold text-emerald-700">Present</div>
-                    <div className="text-xs font-black text-emerald-900">{presentStudents} ({presentPercentage}%)</div>
+                    <div className="text-xs font-black text-emerald-900">
+                      {isLearnerAttendanceMarked ? `${presentStudents} (${presentPercentage}%)` : <span className="text-slate-400 italic">Pending</span>}
+                    </div>
                   </div>
                   <div className="bg-rose-50 border border-rose-100 p-2 rounded-lg text-center">
                     <div className="text-[10px] uppercase font-semibold text-rose-700">Absentees</div>
-                    <div className="text-xs font-black text-rose-900">{stats.absentsCount} ({absentPercentage}%)</div>
+                    <div className="text-xs font-black text-rose-900">
+                      {isLearnerAttendanceMarked ? `${stats.absentsCount} (${absentPercentage}%)` : <span className="text-slate-400 italic">Pending</span>}
+                    </div>
                   </div>
                   <div className="bg-blue-50 border border-blue-100 p-2 rounded-lg text-center">
                     <div className="text-[10px] uppercase font-semibold text-blue-700">Staff Active</div>
-                    <div className="text-xs font-black text-blue-900">{stats.staffActive}/{stats.staffTotal}</div>
+                    <div className="text-xs font-black text-blue-900">
+                      {isStaffAttendanceMarked ? `${stats.staffActive}/${stats.staffTotal}` : <span className="text-slate-400 italic">Pending</span>}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1107,6 +1131,13 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
           </div>
 
         </div>
+
+        {/* 📊 CLOUD STORAGE METRICS WIDGET (Super Admin Only) */}
+        {(user?.role === 'Super Admin' || user?.systemRole === 'super_admin') && (
+          <div className="max-w-md mx-auto sm:max-w-none">
+            <CloudStorageCard />
+          </div>
+        )}
 
         <ActivityFeed />
 

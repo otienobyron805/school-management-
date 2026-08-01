@@ -10,7 +10,12 @@ import {
   Users,
   Award,
   BookOpen,
-  ArrowRightLeft
+  ArrowRightLeft,
+  AlertTriangle,
+  TrendingDown,
+  Flame,
+  CheckCircle2,
+  ShieldAlert
 } from 'lucide-react';
 import { 
   getLearners, 
@@ -41,6 +46,10 @@ export default function PerformanceReport() {
   const [selectedGradeId, setSelectedGradeId] = useState<string>('');
   const [selectedStreamName, setSelectedStreamName] = useState<string>('All Streams');
   
+  // Heatmap & Threshold States
+  const [threshold, setThreshold] = useState<number>(50);
+  const [showHeatmap, setShowHeatmap] = useState<boolean>(true);
+
   // UI States
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -149,6 +158,32 @@ export default function PerformanceReport() {
 
   const { headers, rows } = generateReportData();
 
+  // Helper: Subject statistics calculation
+  const getSubjectStats = (subjectCode: string) => {
+    let total = 0;
+    let count = 0;
+    let belowCount = 0;
+
+    rows.forEach(r => {
+      const val = r.subjectScores[subjectCode];
+      if (typeof val === 'number') {
+        total += val;
+        count++;
+        if (val < threshold) belowCount++;
+      }
+    });
+
+    const average = count > 0 ? Number((total / count).toFixed(1)) : 0;
+    const isBelowThreshold = count > 0 && average < threshold;
+
+    return {
+      average,
+      count,
+      belowCount,
+      isBelowThreshold
+    };
+  };
+
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       document.getElementById('reportWrapper')?.requestFullscreen();
@@ -172,7 +207,7 @@ export default function PerformanceReport() {
       {/* CONTROLS AREA */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 print:hidden">
         <div className="flex flex-col md:flex-row gap-4 items-end">
-          <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="space-y-1">
               <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider block">Select Exam</label>
               <select 
@@ -211,6 +246,35 @@ export default function PerformanceReport() {
                   <option key={s.id} value={s.name}>{s.name}</option>
                 ))}
               </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider block flex items-center justify-between">
+                <span>Alert Threshold</span>
+                <span className="text-amber-600 font-extrabold">{threshold}%</span>
+              </label>
+              <div className="flex items-center gap-1.5">
+                <input 
+                  type="number" 
+                  min="0"
+                  max="100"
+                  value={threshold}
+                  onChange={(e) => setThreshold(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+                  className="w-16 p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-center focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+                <button
+                  onClick={() => setShowHeatmap(!showHeatmap)}
+                  className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1.5 ${
+                    showHeatmap 
+                      ? 'bg-amber-500 text-white border-amber-600 shadow-sm' 
+                      : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                  }`}
+                  title="Toggle Heatmap visual highlighting"
+                >
+                  <Flame className="w-3.5 h-3.5" />
+                  {showHeatmap ? 'Heatmap ON' : 'Heatmap OFF'}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -271,6 +335,81 @@ export default function PerformanceReport() {
           </p>
         </div>
 
+        {/* ACADEMIC HEATMAP & SUBJECT RISK ANALYSIS PANEL */}
+        {headers.length > 0 && rows.length > 0 && showHeatmap && (
+          <div className="bg-slate-50 border-b border-slate-200 p-6 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-amber-100 text-amber-800 rounded-lg">
+                  <Flame className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                    Subject Performance Heatmap & Risk Analysis
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Subjects with class averages below <span className="font-extrabold text-amber-700">{threshold}%</span> are highlighted for academic intervention.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <span className="flex items-center gap-1 font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-1 rounded-md text-[10px]">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                  Below Threshold (&lt; {threshold}%)
+                </span>
+                <span className="flex items-center gap-1 font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-md text-[10px]">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  Meeting Target (≥ {threshold}%)
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 pt-1">
+              {headers.map(h => {
+                const stats = getSubjectStats(h.code);
+                const isCritical = stats.isBelowThreshold;
+                return (
+                  <div
+                    key={h.id}
+                    className={`p-3 rounded-xl border transition-all ${
+                      isCritical
+                        ? 'bg-red-50/90 border-red-200 text-red-900 shadow-sm ring-1 ring-red-300'
+                        : 'bg-white border-slate-200 text-slate-800 shadow-xs'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start gap-1 mb-1">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 truncate" title={h.name}>
+                        {h.code}
+                      </span>
+                      {isCritical ? (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black bg-red-600 text-white animate-pulse">
+                          <ShieldAlert className="w-3 h-3" /> ALERT
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800">
+                          <CheckCircle2 className="w-3 h-3" /> PASS
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-lg font-black tracking-tight flex items-baseline gap-1">
+                      <span>{stats.count > 0 ? `${stats.average}%` : '—'}</span>
+                      {isCritical && <TrendingDown className="w-4 h-4 text-red-600 inline" />}
+                    </div>
+                    <div className="text-[10px] font-semibold text-slate-500 mt-0.5 truncate">
+                      {h.name}
+                    </div>
+                    {stats.count > 0 && stats.belowCount > 0 && (
+                      <div className="mt-1.5 text-[9px] font-bold text-red-600 bg-red-100/70 px-1.5 py-0.5 rounded">
+                        ⚠️ {stats.belowCount} learner{stats.belowCount > 1 ? 's' : ''} &lt; {threshold}%
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Data Table */}
         <div className="overflow-x-auto p-4 sm:p-6 pb-12">
           <table className="w-full border-collapse min-w-[1000px]">
@@ -280,9 +419,26 @@ export default function PerformanceReport() {
                 <th className="p-3 text-left border-r border-blue-700/50 w-24">ADM NO</th>
                 <th className="p-3 text-left border-r border-blue-700/50 min-w-[200px]">NAME</th>
                 <th className="p-3 text-left border-r border-blue-700/50 w-24">STREAM</th>
-                {headers.map(h => (
-                  <th key={h.id} className="p-3 text-center border-r border-blue-700/50 text-[9px]">{h.code}</th>
-                ))}
+                {headers.map(h => {
+                  const stats = getSubjectStats(h.code);
+                  return (
+                    <th 
+                      key={h.id} 
+                      className={`p-3 text-center border-r border-blue-700/50 text-[9px] ${
+                        showHeatmap && stats.isBelowThreshold ? 'bg-red-900 text-red-100 font-black' : ''
+                      }`}
+                    >
+                      <div className="flex flex-col items-center justify-center gap-0.5">
+                        <span>{h.code}</span>
+                        {showHeatmap && stats.isBelowThreshold && (
+                          <span className="px-1 py-0.2 bg-red-500 text-white text-[8px] rounded font-black tracking-tighter uppercase">
+                            LOW
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                  );
+                })}
                 <th className="p-3 text-center border-r border-blue-700/50 bg-blue-900">TOTAL</th>
                 <th className="p-3 text-center border-r border-blue-700/50 bg-blue-900">MEAN</th>
                 <th className="p-3 text-center border-r border-blue-700/50 bg-blue-900">GRADE</th>
@@ -296,11 +452,22 @@ export default function PerformanceReport() {
                   <td className="p-3 text-left font-mono font-bold text-slate-500 text-xs">{row.admNo}</td>
                   <td className="p-3 text-left font-black text-slate-800 text-sm">{row.name}</td>
                   <td className="p-3 text-left font-bold text-slate-500 text-xs uppercase">{row.stream}</td>
-                  {headers.map(h => (
-                    <td key={h.id} className="p-3 text-center font-bold text-slate-700 text-xs">
-                      {row.subjectScores[h.code]}
-                    </td>
-                  ))}
+                  {headers.map(h => {
+                    const score = row.subjectScores[h.code];
+                    const isLowScore = showHeatmap && typeof score === 'number' && score < threshold;
+                    return (
+                      <td 
+                        key={h.id} 
+                        className={`p-3 text-center font-bold text-xs transition-colors ${
+                          isLowScore 
+                            ? 'bg-red-100/80 text-red-900 font-extrabold border-red-200' 
+                            : 'text-slate-700'
+                        }`}
+                      >
+                        {score}
+                      </td>
+                    );
+                  })}
                   <td className="p-3 text-center font-black text-blue-700 text-sm bg-blue-50/30">{row.total}</td>
                   <td className="p-3 text-center font-black text-blue-700 text-sm bg-blue-50/30">{row.mean}</td>
                   <td className="p-3 text-center font-black text-slate-800 text-xs bg-slate-50/50">{row.grade}</td>
@@ -315,6 +482,34 @@ export default function PerformanceReport() {
                 </tr>
               )}
             </tbody>
+            {/* SUBJECT MEAN / CLASS BENCHMARK FOOTER ROW */}
+            {rows.length > 0 && headers.length > 0 && (
+              <tfoot>
+                <tr className="bg-slate-800 text-white font-black text-xs border-t-2 border-slate-700">
+                  <td colSpan={4} className="p-3 text-right uppercase tracking-wider border-r border-slate-700 font-extrabold text-[11px] text-slate-300">
+                    Subject Class Mean
+                  </td>
+                  {headers.map(h => {
+                    const stats = getSubjectStats(h.code);
+                    return (
+                      <td 
+                        key={h.id} 
+                        className={`p-3 text-center border-r border-slate-700 font-black text-xs ${
+                          showHeatmap && stats.isBelowThreshold 
+                            ? 'bg-red-700 text-white' 
+                            : 'bg-slate-700 text-emerald-300'
+                        }`}
+                      >
+                        {stats.count > 0 ? `${stats.average}%` : '—'}
+                      </td>
+                    );
+                  })}
+                  <td colSpan={4} className="p-3 bg-slate-900 text-center text-slate-400 font-bold text-[10px]">
+                    Alert Target: &lt;{threshold}%
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
 
@@ -368,3 +563,4 @@ export default function PerformanceReport() {
     </div>
   );
 }
+

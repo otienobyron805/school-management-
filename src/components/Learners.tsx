@@ -3,7 +3,7 @@ import {
   Plus, Edit2, Trash2, Users, Search, Filter, Save, X, 
   FileSpreadsheet, History, Check, ShieldAlert, ArrowUpRight, Award, CalendarDays
 } from 'lucide-react';
-import { getLearners, saveLearners, Learner, getCurrentUser, logActivity } from '../utils/db';
+import { getLearners, saveLearners, Learner, getCurrentUser, logActivity, getAttendanceSheets } from '../utils/db';
 
 const GRADE_OPTIONS = [
   'PP1', 'PP2', 
@@ -73,7 +73,16 @@ export default function Learners() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    setLearners(getLearners());
+    const refreshLearners = () => {
+      setLearners(getLearners());
+    };
+    refreshLearners();
+    window.addEventListener('storage', refreshLearners);
+    window.addEventListener('db_updated', refreshLearners);
+    return () => {
+      window.removeEventListener('storage', refreshLearners);
+      window.removeEventListener('db_updated', refreshLearners);
+    };
   }, []);
 
   // Auto-save effect
@@ -1246,22 +1255,42 @@ export default function Learners() {
             </div>
 
             {/* Attendance Section */}
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-3">
-              <div className="flex items-center gap-2 font-bold text-slate-800 text-sm">
-                <CalendarDays className="w-4 h-4 text-blue-600" /> Attendance History
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <div className="text-sm font-extrabold text-slate-800">Term 1 Attendance Rate</div>
-                  <div className="text-xs text-slate-400">Target rate is 95% minimum</div>
+            {(() => {
+              const sheets = getAttendanceSheets();
+              const records = selectedLearner ? sheets.map(s => s.records ? s.records[selectedLearner.id] : undefined).filter(Boolean) : [];
+              const totalDays = records.length;
+              const presentDays = records.filter(r => ['AM', 'PM', 'Full', 'Present'].includes(r || '')).length;
+              const absentDays = records.filter(r => r === 'Absent').length;
+              const rate = totalDays > 0 ? ((presentDays / totalDays) * 100).toFixed(1) : null;
+
+              return (
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-3">
+                  <div className="flex items-center gap-2 font-bold text-slate-800 text-sm">
+                    <CalendarDays className="w-4 h-4 text-blue-600" /> Attendance History
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-extrabold text-slate-800">Term 1 Attendance Rate</div>
+                      <div className="text-xs text-slate-400">Target rate is 95% minimum</div>
+                    </div>
+                    <div className="text-right">
+                      {rate !== null ? (
+                        <>
+                          <span className={`text-2xl font-extrabold ${parseFloat(rate) >= 80 ? 'text-emerald-600' : 'text-amber-600'}`}>{rate}%</span>
+                          <div className="text-[10px] text-slate-400 font-medium">{presentDays} Days Present / {absentDays} Absent</div>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-lg font-bold text-slate-400 italic">Pending</span>
+                          <div className="text-[10px] text-slate-400 font-medium">No roll logs recorded yet</div>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-2xl font-extrabold text-emerald-600">96.8%</span>
-                  <div className="text-[10px] text-slate-400 font-medium">61 Days Present / 2 Absent</div>
-                </div>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* Academic Results Section */}
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-3">

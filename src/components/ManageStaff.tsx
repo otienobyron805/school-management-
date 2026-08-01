@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getUsers, saveUsers, UserAccount } from '../utils/db';
+import { getUsers, saveUsers, UserAccount, getSchoolProfile } from '../utils/db';
+import { canDelete } from '../utils/permissions';
+import { useAccessControl } from '../hooks/useAccessControl';
 import { 
   Plus, 
   Trash2, 
@@ -32,6 +34,7 @@ const PERMISSIONS = [
   { id: 'perm_manage_staff', label: '👥 Add/Edit Teachers & Staff' },
   { id: 'perm_assign_roles', label: '🏷️ Assign Admin roles' },
   { id: 'perm_del_staff', label: '🗑️ Delete staff permanently' },
+  { id: 'perm_cannot_delete', label: '🚫 Cannot delete anything in the software' },
   { id: 'perm_edit_closed', label: '📅 Edit closed terms/exams' },
   { id: 'perm_all_marks', label: '📝 Enter marks for ALL subjects' },
   { id: 'perm_own_marks', label: '✅ Enter marks ONLY for assigned subjects' },
@@ -50,10 +53,70 @@ export default function ManageStaff() {
   const [copiedInviteText, setCopiedInviteText] = useState<boolean>(false);
   const [showRbacGuide, setShowRbacGuide] = useState<boolean>(false);
 
+  // Bulk Selection & Permission Update State
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [bulkModalOpen, setBulkModalOpen] = useState<boolean>(false);
+  const [bulkTargetPerm, setBulkTargetPerm] = useState<string>('perm_cannot_delete');
+  const [bulkAction, setBulkAction] = useState<'add' | 'remove'>('add');
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedUserIds(filteredUsers.map(u => u.id));
+    } else {
+      setSelectedUserIds([]);
+    }
+  };
+
+  const handleToggleSelectUser = (id: string) => {
+    setSelectedUserIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleApplyBulkPermissions = () => {
+    if (selectedUserIds.length === 0) return;
+    const nextUsers = users.map(u => {
+      if (selectedUserIds.includes(u.id)) {
+        let perms = u.permissions || [];
+        if (bulkAction === 'add') {
+          if (!perms.includes(bulkTargetPerm)) perms = [...perms, bulkTargetPerm];
+        } else {
+          perms = perms.filter(p => p !== bulkTargetPerm);
+        }
+        return { ...u, permissions: perms };
+      }
+      return u;
+    });
+    setUsers(nextUsers);
+    saveUsers(nextUsers);
+    setBulkModalOpen(false);
+    setSelectedUserIds([]);
+    alert(`✅ Successfully updated permissions for ${selectedUserIds.length} staff member(s).`);
+  };
+
+  const toggleCannotDelete = (userId: string) => {
+    const nextUsers = users.map(u => {
+      if (u.id === userId) {
+        let perms = u.permissions || [];
+        if (perms.includes('perm_cannot_delete')) {
+          perms = perms.filter(p => p !== 'perm_cannot_delete');
+        } else {
+          perms = [...perms, 'perm_cannot_delete'];
+        }
+        return { ...u, permissions: perms };
+      }
+      return u;
+    });
+    setUsers(nextUsers);
+    saveUsers(nextUsers);
+  };
+
   const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://ais-pre-eminjib435kcerpe6jkt5k-121258194951.europe-west2.run.app';
 
   const getInviteMessage = (u: UserAccount) => {
-    return `🏫 Welcome to St Augustine School System!
+    const profile = getSchoolProfile();
+    const schoolName = profile.name || "St Augustine School";
+    return `🏫 Welcome to ${schoolName} System!
 
 Here are your official credentials to access the platform:
 🔗 Portal URL: ${appUrl}
@@ -91,11 +154,45 @@ Here are your official credentials to access the platform:
   const [status, setStatus] = useState<'Active' | 'Inactive'>('Active');
   const [avatarUrl, setAvatarUrl] = useState('');
 
+  const { checkAccess, showAccessDenied, setShowAccessDenied } = useAccessControl(selectedPermissions);
+
   // Form Errors State
   const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  const getRolePermissions = (role: string) => {
+    try {
+      const saved = localStorage.getItem('school_role_permissions_matrix_v1');
+      if (!saved) return [];
+      const matrix = JSON.parse(saved);
+      const perms = matrix[role] || {};
+      // Map the object-based permissions (from Settings.tsx) 
+      // to the array of strings used in ManageStaff
+      return Object.entries(perms)
+        .filter(([_, enabled]) => enabled)
+        .map(([key, _]) => `perm_${key}`);
+    } catch {
+      return [];
+    }
+  };
+
+  const permissionConflicts = React.useMemo(() => {
+    const conflicts: string[] = [];
+    if (selectedPermissions.includes('perm_del_staff') && selectedPermissions.includes('perm_cannot_delete')) {
+      conflicts.push('Conflict: "Delete staff" and "Cannot delete anything" are mutually exclusive.');
+    }
+    if (selectedPermissions.includes('perm_all_marks') && selectedPermissions.includes('perm_own_marks')) {
+      conflicts.push('Conflict: "Enter marks for ALL subjects" and "Enter marks ONLY for assigned subjects" conflict.');
+    }
+    return conflicts;
+  }, [selectedPermissions]);
 
   useEffect(() => {
-    setUsers(getUsers());
+    const refreshUsers = () => {
+      setUsers(getUsers());
+    };
+    refreshUsers();
+    window.addEventListener('storage', refreshUsers);
+    return () => window.removeEventListener('storage', refreshUsers);
   }, []);
 
   // Sync permissions when system role changes (if no override)
@@ -164,6 +261,16 @@ Here are your official credentials to access the platform:
     setErrors({});
     setView('edit');
   };
+
+  useEffect(() => {
+    if (editingUserId) {
+        const user = users.find(u => u.id === editingUserId);
+        if (user) {
+            const rolePerms = getRolePermissions(user.role);
+            setSelectedPermissions(prev => Array.from(new Set([...prev, ...rolePerms])));
+        }
+    }
+  }, [editingUserId]);
 
   const togglePermission = (permId: string) => {
     if (!adminOverride) return; // Locked unless override is active
@@ -260,9 +367,12 @@ Here are your official credentials to access the platform:
       else if (designatedRole === 'class_teacher') dbRole = 'Class Teacher';
     }
 
+    const rawUsername = username.trim() || staffNo.trim() || email.trim() || phone.trim() || fullName.trim().replace(/\s+/g, '_');
+    const cleanUsername = rawUsername.toLowerCase().replace(/[^\x20-\x7E]/g, '');
+
     const savedUser: UserAccount = {
       id: editingUserId || 'u_' + Date.now(),
-      username: username.trim().toLowerCase(),
+      username: cleanUsername,
       fullName: fullName.trim(),
       role: dbRole,
       created: editingUserId ? (users.find(u => u.id === editingUserId)?.created || new Date().toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
@@ -296,21 +406,23 @@ Here are your official credentials to access the platform:
   };
 
   const handleDeleteUser = (id: string, name: string) => {
-    if (name === 'admin' || name === 'otienobyron805@gmail.com') {
-      alert('⚠️ Your Super Admin account is the owner account and cannot be deleted.');
-      return;
-    }
-    const target = users.find(u => u.id === id);
-    if (target?.role === 'Super Admin') {
-      alert('⚠️ Super Admin accounts cannot be deleted.');
-      return;
-    }
+    checkAccess('perm_del_staff', () => {
+      if (name === 'admin' || name === 'otienobyron805@gmail.com') {
+        alert('⚠️ Your Super Admin account is the owner account and cannot be deleted.');
+        return;
+      }
+      const target = users.find(u => u.id === id);
+      if (target?.role === 'Super Admin') {
+        alert('⚠️ Super Admin accounts cannot be deleted.');
+        return;
+      }
 
-    if (window.confirm(`🗑️ Are you sure you want to permanently delete user "${name}"?`)) {
-      const nextUsers = users.filter(u => u.id !== id);
-      setUsers(nextUsers);
-      saveUsers(nextUsers);
-    }
+      if (window.confirm(`🗑️ Are you sure you want to permanently delete user "${name}"?`)) {
+        const nextUsers = users.filter(u => u.id !== id);
+        setUsers(nextUsers);
+        saveUsers(nextUsers);
+      }
+    });
   };
 
   const toggleUserStatus = (id: string, name: string) => {
@@ -425,18 +537,43 @@ Here are your official credentials to access the platform:
               )}
             </div>
 
-            {/* SEARCH */}
-            <div className="relative max-w-md">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
-                <Search className="w-4 h-4 text-slate-400" />
-              </span>
-              <input 
-                type="text" 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search staff accounts by name, username, or role..." 
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white min-h-[48px]"
-              />
+            {/* SEARCH & BULK ACTION BAR */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+              <div className="relative flex-1 max-w-md">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
+                  <Search className="w-4 h-4 text-slate-400" />
+                </span>
+                <input 
+                  type="text" 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search staff accounts by name, username, or role..." 
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white min-h-[48px]"
+                />
+              </div>
+
+              {selectedUserIds.length > 0 && (
+                <div className="bg-blue-600 text-white px-4 py-3 rounded-2xl flex items-center justify-between sm:justify-start gap-4 text-xs font-bold shadow-md animate-fade-in">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-white text-blue-700 w-6 h-6 rounded-full font-black flex items-center justify-center text-xs">{selectedUserIds.length}</span>
+                    <span>Selected</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setBulkModalOpen(true)}
+                      className="bg-white text-blue-700 hover:bg-blue-50 px-3.5 py-2 rounded-xl font-black transition shadow-xs cursor-pointer"
+                    >
+                      ⚡ Bulk Permission Update
+                    </button>
+                    <button
+                      onClick={() => setSelectedUserIds([])}
+                      className="text-blue-100 hover:text-white px-2 py-1 text-xs cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* TABLE */}
@@ -445,8 +582,16 @@ Here are your official credentials to access the platform:
                 <table className="w-full border-collapse text-left">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                      <th className="p-4 pl-6">Username / ID</th>
-                      <th className="p-4">Full Name</th>
+                      <th className="p-4 pl-6 w-12 text-center">
+                        <input
+                          type="checkbox"
+                          checked={filteredUsers.length > 0 && selectedUserIds.length === filteredUsers.length}
+                          onChange={handleSelectAll}
+                          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                      </th>
+                      <th className="p-4">Username / ID</th>
+                      <th className="p-4">Full Name & Restrictions</th>
                       <th className="p-4">Assigned Role</th>
                       <th className="p-4">Staff No.</th>
                       <th className="p-4 text-center">Status</th>
@@ -456,19 +601,27 @@ Here are your official credentials to access the platform:
                   <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
                     {filteredUsers.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="p-12 text-center text-slate-400 font-medium">
+                        <td colSpan={7} className="p-12 text-center text-slate-400 font-medium">
                           No staff accounts registered. Click "Add Staff Member" to register one.
                         </td>
                       </tr>
                     ) : (
                       filteredUsers.map((user) => (
-                        <tr key={user.id} className="hover:bg-slate-50/40 transition">
-                          <td className="p-4 pl-6">
+                        <tr key={user.id} className={`hover:bg-slate-50/40 transition ${selectedUserIds.includes(user.id) ? 'bg-blue-50/40' : ''}`}>
+                          <td className="p-4 pl-6 text-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedUserIds.includes(user.id)}
+                              onChange={() => handleToggleSelectUser(user.id)}
+                              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            />
+                          </td>
+                          <td className="p-4">
                             <span className="font-mono bg-slate-100 text-slate-800 px-2 py-1 rounded-md font-bold">
                               {user.username}
                             </span>
                           </td>
-                           <td className="p-4 font-bold text-slate-900">
+                          <td className="p-4 font-bold text-slate-900">
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 rounded-full bg-blue-100 border border-blue-200 text-blue-700 flex items-center justify-center font-bold text-xs overflow-hidden shrink-0">
                                 {user.avatarUrl ? (
@@ -477,7 +630,22 @@ Here are your official credentials to access the platform:
                                   user.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
                                 )}
                               </div>
-                              <span>{user.fullName}</span>
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span>{user.fullName}</span>
+                                  {user.permissions?.includes('perm_cannot_delete') && (
+                                    <span className="text-[9px] font-black px-2 py-0.5 bg-rose-100 text-rose-700 rounded-md border border-rose-200 inline-flex items-center gap-1">
+                                      🚫 Cannot Delete
+                                    </span>
+                                  )}
+                                  {user.permissions?.includes('perm_own_marks') && !user.permissions?.includes('perm_all_marks') && (
+                                    <span className="text-[9px] font-black px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md border border-amber-200">
+                                      📝 Assigned Marks Only
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-slate-400 font-normal block">{user.email || user.phone || 'No contact specified'}</span>
+                              </div>
                             </div>
                           </td>
                           <td className="p-4">
@@ -525,18 +693,20 @@ Here are your official credentials to access the platform:
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
-                              <button
-                                onClick={() => handleDeleteUser(user.id, user.username)}
-                                disabled={user.username === 'admin' || user.username === 'otienobyron805@gmail.com' || user.role === 'Super Admin'}
-                                className={`p-2 rounded-lg transition ${
-                                  (user.username === 'admin' || user.username === 'otienobyron805@gmail.com' || user.role === 'Super Admin')
-                                    ? 'text-slate-200 cursor-not-allowed opacity-40'
-                                    : 'text-rose-500 hover:text-rose-700 hover:bg-rose-50 cursor-pointer'
-                                }`}
-                                title="Delete account"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              {canDelete() && (
+                                <button
+                                  onClick={() => handleDeleteUser(user.id, user.username)}
+                                  disabled={user.username === 'admin' || user.username === 'otienobyron805@gmail.com' || user.role === 'Super Admin'}
+                                  className={`p-2 rounded-lg transition ${
+                                    (user.username === 'admin' || user.username === 'otienobyron805@gmail.com' || user.role === 'Super Admin')
+                                      ? 'text-slate-200 cursor-not-allowed opacity-40'
+                                      : 'text-rose-500 hover:text-rose-700 hover:bg-rose-50 cursor-pointer'
+                                  }`}
+                                  title="Delete account"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -571,6 +741,36 @@ Here are your official credentials to access the platform:
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+
+              {/* TOP-LEVEL ALERT - FOR RESTRICTION */}
+              {(showAccessDenied || selectedPermissions.includes('perm_cannot_delete')) && (
+                <div className="fixed top-0 left-0 right-0 p-4 bg-rose-600 text-white text-center font-bold text-xs z-[60] shadow-xl">
+                  ⚠️ ACTION BLOCKED: Role-Based Restriction Active. Please contact the administrators.
+                </div>
+              )}
+
+              {/* RESTRICTION WARNINGS */}
+              {selectedPermissions.includes('perm_cannot_delete') && (
+                <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-xs font-black text-rose-900">Restriction Active: Cannot Delete Anything</h4>
+                    <p className="text-[11px] text-rose-700 mt-0.5">This staff member is currently restricted from performing any permanent delete actions, as defined by their assigned role group.</p>
+                  </div>
+                </div>
+              )}
+
+              {permissionConflicts.length > 0 && (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+                  <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-xs font-black text-amber-900">Permission Conflicts Detected</h4>
+                    <ul className="text-[11px] text-amber-700 mt-0.5 list-disc list-inside">
+                      {permissionConflicts.map((c, i) => <li key={i}>{c}</li>)}
+                    </ul>
+                  </div>
+                </div>
+              )}
 
               {/* SECTION: PROFILE PICTURE */}
               <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex flex-col sm:flex-row items-center gap-5">
@@ -1066,6 +1266,98 @@ Here are your official credentials to access the platform:
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BULK PERMISSION UPDATE MODAL */}
+      {bulkModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-100 animate-scale-up">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-white/10 rounded-xl">
+                  <ShieldCheck className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black tracking-tight">Bulk Permission & Restriction Update</h3>
+                  <p className="text-xs text-blue-100">Applying changes to {selectedUserIds.length} selected staff member(s)</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setBulkModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-700 block">Select Action</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setBulkAction('add')}
+                    className={`p-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                      bulkAction === 'add'
+                        ? 'bg-blue-50 border-blue-300 text-blue-700 shadow-2xs'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span>➕ Grant / Apply Permission</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBulkAction('remove')}
+                    className={`p-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                      bulkAction === 'remove'
+                        ? 'bg-rose-50 border-rose-300 text-rose-700 shadow-2xs'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span>➖ Revoke / Remove Permission</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-700 block">Target Permission / Restriction Rule</label>
+                <select
+                  value={bulkTargetPerm}
+                  onChange={(e) => setBulkTargetPerm(e.target.value)}
+                  className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                >
+                  {PERMISSIONS.map(p => (
+                    <option key={p.id} value={p.id}>{p.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/80 text-xs text-amber-900 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <span>
+                  This will instantly update the permission settings for all {selectedUserIds.length} checked staff accounts.
+                </span>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setBulkModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApplyBulkPermissions}
+                  className="px-5 py-2.5 rounded-xl text-xs font-black bg-blue-600 hover:bg-blue-700 text-white transition shadow-sm cursor-pointer"
+                >
+                  Confirm & Apply Bulk Update
+                </button>
+              </div>
             </div>
           </div>
         </div>

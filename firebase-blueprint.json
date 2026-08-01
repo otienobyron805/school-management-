@@ -1,0 +1,35 @@
+{
+  "entities": {
+    "SchoolData": {
+      "title": "School Data Table",
+      "description": "Stores feeding information and data for school management tables",
+      "type": "object",
+      "properties": {
+        "table": {
+          "type": "string",
+          "description": "Table identifier"
+        },
+        "data": {
+          "type": "string",
+          "description": "Serialized table records array or object"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp of last update"
+        }
+      },
+      "required": [
+        "table",
+        "data"
+      ]
+    }
+  },
+  "firestore": {
+    "/school_data/{tableName}": {
+      "schema": {
+        "$ref": "#/entities/SchoolData"
+      },
+      "description": "Collection storing all school feeding information and datasets"
+    }
+  }
+}
