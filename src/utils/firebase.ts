@@ -47,14 +47,23 @@ export const getDb = (): Firestore | null => {
 export async function saveToFirestore(table: string, data: any): Promise<boolean> {
   try {
     const db = getDb();
-    if (!db) return false;
+    if (!db) {
+      console.warn("[Firestore] DB not initialized");
+      return false;
+    }
     const docRef = doc(db, 'school_data', table);
     const serialized = typeof data === 'string' ? data : JSON.stringify(data);
+    
+    // Log the intent to save to Firestore
+    console.log(`[Firestore] Attempting to save table: ${table}`);
+    
     await setDoc(docRef, {
       table,
       data: serialized,
       updatedAt: new Date().toISOString()
     }, { merge: true });
+    
+    console.log(`[Firestore] Successfully saved table: ${table}`);
     return true;
   } catch (err) {
     console.warn(`[Firestore] Failed to save table ${table}:`, err);
@@ -128,6 +137,7 @@ export function subscribeToFirestore(onUpdate: (table: string, data: any) => voi
         if (change.type === 'added' || change.type === 'modified') {
           const d = change.doc.data();
           if (d && d.table && d.data) {
+            console.log(`[Firestore] Received update for table: ${d.table}`);
             try {
               const parsed = typeof d.data === 'string' ? JSON.parse(d.data) : d.data;
               onUpdate(d.table, parsed);
