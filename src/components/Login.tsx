@@ -177,8 +177,10 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       // Force sync with cloud to ensure we have the latest users
       await synchronizeWithCloudSQL();
       freshUsers = getUsers();
+      console.log("[DEBUG] Users fetched:", freshUsers.length);
 
       let foundUser = matchUser(freshUsers);
+      console.log("[DEBUG] Found user:", foundUser ? foundUser.email : "none");
 
       if (!foundUser && selectedTab === 'super_admin') {
         foundUser = freshUsers.find(u => u.role === 'Super Admin' || u.id === 'u1') || {
