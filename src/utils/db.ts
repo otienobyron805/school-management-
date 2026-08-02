@@ -967,9 +967,9 @@ export function getUsers(): UserAccount[] {
 }
 
 
-export function saveUsers(users: UserAccount[]): void {
+export async function saveUsers(users: UserAccount[]): Promise<void> {
   secureSet('school_users', JSON.stringify(users));
-  saveToBackend('users', users);
+  await saveToBackend('users', users);
   
   // If current logged-in user was modified in this update, refresh their active session
   const current = getCurrentUser();
@@ -1260,18 +1260,22 @@ export function saveAttendanceSheets(sheets: AttendanceSheet[]): void {
 }
 
 // Offline-ready persistence helpers
-export function saveToBackend(table: string, data: any) {
+export async function saveToBackend(table: string, data: any) {
   const primaryKey = getStorageKeyForTable(table) || table;
   
   if (primaryKey === 'current_user' || primaryKey === 'school_current_user' || primaryKey === 'school_last_sync_time' || primaryKey === 'system_update_acknowledged_version') {
     return;
   }
-
-  saveToFirestore(primaryKey, data).catch((err) => {
+  
+  try {
+    await saveToFirestore(primaryKey, data);
+  } catch (err) {
     console.warn("[CloudSync] Failed to save to Firestore:", err);
-  });
+  }
   if (primaryKey !== table && table !== 'current_user' && table !== 'school_current_user') {
-    saveToFirestore(table, data).catch(() => {});
+    try {
+      await saveToFirestore(table, data);
+    } catch (err) {}
   }
 }
 

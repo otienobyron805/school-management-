@@ -73,7 +73,7 @@ export default function ManageStaff() {
     );
   };
 
-  const handleApplyBulkPermissions = () => {
+  const handleApplyBulkPermissions = async () => {
     if (selectedUserIds.length === 0) return;
     const nextUsers = users.map(u => {
       if (selectedUserIds.includes(u.id)) {
@@ -88,13 +88,13 @@ export default function ManageStaff() {
       return u;
     });
     setUsers(nextUsers);
-    saveUsers(nextUsers);
+    await saveUsers(nextUsers);
     setBulkModalOpen(false);
     setSelectedUserIds([]);
     alert(`✅ Successfully updated permissions for ${selectedUserIds.length} staff member(s).`);
   };
 
-  const toggleCannotDelete = (userId: string) => {
+  const toggleCannotDelete = async (userId: string) => {
     const nextUsers = users.map(u => {
       if (u.id === userId) {
         let perms = u.permissions || [];
@@ -108,7 +108,7 @@ export default function ManageStaff() {
       return u;
     });
     setUsers(nextUsers);
-    saveUsers(nextUsers);
+    await saveUsers(nextUsers);
   };
 
   const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://ais-pre-eminjib435kcerpe6jkt5k-121258194951.europe-west2.run.app';
@@ -346,7 +346,7 @@ Here are your official credentials to access the platform:
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) {
       // Scroll to top of form container if needed
@@ -399,14 +399,14 @@ Here are your official credentials to access the platform:
     }
 
     setUsers(nextUsers);
-    saveUsers(nextUsers);
+    await saveUsers(nextUsers);
     setView('list');
     setInviteUserModal(savedUser);
     setCopiedInviteText(false);
   };
 
   const handleDeleteUser = (id: string, name: string) => {
-    checkAccess('perm_del_staff', () => {
+    checkAccess('perm_del_staff', async () => {
       if (name === 'admin' || name === 'otienobyron805@gmail.com') {
         alert('⚠️ Your Super Admin account is the owner account and cannot be deleted.');
         return;
@@ -420,12 +420,12 @@ Here are your official credentials to access the platform:
       if (window.confirm(`🗑️ Are you sure you want to permanently delete user "${name}"?`)) {
         const nextUsers = users.filter(u => u.id !== id);
         setUsers(nextUsers);
-        saveUsers(nextUsers);
+        await saveUsers(nextUsers);
       }
     });
   };
 
-  const toggleUserStatus = (id: string, name: string) => {
+  const toggleUserStatus = async (id: string, name: string) => {
     if (name === 'admin' || name === 'otienobyron805@gmail.com') {
       alert('⚠️ Cannot deactivate the primary Super Admin account.');
       return;
@@ -443,7 +443,7 @@ Here are your official credentials to access the platform:
       return u;
     });
     setUsers(nextUsers);
-    saveUsers(nextUsers);
+    await saveUsers(nextUsers);
   };
 
   const roleOrder: Record<string, number> = {
