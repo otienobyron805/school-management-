@@ -152,6 +152,7 @@ export default function App() {
   const [parentTab, setParentTab] = useState<'academics' | 'attendance' | 'messages' | 'profile'>('academics');
 
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     const calculateUnread = () => {
@@ -219,27 +220,24 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Keep React user state in sync with stored active user session
-    const handleUserSync = () => {
+    // Keep React state in sync with stored data across devices
+    const handleDataSync = () => {
+      // Refresh user session
       const current = getCurrentUser();
-      setUser(prev => {
-        if (!current) return null;
-        if (!prev) return current;
-        if (JSON.stringify(prev) !== JSON.stringify(current)) {
-          return current;
-        }
-        return prev;
-      });
+      setUser(current);
+      
+      // Force re-render to fetch latest data from localStorage
+      setTick(t => t + 1);
     };
 
-    window.addEventListener('currentUserUpdated', handleUserSync);
-    window.addEventListener('db_updated', handleUserSync);
-    window.addEventListener('storage', handleUserSync);
+    window.addEventListener('currentUserUpdated', handleDataSync);
+    window.addEventListener('db_updated', handleDataSync);
+    window.addEventListener('storage', handleDataSync);
 
     return () => {
-      window.removeEventListener('currentUserUpdated', handleUserSync);
-      window.removeEventListener('db_updated', handleUserSync);
-      window.removeEventListener('storage', handleUserSync);
+      window.removeEventListener('currentUserUpdated', handleDataSync);
+      window.removeEventListener('db_updated', handleDataSync);
+      window.removeEventListener('storage', handleDataSync);
     };
   }, []);
 
