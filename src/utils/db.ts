@@ -1262,10 +1262,15 @@ export function saveAttendanceSheets(sheets: AttendanceSheet[]): void {
 // Offline-ready persistence helpers
 export function saveToBackend(table: string, data: any) {
   const primaryKey = getStorageKeyForTable(table) || table;
+  
+  if (primaryKey === 'current_user' || primaryKey === 'school_current_user' || primaryKey === 'school_last_sync_time' || primaryKey === 'system_update_acknowledged_version') {
+    return;
+  }
+
   saveToFirestore(primaryKey, data).catch((err) => {
     console.warn("[CloudSync] Failed to save to Firestore:", err);
   });
-  if (primaryKey !== table) {
+  if (primaryKey !== table && table !== 'current_user' && table !== 'school_current_user') {
     saveToFirestore(table, data).catch(() => {});
   }
 }
@@ -1289,16 +1294,16 @@ export const TABLE_MAP: Record<string, string> = {
   school_attendance_sheets: 'school_attendance_sheets',
   school_exam_marks: 'school_exam_marks',
   exam_marks: 'school_exam_marks',
-  exams: 'exams',
-  school_exams: 'exams',
-  subject_enrollments: 'subject_enrollments',
-  school_subject_enrollments: 'subject_enrollments',
+  exams: 'school_exams',
+  school_exams: 'school_exams',
+  subject_enrollments: 'school_subject_enrollments',
+  school_subject_enrollments: 'school_subject_enrollments',
   grading_rules: 'school_grading_rules',
   school_grading_rules: 'school_grading_rules',
-  subject_assignments: 'subject_assignments_list',
-  subject_assignments_list: 'subject_assignments_list',
-  class_teacher_assignments: 'class_teacher_assignments_list',
-  class_teacher_assignments_list: 'class_teacher_assignments_list',
+  subject_assignments: 'school_subject_assignments_list',
+  subject_assignments_list: 'school_subject_assignments_list',
+  class_teacher_assignments: 'school_class_teacher_assignments_list',
+  class_teacher_assignments_list: 'school_class_teacher_assignments_list',
   school_profile: 'school_profile',
   holidays: 'school_holidays',
   school_holidays: 'school_holidays',
@@ -1310,10 +1315,10 @@ export const TABLE_MAP: Record<string, string> = {
   school_staff_attendance_sheets: 'school_staff_attendance_sheets',
   subject_papers: 'school_subject_papers',
   school_subject_papers: 'school_subject_papers',
-  fee_structures: 'fee_structures',
-  school_fee_structures: 'fee_structures',
-  fee_payments: 'fee_payments',
-  school_fee_payments: 'fee_payments',
+  fee_structures: 'school_fee_structures',
+  school_fee_structures: 'school_fee_structures',
+  fee_payments: 'school_fee_payments',
+  school_fee_payments: 'school_fee_payments',
   gate_logs: 'school_gate_logs',
   school_gate_logs: 'school_gate_logs',
   system_settings: 'school_system_settings',
@@ -1324,8 +1329,16 @@ export const TABLE_MAP: Record<string, string> = {
   school_activity_logs: 'school_activity_logs',
   schemes_of_work: 'school_schemes_of_work',
   school_schemes_of_work: 'school_schemes_of_work',
-  tod: 'teachers_on_duty',
-  teachers_on_duty: 'teachers_on_duty',
+  tod: 'school_teachers_on_duty',
+  teachers_on_duty: 'school_teachers_on_duty',
+  term_reports: 'school_term_reports',
+  newsletters: 'school_newsletters',
+  role_permissions: 'school_role_permissions_matrix_v1',
+  whatsapp_templates: 'school_whatsapp_templates',
+  attendance_settings: 'school_attendance_settings',
+  alert_config: 'school_alert_config',
+  alert_logs: 'school_alert_logs',
+  exam_submission_statuses: 'school_exam_submission_statuses',
 };
 
 export const TABLE_ALIASES: Record<string, string[]> = {
@@ -1454,6 +1467,9 @@ export function startRealtimeFirestoreSync(): () => void {
   try {
     return subscribeToFirestore((table, data) => {
       if (isSyncingFromServer) return;
+      if (table === 'current_user' || table === 'school_current_user' || table === 'school_last_sync_time' || table === 'system_update_acknowledged_version') {
+        return;
+      }
       if (data !== undefined && data !== null) {
         writeToLocalStorageWithAliases(table, data);
         if (typeof window !== 'undefined') {
@@ -1533,6 +1549,9 @@ export async function synchronizeWithCloudSQL(): Promise<boolean> {
     const cloudData = await fetchAllFromFirestore();
     if (cloudData && typeof cloudData === 'object' && Object.keys(cloudData).length > 0) {
       for (const [table, val] of Object.entries(cloudData)) {
+        if (table === 'current_user' || table === 'school_current_user' || table === 'school_last_sync_time' || table === 'system_update_acknowledged_version') {
+          continue;
+        }
         if (val !== undefined && val !== null) {
           writeToLocalStorageWithAliases(table, val);
         }

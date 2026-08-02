@@ -279,11 +279,18 @@ export default function App() {
   useEffect(() => {
     // Sync school profile updates
     const handleStorageChange = () => {
-      setSchoolProfile(getSchoolProfile());
+      const newProfile = getSchoolProfile();
+      setSchoolProfile(prev => JSON.stringify(prev) === JSON.stringify(newProfile) ? prev : newProfile);
+      
       const current = getCurrentUser();
-      if (current) {
-        setUser(current);
-      }
+      setUser(prev => {
+        if (!current) return null;
+        if (!prev) return current;
+        if (JSON.stringify(prev) !== JSON.stringify(current)) {
+          return current;
+        }
+        return prev;
+      });
     };
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);

@@ -8,13 +8,15 @@ export default function NotificationBell() {
   const [showDropdown, setShowDropdown] = useState(false);
   const user = getCurrentUser();
 
+  const userId = user?.id;
+
   useEffect(() => {
-    if (!user) return;
-    const unsubscribe = subscribeNotifications(user.id, (notes) => {
+    if (!userId) return;
+    const unsubscribe = subscribeNotifications(userId, (notes) => {
       setNotifications(notes);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [userId]);
 
   // Combine Firestore notifications with local db system messages
   const unreadSystemMessages = user ? getMessages().filter(m => 

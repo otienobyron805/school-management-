@@ -29,7 +29,7 @@ export const getDb = (): Firestore | null => {
       const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
       
       try {
-        dbInstance = getFirestore(app);
+        dbInstance = getFirestore(app, config.firestoreDatabaseId);
       } catch {
         dbInstance = getFirestore(app);
       }
