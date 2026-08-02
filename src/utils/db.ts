@@ -968,8 +968,10 @@ export function getUsers(): UserAccount[] {
 
 
 export async function saveUsers(users: UserAccount[]): Promise<void> {
+  console.log("[DEBUG] Saving users to local storage and backend...");
   secureSet('school_users', JSON.stringify(users));
   await saveToBackend('users', users);
+  console.log("[DEBUG] Users saved.");
   
   // If current logged-in user was modified in this update, refresh their active session
   const current = getCurrentUser();

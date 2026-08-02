@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getUsers, getSchoolProfile, setCurrentUser, getLearners, synchronizeWithCloudSQL, UserAccount } from '../utils/db';
+import { fetchAllFromFirestore } from '../utils/firebase';
 import { Shield, Key, Sparkles, LogIn, GraduationCap, Users, User, ArrowRight, BookOpen, X, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -177,10 +178,21 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       // Force sync with cloud to ensure we have the latest users
       await synchronizeWithCloudSQL();
       freshUsers = getUsers();
-      console.log("[DEBUG] Users fetched:", freshUsers.length);
+
+      // If still no users, try direct fetch from Firebase
+      if (freshUsers.length <= 1) { // 1 because of default admin user
+        console.log("[DEBUG] Users list empty or only default user, direct fetching from Firestore...");
+        const cloudData = await fetchAllFromFirestore();
+        if (cloudData && cloudData.users) {
+           freshUsers = typeof cloudData.users === 'string' ? JSON.parse(cloudData.users) : cloudData.users;
+           console.log("[DEBUG] Users fetched directly from Firestore:", freshUsers.length);
+        }
+      }
+      
+      console.log("[DEBUG] Users fetched after sync:", freshUsers.length);
+      console.log("[DEBUG] Users list:", freshUsers.map(u => u.username));
 
       let foundUser = matchUser(freshUsers);
-      console.log("[DEBUG] Found user:", foundUser ? foundUser.email : "none");
 
       if (!foundUser && selectedTab === 'super_admin') {
         foundUser = freshUsers.find(u => u.role === 'Super Admin' || u.id === 'u1') || {
