@@ -349,7 +349,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             <span>{greeting}</span>
           </div>
           <h3 className="text-base sm:text-lg font-black tracking-wide leading-snug">
-            Welcome to St. Augustine Catholic School Portal
+            Welcome to {schoolProfile.name || 'Our'} School Portal
           </h3>
         </motion.div>
 
