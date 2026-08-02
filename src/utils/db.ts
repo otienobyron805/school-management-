@@ -345,12 +345,32 @@ export function secureGet(key: string): string | null {
 
   const primaryKey = getStorageKeyForTable(key);
   const aliases = [primaryKey, key, ...(TABLE_ALIASES[key] || []), ...(TABLE_ALIASES[primaryKey] || [])];
+  
   for (const alias of aliases) {
     if (memCache[alias] !== undefined) {
       memCache[key] = memCache[alias];
       return memCache[alias];
     }
   }
+
+  // Fallback to localStorage
+  try {
+    if (rawLocalStorage && rawGetItem) {
+      for (const alias of aliases) {
+        const val = rawGetItem.call(rawLocalStorage, alias);
+        if (val) {
+          const trimmed = val.trim();
+          let finalVal = val;
+          if (!(trimmed.startsWith('[') || trimmed.startsWith('{') || trimmed.startsWith('"') || trimmed === 'true' || trimmed === 'false' || /^\d+\.\d+\.\d+$/.test(trimmed))) {
+            const dec = unscramble(val);
+            if (dec) finalVal = dec;
+          }
+          memCache[key] = finalVal;
+          return finalVal;
+        }
+      }
+    }
+  } catch (e) {}
 
   return null;
 }
@@ -433,6 +453,17 @@ export function secureSet(key: string, value: string, options?: { skipCloud?: bo
     memCache[alias] = value;
   }
 
+  try {
+    if (rawLocalStorage && rawSetItem) {
+      const trimmed = value.trim();
+      if (trimmed.startsWith('[') || trimmed.startsWith('{') || trimmed.startsWith('"') || trimmed === 'true' || trimmed === 'false' || /^\d+\.\d+\.\d+$/.test(trimmed)) {
+        rawSetItem.call(rawLocalStorage, key, value);
+      } else {
+        rawSetItem.call(rawLocalStorage, key, scramble(value));
+      }
+    }
+  } catch (e) {}
+
   if (!isSyncingFromServer && !isBackendUnavailable && !options?.skipCloud) {
     const tableName = getTableNameFromKey(key);
     if (tableName) {
@@ -445,6 +476,7 @@ export function secureSet(key: string, value: string, options?: { skipCloud?: bo
     }
   }
 }
+
 
 /**
  * Universal saveData helper to save and synchronize datasets under friendly storage aliases
@@ -487,6 +519,11 @@ export function secureRemove(key: string, options?: { skipCloud?: boolean }): vo
 
   for (const alias of aliases) {
     delete memCache[alias];
+    try {
+      if (rawLocalStorage && rawRemoveItem) {
+        rawRemoveItem.call(rawLocalStorage, alias);
+      }
+    } catch (e) {}
   }
 
   if (!isSyncingFromServer && !isBackendUnavailable && !options?.skipCloud) {
@@ -1396,6 +1433,16 @@ export function writeToLocalStorageWithAliases(rawTable: string, data: any): voi
   const serialized = typeof data === 'string' ? data : JSON.stringify(data);
   for (const alias of aliases) {
     memCache[alias] = serialized;
+    try {
+      if (rawLocalStorage && rawSetItem) {
+        const trimmed = serialized.trim();
+        if (trimmed.startsWith('[') || trimmed.startsWith('{') || trimmed.startsWith('"') || trimmed === 'true' || trimmed === 'false' || /^\d+\.\d+\.\d+$/.test(trimmed)) {
+          rawSetItem.call(rawLocalStorage, alias, serialized);
+        } else {
+          rawSetItem.call(rawLocalStorage, alias, scramble(serialized));
+        }
+      }
+    } catch (e) {}
   }
 }
 
