@@ -1550,13 +1550,16 @@ const mergeArrays = (localArr: any[], cloudArr: any[]): any[] => {
 export async function synchronizeWithCloudSQL(): Promise<boolean> {
   try {
     isSyncingFromServer = true;
+    console.log("[DEBUG] Starting cloud sync...");
     const cloudData = await fetchAllFromFirestore();
+    console.log("[DEBUG] Cloud data fetched:", cloudData ? Object.keys(cloudData) : "null");
     if (cloudData && typeof cloudData === 'object' && Object.keys(cloudData).length > 0) {
       for (const [table, val] of Object.entries(cloudData)) {
         if (table === 'current_user' || table === 'school_current_user' || table === 'school_last_sync_time' || table === 'system_update_acknowledged_version') {
           continue;
         }
         if (val !== undefined && val !== null) {
+          console.log(`[DEBUG] Syncing table ${table} to local storage`);
           writeToLocalStorageWithAliases(table, val);
         }
       }
