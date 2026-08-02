@@ -4,6 +4,9 @@ import {
   createCloudSnapshotToFirestore,
   fetchCloudSnapshotsFromFirestore,
   deleteCloudSnapshotFromFirestore,
+  saveToFirestore,
+  fetchAllFromFirestore,
+  subscribeToFirestore,
   CloudSnapshotMeta
 } from './firebase';
 
@@ -1221,7 +1224,13 @@ export function saveAttendanceSheets(sheets: AttendanceSheet[]): void {
 
 // Offline-ready persistence helpers
 export function saveToBackend(table: string, data: any) {
-  // Cloud sync removed
+  const primaryKey = getStorageKeyForTable(table) || table;
+  saveToFirestore(primaryKey, data).catch((err) => {
+    console.warn("[CloudSync] Failed to save to Firestore:", err);
+  });
+  if (primaryKey !== table) {
+    saveToFirestore(table, data).catch(() => {});
+  }
 }
 
 export async function pushLocalStorageToCloudSQL(): Promise<boolean> {
@@ -1395,7 +1404,26 @@ export function writeToLocalStorageWithAliases(rawTable: string, data: any): voi
  * Changes are received within milliseconds and immediately update local memory & dispatch UI events.
  */
 export function startRealtimeFirestoreSync(): () => void {
-  return () => {};
+  try {
+    return subscribeToFirestore((table, data) => {
+      if (isSyncingFromServer) return;
+      if (data !== undefined && data !== null) {
+        writeToLocalStorageWithAliases(table, data);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('db_updated'));
+          window.dispatchEvent(new Event('storage'));
+          if (table === 'current_user' || table === 'school_current_user') {
+            window.dispatchEvent(new Event('currentUserUpdated'));
+          }
+          window.dispatchEvent(new CustomEvent('cloud_sync_status', {
+            detail: { status: 'synced', table, timestamp: new Date() }
+          }));
+        }
+      }
+    });
+  } catch (e) {
+    return () => {};
+  }
 }
 
 const getItemKey = (item: any): string => {
@@ -1455,7 +1483,14 @@ const mergeArrays = (localArr: any[], cloudArr: any[]): any[] => {
 export async function synchronizeWithCloudSQL(): Promise<boolean> {
   try {
     isSyncingFromServer = true;
-    // Perform any offline state refresh if needed
+    const cloudData = await fetchAllFromFirestore();
+    if (cloudData && typeof cloudData === 'object' && Object.keys(cloudData).length > 0) {
+      for (const [table, val] of Object.entries(cloudData)) {
+        if (val !== undefined && val !== null) {
+          writeToLocalStorageWithAliases(table, val);
+        }
+      }
+    }
     isInitialCloudPullCompleted = true;
     secureSet('school_last_sync_time', new Date().toISOString(), { skipCloud: true });
     if (typeof window !== 'undefined') {
@@ -1468,6 +1503,7 @@ export async function synchronizeWithCloudSQL(): Promise<boolean> {
     }
     return true;
   } catch (err) {
+    console.warn("[CloudSync] Sync failed:", err);
     return false;
   } finally {
     isSyncingFromServer = false;

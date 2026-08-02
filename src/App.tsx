@@ -108,9 +108,13 @@ export default function App() {
       localStorage.setItem('system_update_acknowledged_version', CURRENT_SYSTEM_VERSION);
       try {
         await synchronizeWithCloudSQL();
+        setSchoolProfile(getSchoolProfile());
+        const curr = getCurrentUser();
+        if (curr) {
+          setUser(curr);
+        }
       } catch (e) {}
       setShowUpdateModal(false);
-      window.location.reload();
     } else {
       setShowUpdateModal(false);
     }
