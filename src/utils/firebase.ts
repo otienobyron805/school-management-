@@ -91,9 +91,14 @@ export async function fetchAllFromFirestore(): Promise<Record<string, any>> {
   const results: Record<string, any> = {};
   try {
     const db = getDb();
-    if (!db) return results;
+    if (!db) {
+      console.log("[Firestore] No DB instance");
+      return results;
+    }
     const colRef = collection(db, 'school_data');
+    console.log("[Firestore] Fetching all from school_data...");
     const snap = await getDocs(colRef);
+    console.log(`[Firestore] Fetched ${snap.size} docs`);
     snap.forEach((docSnap) => {
       const d = docSnap.data();
       if (d && d.table && d.data) {
@@ -157,7 +162,7 @@ export interface CloudSnapshotMeta {
 export async function createCloudSnapshotToFirestore(
   snapshotData: Record<string, any>,
   createdBy: string = 'Admin',
-  note: string = 'Manual Admin Snapshot'
+  note: string = ''
 ): Promise<{ success: boolean; snapshot?: CloudSnapshotMeta; error?: string }> {
   try {
     const db = getDb();
@@ -173,23 +178,16 @@ export async function createCloudSnapshotToFirestore(
     Object.values(snapshotData).forEach(val => {
       if (Array.isArray(val)) {
         recordCount += val.length;
-      } else if (typeof val === 'object' && val !== null) {
-        recordCount += Object.keys(val).length;
-      } else if (val) {
-        recordCount += 1;
       }
     });
 
     const meta: CloudSnapshotMeta = {
       id: snapshotId,
       timestamp: now.toISOString(),
-      formattedDate: now.toLocaleString('en-US', {
-        dateStyle: 'medium',
-        timeStyle: 'short'
-      }),
+      formattedDate: now.toLocaleString(),
       createdBy,
       recordCount,
-      note: note || 'Manual System Snapshot',
+      note,
       tablesCount: Object.keys(snapshotData).length
     };
 
@@ -263,6 +261,3 @@ export async function deleteCloudSnapshotFromFirestore(snapshotId: string): Prom
     return false;
   }
 }
-
-
-

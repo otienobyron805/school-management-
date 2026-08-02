@@ -85,12 +85,7 @@ export default function Learners() {
     };
   }, []);
 
-  // Auto-save effect
-  useEffect(() => {
-    if (learners.length > 0) {
-      saveLearners(learners);
-    }
-  }, [learners]);
+
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);

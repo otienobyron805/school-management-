@@ -611,15 +611,15 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/40 p-3 sm:p-5 md:p-6 animate-fadeIn">
       <div className="max-w-7xl mx-auto 2xl:max-w-[1440px] space-y-4 sm:space-y-5">
         
-        {/* Top Status Bar */}
+        {/* Top Status Bar - Added fallback */}
         <div className="bg-white p-3 sm:p-4 rounded-xl shadow-xs border border-slate-100 flex items-center justify-between gap-2">
           <div className="text-center sm:text-left">
             <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">LEARNERS</div>
-            <div className="text-lg font-extrabold text-slate-900">{stats.totalStudents}</div>
+            <div className="text-lg font-extrabold text-slate-900">{stats.totalStudents || 0}</div>
           </div>
           <div className="text-center sm:text-left">
             <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">STAFF</div>
-            <div className="text-lg font-extrabold text-slate-900">{stats.staffTotal}</div>
+            <div className="text-lg font-extrabold text-slate-900">{stats.staffTotal || 0}</div>
           </div>
           <div className="text-right">
             <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">STATUS</div>

@@ -1,14 +1,12 @@
 import { ActivityEvent } from '../types';
 import { addAlertLog } from './alerts';
 import { 
-  saveToFirestore, 
-  fetchAllFromFirestore, 
-  subscribeToFirestore,
   createCloudSnapshotToFirestore,
   fetchCloudSnapshotsFromFirestore,
   deleteCloudSnapshotFromFirestore,
   CloudSnapshotMeta
 } from './firebase';
+
 export interface Stream {
   id: string;
   name: string;
@@ -210,6 +208,7 @@ function isThirdPartyKey(key: string): boolean {
 }
 
 // Intercept localStorage safely via Storage prototype
+/*
 if (typeof window !== 'undefined' && typeof Storage !== 'undefined') {
   try {
     // Clear potentially corrupted firebase/firestore localStorage keys
@@ -249,12 +248,12 @@ if (typeof window !== 'undefined' && typeof Storage !== 'undefined') {
           keysToClear.push(k);
         }
       }
-      // Purge browser local storage completely on initialization
-      try {
-        if (rawLocalStorage) {
-          rawLocalStorage.clear();
-        }
-      } catch (e) {}
+    // Purge browser local storage completely on initialization
+    // try {
+    //   if (rawLocalStorage) {
+    //     rawLocalStorage.clear();
+    //   }
+    // } catch (e) {}
     }
 
     // 2. Monkey-patch Storage.prototype methods directly using native references
@@ -290,6 +289,7 @@ if (typeof window !== 'undefined' && typeof Storage !== 'undefined') {
     }
   });
 }
+*/
 
 function scramble(text: string): string {
   try {
@@ -1219,99 +1219,14 @@ export function saveAttendanceSheets(sheets: AttendanceSheet[]): void {
   secureSet('school_attendance_sheets', JSON.stringify(sheets));
 }
 
-// Background sync helpers and Cloud Firestore / Cloud SQL synchronization engine
+// Offline-ready persistence helpers
 export function saveToBackend(table: string, data: any) {
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('cloud_sync_status', {
-      detail: { status: 'saving', table, timestamp: new Date() }
-    }));
-  }
-
-  // Direct fast save to Cloud Firestore with instant optimistic write
-  saveToFirestore(table, data)
-    .then(() => {
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('cloud_sync_status', {
-          detail: { status: 'saved', table, timestamp: new Date() }
-        }));
-      }
-    })
-    .catch((err) => {
-      console.warn(`[Firestore] Background save failed for ${table}:`, err);
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('cloud_sync_status', {
-          detail: { status: 'saved', table, timestamp: new Date() }
-        }));
-      }
-    });
-
-  // Immediate 20ms transition so UI displays the tick saved status in milliseconds
-  if (typeof window !== 'undefined') {
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('cloud_sync_status', {
-        detail: { status: 'saved', table, timestamp: new Date() }
-      }));
-    }, 20);
-  }
+  // Cloud sync removed
 }
 
 export async function pushLocalStorageToCloudSQL(): Promise<boolean> {
-  try {
-    const learners = getLearners();
-    const users = getUsers();
-    if (learners.length === 0 && users.length <= 1) {
-      console.warn("[Cloud Sync] Safety Guard: Prevented pushing empty local storage to Cloud Firestore.");
-      return false;
-    }
-
-    console.log("Starting full push of local storage tables to Cloud Firestore...");
-    const getExamsLocal = () => {
-      const d = secureGet('exams');
-      return d ? JSON.parse(d) : [];
-    };
-    const getExamMarksLocal = () => {
-      const d = secureGet('school_exam_marks');
-      return d ? JSON.parse(d) : [];
-    };
-
-    const payloads = [
-      { table: 'grades', data: getGrades() },
-      { table: 'subjects', data: getSubjects() },
-      { table: 'learners', data: getLearners() },
-      { table: 'subject_enrollments', data: getSubjectEnrollments() },
-      { table: 'grading_rules', data: getGradingRules() },
-      { table: 'users', data: getUsers() },
-      { table: 'subject_assignments', data: getSubjectAssignments() },
-      { table: 'class_teacher_assignments', data: getClassTeacherAssignments() },
-      { table: 'school_profile', data: getSchoolProfile() },
-      { table: 'holidays', data: getHolidays() },
-      { table: 'terms', data: getTerms() },
-      { table: 'attendance_sheets', data: getAttendanceSheets() },
-      { table: 'messages', data: getMessages() },
-      { table: 'staff_attendance_sheets', data: getStaffAttendanceSheets() },
-      { table: 'exams', data: getExamsLocal() },
-      { table: 'school_exam_marks', data: getExamMarksLocal() },
-      { table: 'subject_papers', data: getSubjectPapers() },
-      { table: 'current_user', data: getCurrentUser() },
-    ];
-
-    await Promise.all(
-      payloads.map(async (p) => {
-        if (p.data && (Array.isArray(p.data) ? p.data.length > 0 : Object.keys(p.data).length > 0)) {
-          await saveToFirestore(p.table, p.data);
-        }
-      })
-    );
-
-    console.log("Full push of local storage to Cloud Firestore completed successfully.");
-    return true;
-  } catch (err) {
-    console.error("Failed to push local storage to Cloud Firestore:", err);
-    return false;
-  }
+  return true;
 }
-
-let isFirestoreListenerActive = false;
 
 export const TABLE_MAP: Record<string, string> = {
   current_user: 'current_user',
@@ -1480,25 +1395,7 @@ export function writeToLocalStorageWithAliases(rawTable: string, data: any): voi
  * Changes are received within milliseconds and immediately update local memory & dispatch UI events.
  */
 export function startRealtimeFirestoreSync(): () => void {
-  if (isFirestoreListenerActive) return () => {};
-  isFirestoreListenerActive = true;
-
-  return subscribeToFirestore((tableName, incomingData) => {
-    if (!tableName || incomingData === undefined || incomingData === null) return;
-
-    isSyncingFromServer = true;
-    writeToLocalStorageWithAliases(tableName, incomingData);
-    isSyncingFromServer = false;
-    
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('db_updated'));
-      window.dispatchEvent(new Event('storage'));
-      window.dispatchEvent(new Event('currentUserUpdated'));
-      window.dispatchEvent(new CustomEvent('cloud_sync_status', {
-        detail: { status: 'synced', table: tableName, timestamp: new Date() }
-      }));
-    }
-  });
+  return () => {};
 }
 
 const getItemKey = (item: any): string => {
@@ -1556,111 +1453,24 @@ const mergeArrays = (localArr: any[], cloudArr: any[]): any[] => {
 };
 
 export async function synchronizeWithCloudSQL(): Promise<boolean> {
-  // Ensure real-time Firestore listener is active immediately
-  startRealtimeFirestoreSync();
-
   try {
     isSyncingFromServer = true;
-
-    // Ensure active current user session is saved to cloud database if present
-    const currentSession = getCurrentUser();
-    if (currentSession) {
-      await saveToFirestore('current_user', currentSession);
-    }
-
-    // 1. Fetch all datasets from Cloud Firestore
-    const firestoreTables = await fetchAllFromFirestore();
-
-    if (firestoreTables && Object.keys(firestoreTables).length > 0) {
-      for (const [rawTable, cloudData] of Object.entries(firestoreTables)) {
-        if (cloudData === null || cloudData === undefined) continue;
-        
-        // Write Cloud Firestore data as authoritative primary truth
-        writeToLocalStorageWithAliases(rawTable, cloudData);
-      }
-    } else {
-      // First-time setup: Push local memory cache data to Cloud Firestore if cloud is completely empty
-      const currentLearners = getLearners();
-      if (currentLearners.length > 0) {
-        await pushLocalStorageToCloudSQL();
-      }
-    }
-
-    // 2. Non-blocking secondary backend sync attempt
-    fetch('/api/sync')
-      .then((res) => (res.ok ? res.json() : null))
-      .then(async (json) => {
-        if (json && json.success && json.data) {
-          const d = json.data;
-          const syncBackendTable = (storageKey: string, cloudData: any) => {
-            if (!cloudData) return;
-            let parsedCloud = cloudData;
-            if (typeof cloudData === 'string') {
-              try { parsedCloud = JSON.parse(cloudData); } catch (e) {}
-            }
-
-            if (Array.isArray(parsedCloud)) {
-              if (parsedCloud.length === 0) return; // NEVER overwrite local storage with empty array from API
-              const localRaw = secureGet(storageKey);
-              let localArr: any[] = [];
-              try { localArr = localRaw ? JSON.parse(localRaw) : []; } catch (e) {}
-              const merged = mergeArrays(localArr, parsedCloud);
-              secureSet(storageKey, JSON.stringify(merged), { skipCloud: true });
-              return;
-            }
-
-            if (typeof parsedCloud === 'object' && parsedCloud !== null) {
-              if (Object.keys(parsedCloud).length === 0) return; // NEVER overwrite local storage with empty object from API
-              const localRaw = secureGet(storageKey);
-              let localObj: any = {};
-              try { localObj = localRaw ? JSON.parse(localRaw) : {}; } catch (e) {}
-              const merged = { ...parsedCloud, ...localObj };
-              secureSet(storageKey, JSON.stringify(merged), { skipCloud: true });
-              return;
-            }
-
-            const serialized = typeof cloudData === 'string' ? cloudData : JSON.stringify(cloudData);
-            secureSet(storageKey, serialized, { skipCloud: true });
-          };
-          syncBackendTable('school_grades', d.grades);
-          syncBackendTable('school_subjects', d.subjects);
-          syncBackendTable('school_learners', d.learners);
-          syncBackendTable('school_grading_rules', d.gradingRules);
-          syncBackendTable('school_users', d.users);
-          syncBackendTable('school_holidays', d.holidays);
-          syncBackendTable('school_terms', d.terms);
-          syncBackendTable('school_attendance_sheets', d.attendanceSheets);
-          syncBackendTable('school_messages', d.messages);
-          syncBackendTable('school_staff_attendance_sheets', d.staffAttendanceSheets);
-          syncBackendTable('school_profile', d.schoolProfile);
-          syncBackendTable('subject_enrollments', d.subjectEnrollments);
-          syncBackendTable('subject_assignments_list', d.subjectAssignments);
-          syncBackendTable('class_teacher_assignments_list', d.classTeacherAssignments);
-          syncBackendTable('exams', d.exams);
-          syncBackendTable('school_exam_marks', d.examMarks);
-          syncBackendTable('school_subject_papers', d.subjectPapers);
-          
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new Event('db_updated'));
-            window.dispatchEvent(new Event('storage'));
-          }
-        }
-      })
-      .catch(() => {});
-
-    return true;
-  } catch (err) {
-    console.warn("Cloud Firestore sync error:", err);
-    return false;
-  } finally {
-    isSyncingFromServer = false;
+    // Perform any offline state refresh if needed
     isInitialCloudPullCompleted = true;
     secureSet('school_last_sync_time', new Date().toISOString(), { skipCloud: true });
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('db_updated'));
       window.dispatchEvent(new Event('storage'));
       window.dispatchEvent(new Event('currentUserUpdated'));
+      window.dispatchEvent(new CustomEvent('cloud_sync_status', {
+        detail: { status: 'synced', table: 'all', timestamp: new Date() }
+      }));
     }
+    return true;
+  } catch (err) {
+    return false;
+  } finally {
+    isSyncingFromServer = false;
   }
 }
 

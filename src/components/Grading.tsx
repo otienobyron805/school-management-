@@ -21,12 +21,7 @@ export default function Grading() {
     setRules(getGradingRules());
   }, []);
 
-  // Auto-save effect
-  useEffect(() => {
-    if (rules.length > 0) {
-      saveGradingRules(rules);
-    }
-  }, [rules]);
+
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);

@@ -40,9 +40,7 @@ import {
   Search
 } from 'lucide-react';
 import GlobalSearchModal from './components/GlobalSearchModal';
-import CloudAutoSyncHeaderBar from './components/CloudAutoSyncHeaderBar';
 import PerformanceReport from './components/PerformanceReport';
-import CloudSyncHealth from './components/CloudSyncHealth';
 import Exams from './components/Exams';
 import DataManagement, { exportAllData } from './components/DataManagement';
 import CreateExam from './components/CreateExam';
@@ -71,6 +69,8 @@ import AttendanceRoll from './components/AttendanceRoll';
 import MyProfile from './components/MyProfile';
 import NotificationBell from './components/NotificationBell';
 import { getCurrentUser, setCurrentUser, getSchoolProfile, UserAccount, getUsers, getLearners, synchronizeWithCloudSQL, startRealtimeFirestoreSync, getMessages } from './utils/db';
+import CloudAutoSyncHeaderBar from './components/CloudAutoSyncHeaderBar';
+import CloudSyncHealth from './components/CloudSyncHealth';
 import ParentPortal from './components/ParentPortal';
 import ParentAccountManager from './components/ParentAccountManager';
 import GateCheckin from './components/GateCheckin';
@@ -180,8 +180,7 @@ export default function App() {
     };
   }, [user]);
 
-  const [isSynced, setIsSynced] = useState(false);
-  const [isInitializingSession, setIsInitializingSession] = useState(true);
+  const [isSynced, setIsSynced] = useState(true);
 
   useEffect(() => {
     // Initialize theme preference from localStorage
@@ -191,7 +190,6 @@ export default function App() {
     // Initial sync with Cloud Firestore database
     synchronizeWithCloudSQL().finally(() => {
       setIsSynced(true);
-      setIsInitializingSession(false);
     });
 
     // Live multi-device background synchronization interval (10s) and focus handler
@@ -321,7 +319,7 @@ export default function App() {
   };
 
   // If session is still initializing on page refresh, show clean cloud connection screen
-  if (isInitializingSession && !user) {
+  if (!isSynced && !user) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-white font-sans">
         <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />

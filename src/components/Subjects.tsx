@@ -64,19 +64,7 @@ export default function Subjects() {
     setEnrollments(getSubjectEnrollments());
   }, []);
 
-  // Auto-save effect for subjects
-  useEffect(() => {
-    if (subjects.length > 0) {
-      saveSubjects(subjects);
-    }
-  }, [subjects]);
 
-  // Auto-save effect for enrollments
-  useEffect(() => {
-    if (Object.keys(enrollments).length > 0) {
-      saveSubjectEnrollments(enrollments);
-    }
-  }, [enrollments]);
 
   // Derive robust system grades list combining getGrades(), SORT_RULES.gradeOrder, and learners
   const allGradeNames = new Map<string, string[]>(); // label -> streams

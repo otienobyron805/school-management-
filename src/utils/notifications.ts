@@ -1,6 +1,4 @@
-import { getDb } from "./firebase";
-import { collection, addDoc, query, where, onSnapshot, orderBy, serverTimestamp, QuerySnapshot, DocumentData } from "firebase/firestore";
-
+// Local storage-backed system notifications replacing Firebase Firestore
 export interface Notification {
   id?: string;
   teacherId: string;
@@ -11,46 +9,52 @@ export interface Notification {
 
 export const sendNotification = async (teacherId: string, message: string) => {
   try {
-    const db = getDb();
-    if (!db) return;
-    await addDoc(collection(db, "notifications"), {
+    if (typeof window === 'undefined') return;
+    const existingStr = window.localStorage.getItem('school_notifications');
+    const existing: Notification[] = existingStr ? JSON.parse(existingStr) : [];
+    
+    const newNote: Notification = {
+      id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       teacherId,
       message,
-      createdAt: serverTimestamp(),
+      createdAt: new Date().toISOString(),
       read: false
-    });
+    };
+
+    existing.unshift(newNote);
+    window.localStorage.setItem('school_notifications', JSON.stringify(existing.slice(0, 100)));
+    window.dispatchEvent(new CustomEvent('notifications_updated'));
   } catch (e) {
-    console.warn("Could not save notification to Firestore: ", e);
+    console.warn("Could not save notification locally: ", e);
   }
 };
 
 export const subscribeNotifications = (teacherId: string, callback: (notifications: Notification[]) => void) => {
-  try {
-    const db = getDb();
-    if (!db) {
+  const loadNotifications = () => {
+    try {
+      if (typeof window === 'undefined') {
+        callback([]);
+        return;
+      }
+      const existingStr = window.localStorage.getItem('school_notifications');
+      const existing: Notification[] = existingStr ? JSON.parse(existingStr) : [];
+      const userNotes = existing.filter(n => n.teacherId === teacherId);
+      callback(userNotes);
+    } catch (e) {
       callback([]);
-      return () => {};
     }
+  };
 
-    const q = query(
-      collection(db, "notifications"),
-      where("teacherId", "==", teacherId),
-      orderBy("createdAt", "desc")
-    );
-
-    return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
-      const notifications: Notification[] = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Notification));
-      callback(notifications);
-    }, (error) => {
-      console.warn("Firestore subscription unavailable. Notifications operating in offline mode.", error?.message || error);
-      callback([]);
-    });
-  } catch (err) {
-    console.warn("Error setting up notification subscription:", err);
-    callback([]);
-    return () => {};
+  loadNotifications();
+  if (typeof window !== 'undefined') {
+    window.addEventListener('notifications_updated', loadNotifications);
+    window.addEventListener('storage', loadNotifications);
+    return () => {
+      window.removeEventListener('notifications_updated', loadNotifications);
+      window.removeEventListener('storage', loadNotifications);
+    };
   }
+
+  return () => {};
 };
+
