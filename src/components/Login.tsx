@@ -173,15 +173,12 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       };
 
       let freshUsers = getUsers();
-      let foundUser = matchUser(freshUsers);
+      
+      // Force sync with cloud to ensure we have the latest users
+      await synchronizeWithCloudSQL();
+      freshUsers = getUsers();
 
-      // If user not found in local state, sync with server store immediately
-      if (!foundUser) {
-        await synchronizeWithCloudSQL();
-        freshUsers = getUsers();
-        setUsers(freshUsers);
-        foundUser = matchUser(freshUsers);
-      }
+      let foundUser = matchUser(freshUsers);
 
       if (!foundUser && selectedTab === 'super_admin') {
         foundUser = freshUsers.find(u => u.role === 'Super Admin' || u.id === 'u1') || {
