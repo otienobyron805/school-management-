@@ -16,7 +16,6 @@ export default function UpdateNotificationModal({ isOpen, onClose, onRefresh }: 
   const isDevUrl = typeof window !== 'undefined' && window.location.href.includes('ais-dev-');
 
   const handleApplyRefresh = () => {
-    setIsRefreshing(true);
     onRefresh();
   };
 

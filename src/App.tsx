@@ -106,15 +106,18 @@ export default function App() {
   const handleRefreshUpdateModal = async () => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('system_update_acknowledged_version', CURRENT_SYSTEM_VERSION);
-      try {
-        await synchronizeWithCloudSQL();
+      setShowUpdateModal(false);
+      // Run sync in background so it never holds up the UI
+      Promise.race([
+        synchronizeWithCloudSQL(),
+        new Promise(resolve => setTimeout(resolve, 2000))
+      ]).then(() => {
         setSchoolProfile(getSchoolProfile());
         const curr = getCurrentUser();
         if (curr) {
           setUser(curr);
         }
-      } catch (e) {}
-      setShowUpdateModal(false);
+      }).catch(() => {});
     } else {
       setShowUpdateModal(false);
     }
