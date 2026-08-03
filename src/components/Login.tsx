@@ -15,6 +15,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [schoolProfile, setSchoolProfile] = useState(getSchoolProfile());
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isSyncingLogin, setIsSyncingLogin] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   
   // States for role selection flow
   const [selectedTab, setSelectedTab] = useState<'super_admin' | 'admin' | 'teacher' | 'parent'>('super_admin');
@@ -422,25 +424,45 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           <div className="border-t border-slate-200/50 my-1 relative z-10"></div>
 
           {/* Cloud Sync Status & Multi-Device Sync Button */}
-          <div className="flex items-center justify-between bg-emerald-50/90 border border-emerald-200/80 p-3 rounded-2xl text-xs font-semibold text-emerald-900 relative z-10 shadow-sm">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="text-[11px] font-bold">Cloud Sync (Phone & PC Connected)</span>
+          <div className="flex flex-col gap-1.5 bg-emerald-50/90 border border-emerald-200/80 p-3 rounded-2xl text-xs font-semibold text-emerald-900 relative z-10 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className={`w-2.5 h-2.5 rounded-full ${isSyncingLogin ? 'bg-amber-500 animate-ping' : 'bg-emerald-500 animate-pulse'}`}></span>
+                <span className="text-[11px] font-bold">Cloud Sync (Phone & PC Connected)</span>
+              </div>
+              <button
+                type="button"
+                disabled={isSyncingLogin}
+                onClick={async () => {
+                  setIsSyncingLogin(true);
+                  setSyncMessage(null);
+                  try {
+                    const ok = await synchronizeWithCloudSQL();
+                    if (ok) {
+                      setUsers(getUsers());
+                      setSchoolProfile(getSchoolProfile());
+                      setSyncMessage('✅ Synced successfully!');
+                      setTimeout(() => setSyncMessage(null), 3000);
+                    } else {
+                      setSyncMessage('⚠️ Sync failed. Check connection.');
+                    }
+                  } catch (err) {
+                    setSyncMessage('❌ Error during sync.');
+                  } finally {
+                    setIsSyncingLogin(false);
+                  }
+                }}
+                className={`bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-1.5 rounded-xl text-[10px] uppercase tracking-wider transition-all shadow-sm cursor-pointer active:scale-95 flex items-center gap-1.5 ${isSyncingLogin ? 'opacity-70 cursor-not-allowed' : ''}`}
+              >
+                <span className={isSyncingLogin ? 'animate-spin' : ''}>🔄</span>
+                <span>{isSyncingLogin ? 'Syncing...' : 'Sync Now'}</span>
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={async () => {
-                const ok = await synchronizeWithCloudSQL();
-                if (ok) {
-                  window.location.reload();
-                } else {
-                  alert("⚠️ Cloud sync failed. Please check your internet connection.");
-                }
-              }}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-1.5 rounded-xl text-[10px] uppercase tracking-wider transition-all shadow-sm cursor-pointer active:scale-95"
-            >
-              🔄 Sync Now
-            </button>
+            {syncMessage && (
+              <div className="text-[10px] font-bold text-emerald-800 bg-emerald-100/80 px-2 py-1 rounded-lg text-center animate-fadeIn">
+                {syncMessage}
+              </div>
+            )}
           </div>
 
           {/* Lower Part: Authorized Sign In */}
