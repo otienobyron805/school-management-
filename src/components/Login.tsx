@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUsers, getSchoolProfile, setCurrentUser, getLearners, synchronizeWithCloudSQL, UserAccount } from '../utils/db';
+import { getUsers, getSchoolProfile, setCurrentUser, getLearners, synchronizeWithMongoDB, UserAccount } from '../utils/db';
 import { Shield, Key, Sparkles, LogIn, GraduationCap, Users, User, ArrowRight, BookOpen, X, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -51,7 +51,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     refreshData();
 
     // Trigger cloud synchronization on load so new staff accounts created on other devices are pulled
-    synchronizeWithCloudSQL().then(() => {
+    synchronizeWithMongoDB().then(() => {
       refreshData();
     });
 
@@ -85,7 +85,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     setSyncMessage("Downloading fresh data from cloud...");
 
     try {
-      await synchronizeWithCloudSQL(true);
+      await synchronizeWithMongoDB(true);
       setUsers(getUsers());
       setSchoolProfile(getSchoolProfile());
     } catch (e) {
@@ -115,7 +115,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
         if (!matchedLearner) {
           // Attempt sync to fetch newly added learners
-          await synchronizeWithCloudSQL();
+          await synchronizeWithMongoDB();
           learnersList = getLearners();
           matchedLearner = learnersList.find(l => {
             const studentPhone = (l.parentPhone || '').trim().replace(/\s+/g, '');
@@ -441,7 +441,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                   setIsSyncingLogin(true);
                   setSyncMessage(null);
                   try {
-                    const ok = await synchronizeWithCloudSQL();
+                    const ok = await synchronizeWithMongoDB();
                     if (ok) {
                       setUsers(getUsers());
                       setSchoolProfile(getSchoolProfile());

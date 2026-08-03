@@ -85,6 +85,50 @@ async function startServer() {
     }
   });
 
+  const TABLE_TO_COLLECTION: Record<string, string> = {
+    grades: 'school_grades',
+    school_grades: 'school_grades',
+    subjects: 'school_subjects',
+    school_subjects: 'school_subjects',
+    learners: 'school_learners',
+    school_learners: 'school_learners',
+    users: 'school_users',
+    school_users: 'school_users',
+    grading_rules: 'school_grading_rules',
+    school_grading_rules: 'school_grading_rules',
+    holidays: 'school_holidays',
+    school_holidays: 'school_holidays',
+    terms: 'school_terms',
+    school_terms: 'school_terms',
+    attendance_sheets: 'school_attendance_sheets',
+    school_attendance_sheets: 'school_attendance_sheets',
+    messages: 'school_messages',
+    school_messages: 'school_messages',
+    staff_attendance_sheets: 'school_staff_attendance_sheets',
+    school_staff_attendance_sheets: 'school_staff_attendance_sheets',
+    schemes_of_work: 'school_schemes_of_work',
+    school_schemes_of_work: 'school_schemes_of_work',
+    school_profile: 'school_profile',
+    subject_enrollments: 'school_subject_enrollments',
+    subject_assignments: 'school_subject_assignments_list',
+    subject_assignments_list: 'school_subject_assignments_list',
+    class_teacher_assignments: 'school_class_teacher_assignments_list',
+    class_teacher_assignments_list: 'school_class_teacher_assignments_list',
+    exams: 'school_exams',
+    school_exams: 'school_exams',
+    exam_marks: 'school_exam_marks',
+    school_exam_marks: 'school_exam_marks',
+    subject_papers: 'school_subject_papers',
+    school_subject_papers: 'school_subject_papers',
+    fee_payments: 'school_fee_payments',
+    school_fee_payments: 'school_fee_payments',
+    fee_structures: 'school_fee_structures',
+    school_fee_structures: 'school_fee_structures',
+    gate_logs: 'school_gate_logs',
+    audit_trail: 'school_audit_trail',
+    activity_logs: 'school_activity_logs',
+  };
+
   app.post("/api/mongo/save", async (req, res) => {
     const { collectionName, data } = req.body;
     if (!collectionName || !data) {
@@ -92,7 +136,8 @@ async function startServer() {
     }
     try {
       const { db: mongoDb } = await getMongoClient();
-      const collection = mongoDb.collection(collectionName);
+      const colName = TABLE_TO_COLLECTION[collectionName] || collectionName;
+      const collection = mongoDb.collection(colName);
       if (Array.isArray(data)) {
         await collection.deleteMany({});
         if (data.length > 0) {
@@ -105,12 +150,12 @@ async function startServer() {
         }
       } else {
         await collection.updateOne(
-          { _id: data.id || data._id || 'default' },
+          { _id: data.id || data._id || colName },
           { $set: { ...data, syncedAt: new Date() } },
           { upsert: true }
         );
       }
-      res.json({ success: true, message: `Successfully synced collection '${collectionName}' to MongoDB` });
+      res.json({ success: true, message: `Successfully synced collection '${colName}' to MongoDB` });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message || "Failed to save data to MongoDB" });
     }
@@ -123,7 +168,8 @@ async function startServer() {
     }
     try {
       const { db: mongoDb } = await getMongoClient();
-      const docs = await mongoDb.collection(collectionName).find(query).limit(limit).toArray();
+      const colName = TABLE_TO_COLLECTION[collectionName] || collectionName;
+      const docs = await mongoDb.collection(colName).find(query).limit(limit).toArray();
       res.json({ success: true, documents: docs, count: docs.length });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message || "Failed to query MongoDB collection" });
@@ -137,21 +183,35 @@ async function startServer() {
       const mongoStatus = await checkMongoStatus();
       if (mongoStatus.connected) {
         const { db: mongoDb } = await getMongoClient();
-        const tables = [
-          'grades', 'subjects', 'learners', 'grading_rules', 'users',
-          'holidays', 'terms', 'attendance_sheets', 'messages', 'staff_attendance_sheets',
-          'schemes_of_work', 'school_profile', 'subject_enrollments', 'subject_assignments',
-          'class_teacher_assignments', 'exams', 'school_exam_marks', 'subject_papers'
+        const syncMap = [
+          { key: 'grades', col: 'school_grades', isArray: true },
+          { key: 'subjects', col: 'school_subjects', isArray: true },
+          { key: 'learners', col: 'school_learners', isArray: true },
+          { key: 'grading_rules', col: 'school_grading_rules', isArray: true },
+          { key: 'users', col: 'school_users', isArray: true },
+          { key: 'holidays', col: 'school_holidays', isArray: true },
+          { key: 'terms', col: 'school_terms', isArray: true },
+          { key: 'attendance_sheets', col: 'school_attendance_sheets', isArray: true },
+          { key: 'messages', col: 'school_messages', isArray: true },
+          { key: 'staff_attendance_sheets', col: 'school_staff_attendance_sheets', isArray: true },
+          { key: 'schemes_of_work', col: 'school_schemes_of_work', isArray: false },
+          { key: 'school_profile', col: 'school_profile', isArray: false },
+          { key: 'subject_enrollments', col: 'school_subject_enrollments', isArray: false },
+          { key: 'subject_assignments', col: 'school_subject_assignments_list', isArray: false },
+          { key: 'class_teacher_assignments', col: 'school_class_teacher_assignments_list', isArray: false },
+          { key: 'exams', col: 'school_exams', isArray: false },
+          { key: 'exam_marks', col: 'school_exam_marks', isArray: false },
+          { key: 'subject_papers', col: 'school_subject_papers', isArray: false },
         ];
         
         const data: Record<string, any> = {};
-        for (const t of tables) {
-          if (['schemes_of_work', 'school_profile', 'subject_enrollments', 'subject_assignments', 'class_teacher_assignments', 'exams', 'school_exam_marks', 'subject_papers'].includes(t)) {
-            const single = await mongoDb.collection(t).findOne({ _id: t } as any);
-            data[t] = single ? (single.data !== undefined ? single.data : single) : (serverStore[t] || null);
+        for (const m of syncMap) {
+          if (!m.isArray) {
+            const single = await mongoDb.collection(m.col).findOne({ _id: m.col } as any);
+            data[m.key] = single ? (single.data !== undefined ? single.data : single) : (serverStore[m.key] || serverStore[m.col] || null);
           } else {
-            const docs = await mongoDb.collection(t).find({}).toArray();
-            data[t] = docs.length > 0 ? docs.map(d => { const { _id, syncedAt, ...rest } = d; return { id: d.id || _id, ...rest }; }) : (serverStore[t] || []);
+            const docs = await mongoDb.collection(m.col).find({}).toArray();
+            data[m.key] = docs.length > 0 ? docs.map(d => { const { _id, syncedAt, ...rest } = d; return { id: d.id || _id, ...rest }; }) : (serverStore[m.key] || serverStore[m.col] || []);
           }
         }
 
@@ -168,21 +228,21 @@ async function startServer() {
         grades: serverStore.grades || [],
         subjects: serverStore.subjects || [],
         learners: serverStore.learners || [],
-        gradingRules: serverStore.grading_rules || [],
+        grading_rules: serverStore.grading_rules || [],
         users: serverStore.users || [],
         holidays: serverStore.holidays || [],
         terms: serverStore.terms || [],
-        attendanceSheets: serverStore.attendance_sheets || [],
+        attendance_sheets: serverStore.attendance_sheets || [],
         messages: serverStore.messages || [],
-        staffAttendanceSheets: serverStore.staff_attendance_sheets || [],
-        schemesOfWork: serverStore.schemes_of_work || null,
-        schoolProfile: serverStore.school_profile || null,
-        subjectEnrollments: serverStore.subject_enrollments || null,
-        subjectAssignments: serverStore.subject_assignments || null,
-        classTeacherAssignments: serverStore.class_teacher_assignments || null,
+        staff_attendance_sheets: serverStore.staff_attendance_sheets || [],
+        schemes_of_work: serverStore.schemes_of_work || null,
+        school_profile: serverStore.school_profile || null,
+        subject_enrollments: serverStore.subject_enrollments || null,
+        subject_assignments: serverStore.subject_assignments || null,
+        class_teacher_assignments: serverStore.class_teacher_assignments || null,
         exams: serverStore.exams || null,
-        examMarks: serverStore.school_exam_marks || null,
-        subjectPapers: serverStore.subject_papers || null,
+        exam_marks: serverStore.school_exam_marks || null,
+        subject_papers: serverStore.subject_papers || null,
       }
     });
   });
@@ -212,7 +272,8 @@ async function startServer() {
       const mongoStatus = await checkMongoStatus();
       if (mongoStatus.connected) {
         const { db: mongoDb } = await getMongoClient();
-        const collection = mongoDb.collection(table);
+        const colName = TABLE_TO_COLLECTION[table] || table;
+        const collection = mongoDb.collection(colName);
         if (Array.isArray(data)) {
           await collection.deleteMany({});
           if (data.length > 0) {
@@ -225,8 +286,8 @@ async function startServer() {
           }
         } else {
           await collection.updateOne(
-            { _id: table },
-            { $set: { _id: table, data, syncedAt: new Date() } },
+            { _id: data.id || data._id || colName },
+            { $set: { ...data, syncedAt: new Date() } },
             { upsert: true }
           );
         }
@@ -241,7 +302,7 @@ async function startServer() {
 
     try {
       await enqueueSave(table, async () => {
-        console.log(`Saving collection '${table}' to Cloud SQL (sequential queue)...`);
+        console.log(`Saving collection '${table}' to MongoDB (sequential queue)...`);
 
         if (table === "grades") {
           await db.delete(schema.dbGrades);

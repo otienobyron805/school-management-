@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Cloud, RefreshCw, CheckCircle2 } from 'lucide-react';
-import { synchronizeWithCloudSQL } from '../utils/db';
+import { synchronizeWithMongoDB } from '../utils/db';
 
 export default function CloudAutoSyncHeaderBar({ onOpenSyncHealth }: { onOpenSyncHealth: () => void }) {
   const [isSyncing, setIsSyncing] = useState(false);
@@ -20,7 +20,7 @@ export default function CloudAutoSyncHeaderBar({ onOpenSyncHealth }: { onOpenSyn
     if (isSyncing) return;
     setIsSyncing(true);
     setSyncDone(false);
-    const success = await synchronizeWithCloudSQL();
+    const success = await synchronizeWithMongoDB();
     setIsSyncing(false);
     if (success) {
       setSyncDone(true);

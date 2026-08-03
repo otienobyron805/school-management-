@@ -2,19 +2,19 @@ import { ActivityEvent } from '../types';
 import { addAlertLog } from './alerts';
 
 
-async function saveToFirestore(table: string, data: any): Promise<void> {
+async function saveToCloud(table: string, data: any): Promise<void> {
   try {
-    await fetch('/api/mongo/save', {
+    await fetch('/api/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ collectionName: table, data })
+      body: JSON.stringify({ table, data })
     });
   } catch (e) {
-    console.warn('Error saving to MongoDB:', e);
+    console.warn('Error saving to server:', e);
   }
 }
 
-async function fetchAllFromFirestore(table?: string): Promise<any> {
+async function fetchAllFromCloud(table?: string): Promise<any> {
   try {
     if (table) {
       const res = await fetch('/api/mongo/query', {
@@ -35,7 +35,7 @@ async function fetchAllFromFirestore(table?: string): Promise<any> {
   }
 }
 
-function subscribeToFirestore(callback: (table: string, data: any[]) => void): () => void {
+function subscribeToCloud(callback: (table: string, data: any[]) => void): () => void {
   const interval = setInterval(async () => {
     try {
       const res = await fetch('/api/sync');
@@ -59,7 +59,7 @@ export interface CloudSnapshotMeta {
   snapshotData?: any;
 }
 
-async function createCloudSnapshotToFirestore(data: any, name: string, note: string): Promise<{ success: boolean; snapshot?: CloudSnapshotMeta; error?: string; }> {
+async function createCloudSnapshotToCloud(data: any, name: string, note: string): Promise<{ success: boolean; snapshot?: CloudSnapshotMeta; error?: string; }> {
   try {
     const snap = {
       id: `snap-${Date.now()}`,
@@ -89,7 +89,7 @@ async function createCloudSnapshotToFirestore(data: any, name: string, note: str
   }
 }
 
-async function fetchCloudSnapshotsFromFirestore(): Promise<CloudSnapshotMeta[]> {
+async function fetchCloudSnapshotsFromCloud(): Promise<CloudSnapshotMeta[]> {
   try {
     const res = await fetch('/api/mongo/query', {
       method: 'POST',
@@ -113,7 +113,7 @@ async function fetchCloudSnapshotsFromFirestore(): Promise<CloudSnapshotMeta[]> 
   }
 }
 
-async function deleteCloudSnapshotFromFirestore(id: string): Promise<boolean> {
+async function deleteCloudSnapshotFromCloud(id: string): Promise<boolean> {
   try {
     await fetch('/api/mongo/save', {
       method: 'POST',
@@ -127,7 +127,7 @@ async function deleteCloudSnapshotFromFirestore(id: string): Promise<boolean> {
 }
 
 export async function logTeacherAction(teacherId: string, teacherName: string, action: string, details: any): Promise<void> {
-  // Firebase logging removed
+  // MongoDB logging removed
   console.log("Teacher action logged locally:", { teacherId, action, details });
 }
 
@@ -1307,13 +1307,13 @@ export async function saveToBackend(table: string, data: any) {
   }
   
   try {
-    await saveToFirestore(primaryKey, data);
+    await saveToCloud(primaryKey, data);
   } catch (err) {
-    console.warn("[CloudSync] Failed to save to Firestore:", err);
+    console.warn("[CloudSync] Failed to save to Cloud:", err);
   }
   if (primaryKey !== table && table !== 'current_user' && table !== 'school_current_user') {
     try {
-      await saveToFirestore(table, data);
+      await saveToCloud(table, data);
     } catch (err) {}
   }
 }
@@ -1488,7 +1488,10 @@ export function writeToLocalStorageWithAliases(rawTable: string, data: any): voi
 
   let finalData = data;
   if (Array.isArray(data)) {
-    const existingLocal = secureGet(primaryKey) || secureGet(rawTable);
+    let existingLocal = secureGet(primaryKey) || secureGet(rawTable);
+    if (typeof existingLocal === 'string') {
+      try { existingLocal = JSON.parse(existingLocal); } catch(e) {}
+    }
     if (Array.isArray(existingLocal)) {
       finalData = mergeArrays(existingLocal, data);
     }
@@ -1511,12 +1514,12 @@ export function writeToLocalStorageWithAliases(rawTable: string, data: any): voi
 }
 
 /**
- * Immediately subscribes to real-time Firestore updates across all collection documents
+ * Immediately subscribes to real-time Cloud updates across all collection documents
  * Changes are received within milliseconds and immediately update local memory & dispatch UI events.
  */
-export function startRealtimeFirestoreSync(): () => void {
+export function startRealtimeCloudSync(): () => void {
   try {
-    return subscribeToFirestore((table, data) => {
+    return subscribeToCloud((table, data) => {
       if (isSyncingFromServer) return;
       if (table === 'current_user' || table === 'school_current_user' || table === 'school_last_sync_time' || table === 'system_update_acknowledged_version') {
         return;
@@ -1594,7 +1597,7 @@ const mergeArrays = (localArr: any[], cloudArr: any[]): any[] => {
   return Array.from(map.values());
 };
 
-export async function synchronizeWithCloudSQL(force: boolean = false): Promise<boolean> {
+export async function synchronizeWithMongoDB(force: boolean = false): Promise<boolean> {
   const syncPromise = (async () => {
     isSyncingFromServer = true;
     console.log(`[DEBUG] Starting bi-directional cloud sync (force: ${force})...`);
@@ -1605,8 +1608,8 @@ export async function synchronizeWithCloudSQL(force: boolean = false): Promise<b
       tablesToClear.forEach(t => secureRemove(t, { skipCloud: true }));
     }
 
-    // 1. Pull from Firestore
-    const cloudData = await fetchAllFromFirestore();
+    // 1. Pull from Cloud
+    const cloudData = await fetchAllFromCloud();
     console.log("[DEBUG] Cloud data fetched:", cloudData ? Object.keys(cloudData) : "null");
     if (cloudData && typeof cloudData === 'object' && Object.keys(cloudData).length > 0) {
       for (const [table, val] of Object.entries(cloudData)) {
@@ -1619,19 +1622,23 @@ export async function synchronizeWithCloudSQL(force: boolean = false): Promise<b
       }
     }
 
-    // 2. Push key local tables to Firestore in parallel with a timeout
-    const tablesToPush = ['learners', 'grades', 'subjects', 'users', 'exam_marks', 'attendance_sheets', 'fee_payments', 'subject_assignments', 'grading_rules'];
-    await Promise.allSettled(tablesToPush.map(async (t) => {
-      const localVal = secureGet(t) || secureGet(`school_${t}`);
-      if (localVal) {
-        try {
-          const parsed = typeof localVal === 'string' ? JSON.parse(localVal) : localVal;
-          await saveToFirestore(t, parsed);
-        } catch (e) {
-          // ignore
+    if (force) {
+      // If forcing a fresh sync, we only pull. We don't push local data to avoid overwriting cloud.
+    } else {
+      // Push key local tables to server to ensure any offline changes are saved
+      const tablesToPush = ['learners', 'grades', 'subjects', 'users', 'exam_marks', 'attendance_sheets', 'fee_payments', 'subject_assignments', 'grading_rules', 'school_profile'];
+      await Promise.allSettled(tablesToPush.map(async (t) => {
+        const localVal = secureGet(t) || secureGet(`school_${t}`);
+        if (localVal) {
+          try {
+            const parsed = typeof localVal === 'string' ? JSON.parse(localVal) : localVal;
+            await saveToCloud(t, parsed);
+          } catch (e) {
+            // ignore
+          }
         }
-      }
-    }));
+      }));
+    }
 
     isInitialCloudPullCompleted = true;
     secureSet('school_last_sync_time', new Date().toISOString(), { skipCloud: true });
@@ -2035,14 +2042,14 @@ export async function triggerManualCloudSnapshot(note: string = ''): Promise<{ s
   const createdBy = user ? `${user.fullName || user.username} (${user.role || 'Admin'})` : 'Admin';
   const data = getAllStateForSnapshot();
   
-  const result = await createCloudSnapshotToFirestore(data, createdBy, note);
+  const result = await createCloudSnapshotToCloud(data, createdBy, note);
   if (result.success) {
     try {
       addAlertLog(
         'Backup',
         'Info',
         'Manual Cloud Snapshot Triggered',
-        `Snapshot ${result.snapshot?.id} created in Firebase by ${createdBy} with ${result.snapshot?.recordCount} records.`
+        `Snapshot ${result.snapshot?.id} created in MongoDB by ${createdBy} with ${result.snapshot?.recordCount} records.`
       );
     } catch (e) {}
   }
@@ -2050,11 +2057,11 @@ export async function triggerManualCloudSnapshot(note: string = ''): Promise<{ s
 }
 
 export async function getCloudSnapshots(): Promise<CloudSnapshotMeta[]> {
-  return await fetchCloudSnapshotsFromFirestore();
+  return await fetchCloudSnapshotsFromCloud();
 }
 
 export async function deleteCloudSnapshot(id: string): Promise<boolean> {
-  return await deleteCloudSnapshotFromFirestore(id);
+  return await deleteCloudSnapshotFromCloud(id);
 }
 
 export async function restoreCloudSnapshot(snapshot: CloudSnapshotMeta): Promise<boolean> {

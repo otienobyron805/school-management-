@@ -1,4 +1,4 @@
-// Local storage-backed system notifications replacing Firebase Firestore
+// Local storage-backed system notifications replacing MongoDB
 export interface Notification {
   id?: string;
   teacherId: string;

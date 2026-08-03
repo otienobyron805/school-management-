@@ -143,7 +143,7 @@ export default function CloudSyncHealth() {
               <h1 className="text-xl font-black tracking-tight">Cloud Sync Health & Backup Archives</h1>
             </div>
             <p className="text-xs text-slate-300 max-w-xl">
-              Monitor cloud synchronization status, trigger immediate backup snapshots of your school database to Firestore, and instantly restore previous versions if sync errors occur.
+              Monitor cloud synchronization status, trigger immediate backup snapshots of your school database to Cloud Database, and instantly restore previous versions if sync errors occur.
             </p>
           </div>
           <button 
@@ -210,7 +210,7 @@ export default function CloudSyncHealth() {
               Cloud Backup Archive History ({snapshots.length})
             </h3>
           </div>
-          <span className="text-[11px] text-slate-400 font-medium">Stored securely in Firebase Firestore</span>
+          <span className="text-[11px] text-slate-400 font-medium">Stored securely in MongoDB Cloud Database</span>
         </div>
 
         {loading ? (

@@ -68,7 +68,7 @@ import AttendanceDashboard from './components/AttendanceDashboard';
 import AttendanceRoll from './components/AttendanceRoll';
 import MyProfile from './components/MyProfile';
 import NotificationBell from './components/NotificationBell';
-import { getCurrentUser, setCurrentUser, getSchoolProfile, UserAccount, getUsers, getLearners, synchronizeWithCloudSQL, startRealtimeFirestoreSync, getMessages } from './utils/db';
+import { getCurrentUser, setCurrentUser, getSchoolProfile, UserAccount, getUsers, getLearners, synchronizeWithMongoDB, startRealtimeCloudSync, getMessages } from './utils/db';
 import CloudAutoSyncHeaderBar from './components/CloudAutoSyncHeaderBar';
 import CloudSyncHealth from './components/CloudSyncHealth';
 import ParentPortal from './components/ParentPortal';
@@ -110,7 +110,7 @@ export default function App() {
       setShowUpdateModal(false);
       // Run sync in background so it never holds up the UI
       Promise.race([
-        synchronizeWithCloudSQL(),
+        synchronizeWithMongoDB(),
         new Promise(resolve => setTimeout(resolve, 2000))
       ]).then(() => {
         setSchoolProfile(getSchoolProfile());
@@ -194,20 +194,20 @@ export default function App() {
   useEffect(() => {
     // Initialize theme preference from localStorage
     initTheme();
-    // Start instant real-time Cloud Firestore sync listener
-    startRealtimeFirestoreSync();
-    // Initial sync with Cloud Firestore database
-    synchronizeWithCloudSQL().finally(() => {
+    // Start instant real-time MongoDB sync listener
+    startRealtimeCloudSync();
+    // Initial sync with MongoDB database
+    synchronizeWithMongoDB().finally(() => {
       setIsSynced(true);
     });
 
     // Live multi-device background synchronization interval (10s) and focus handler
     const syncInterval = setInterval(() => {
-      synchronizeWithCloudSQL();
+      synchronizeWithMongoDB();
     }, 10000);
 
     const handleFocusSync = () => {
-      synchronizeWithCloudSQL();
+      synchronizeWithMongoDB();
     };
 
     window.addEventListener('focus', handleFocusSync);

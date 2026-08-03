@@ -33,7 +33,7 @@ export default defineConfig({
     user: user,
     password: password,
     database: sqlDbName,
-    ssl: false, // Typically false when connecting via Cloud SQL Auth Proxy.
+    ssl: false, // Typically false when connecting via MongoDB Auth Proxy.
   },
   verbose: true, // Enable verbose output.
 });

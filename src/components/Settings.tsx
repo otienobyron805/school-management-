@@ -475,13 +475,13 @@ export default function Settings() {
               </div>
             </div>
 
-            {/* Cloud SQL Database Integration */}
+            {/* MongoDB Integration */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
               <span className="block text-xs font-black text-slate-700 uppercase tracking-wider">
-                Cloud SQL Database Status
+                MongoDB Status
               </span>
               <p className="text-xs text-slate-600">
-                Your application is connected to a live, production-grade relational PostgreSQL database on Google Cloud Platform (Cloud SQL).
+                Your application is connected to a live, production-grade MongoDB document database for cloud persistence and multi-device synchronization.
               </p>
               
               <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex items-center justify-between gap-3">
@@ -489,14 +489,14 @@ export default function Settings() {
                   <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
                   <div>
                     <span className="block text-xs font-bold text-emerald-800 font-mono">CONNECTED</span>
-                    <span className="block text-[10px] text-emerald-600 font-semibold uppercase tracking-wider">PostgreSQL Engine Active</span>
+                    <span className="block text-[10px] text-emerald-600 font-semibold uppercase tracking-wider">MongoDB Engine Active</span>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={async () => {
                     const dbUtils = await import('../utils/db');
-                    const ok = await dbUtils.synchronizeWithCloudSQL();
+                    const ok = await dbUtils.synchronizeWithMongoDB();
                     if (ok) {
                       alert('✅ Database Sync Completed successfully! Loaded freshest datasets.');
                     } else {
@@ -512,7 +512,7 @@ export default function Settings() {
               <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl flex items-center justify-between gap-3">
                 <div>
                   <span className="block text-xs font-bold text-blue-800">DATABASE BACKUP</span>
-                  <span className="block text-[10px] text-blue-600 font-medium">Push current browser datasets to PostgreSQL cloud storage.</span>
+                  <span className="block text-[10px] text-blue-600 font-medium">Push current browser datasets to MongoDB cloud storage.</span>
                 </div>
                 <button
                   type="button"
@@ -531,7 +531,7 @@ export default function Settings() {
                       dbUtils.saveHolidays(dbUtils.getHolidays());
                       dbUtils.saveTerms(dbUtils.getTerms());
                       dbUtils.saveAttendanceSheets(dbUtils.getAttendanceSheets());
-                      alert('✅ All local browser tables have been synchronized and successfully saved to PostgreSQL!');
+                      alert('✅ All local browser tables have been synchronized and successfully saved to MongoDB!');
                     } catch (err) {
                       alert('❌ Failed to push backup. Check console or server logs.');
                     }

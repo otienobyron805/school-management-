@@ -11,10 +11,24 @@ export default function CloudDataExplorer() {
   const fetchTableData = async (tableName: string) => {
     setLoading(true);
     try {
-      // Mocked data fetching as Firebase was removed
-      setData([]);
+      const res = await fetch('/api/mongo/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collectionName: tableName, limit: 200 })
+      });
+      const json = await res.json();
+      if (json.success && Array.isArray(json.documents) && json.documents.length > 0) {
+        setData(json.documents);
+      } else {
+        const { secureGet } = await import('../utils/db');
+        const local = secureGet(tableName) || secureGet(`school_${tableName}`);
+        setData(Array.isArray(local) ? local : (local ? [local] : []));
+      }
     } catch (e) {
-      console.error('Error fetching table data:', e);
+      console.error('Error fetching MongoDB collection data:', e);
+      const { secureGet } = await import('../utils/db');
+      const local = secureGet(tableName) || secureGet(`school_${tableName}`);
+      setData(Array.isArray(local) ? local : (local ? [local] : []));
     } finally {
       setLoading(false);
     }

@@ -18,7 +18,7 @@ export default function NotificationBell() {
     return () => unsubscribe();
   }, [userId]);
 
-  // Combine Firestore notifications with local db system messages
+  // Combine Cloud Database notifications with local db system messages
   const unreadSystemMessages = user ? getMessages().filter(m => 
     !m.read && (m.receiverId === user.id || m.receiverId === 'ALL_CLASS_TEACHERS' || user.role === 'Super Admin' || user.role === 'Admin' || user.role === 'Class Teacher' || user.role !== 'Parent')
   ) : [];

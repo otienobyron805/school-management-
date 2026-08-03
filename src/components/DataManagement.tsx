@@ -102,7 +102,7 @@ export default function DataManagement() {
     try {
       const res = await triggerManualCloudSnapshot(snapshotNote);
       if (res.success && res.snapshot) {
-        setSnapshotMessage(`✅ Snapshot created successfully! (${res.snapshot.recordCount} total records backed up to Firebase)`);
+        setSnapshotMessage(`✅ Snapshot created successfully! (${res.snapshot.recordCount} total records backed up to MongoDB)`);
         setSnapshotNote('');
         await loadSnapshots();
       } else {
@@ -142,7 +142,7 @@ export default function DataManagement() {
   };
 
   const handleDeleteSnapshot = async (id: string) => {
-    if (confirm('⚠️ Delete this cloud snapshot permanently from Firebase history?')) {
+    if (confirm('⚠️ Delete this cloud snapshot permanently from MongoDB history?')) {
       const ok = await deleteCloudSnapshot(id);
       if (ok) {
         await loadSnapshots();
@@ -338,7 +338,7 @@ export default function DataManagement() {
         )}
       </div>
 
-      {/* ☁️ CLOUD BACKUP MANAGER (Firebase Snapshots) */}
+      {/* ☁️ CLOUD BACKUP MANAGER (MongoDB Snapshots) */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div className="flex items-center gap-3">
@@ -349,11 +349,11 @@ export default function DataManagement() {
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-black text-slate-900">Cloud Backup Manager</h2>
                 <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase border bg-indigo-50 text-indigo-700 border-indigo-200 flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3" /> Firebase Snapshots
+                  <ShieldCheck className="w-3 h-3" /> MongoDB Snapshots
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-medium">
-                Trigger manual database snapshots saved directly to Firebase Cloud storage and manage historical backup points.
+                Trigger manual database snapshots saved directly to MongoDB Cloud storage and manage historical backup points.
               </p>
             </div>
           </div>
@@ -395,7 +395,7 @@ export default function DataManagement() {
               {isCreatingSnapshot ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Saving to Firebase...</span>
+                  <span>Saving to MongoDB...</span>
                 </>
               ) : (
                 <>
@@ -421,7 +421,7 @@ export default function DataManagement() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
-              <History className="w-4 h-4 text-slate-600" /> Firebase Snapshot History ({snapshots.length})
+              <History className="w-4 h-4 text-slate-600" /> MongoDB Snapshot History ({snapshots.length})
             </h3>
             <span className="text-[11px] text-slate-400 font-medium">Sorted by newest first</span>
           </div>
@@ -435,7 +435,7 @@ export default function DataManagement() {
               <Clock className="w-8 h-8 text-slate-300 mx-auto" />
               <p className="text-xs font-bold text-slate-600">No Manual Cloud Snapshots Found</p>
               <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
-                Click "Take Cloud Snapshot" above to create your first manual database snapshot stored securely in Cloud Firestore.
+                Click "Take Cloud Snapshot" above to create your first manual database snapshot stored securely in MongoDB.
               </p>
             </div>
           ) : (
