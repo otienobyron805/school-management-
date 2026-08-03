@@ -178,19 +178,32 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         });
       };
 
-      // Always prioritize fetching the freshest users from Cloud Firestore
-      let freshUsers: UserAccount[] = [];
+      // Always prioritize fetching the freshest users from Cloud Firestore & synchronize
+      await synchronizeWithCloudSQL();
       const cloudData = await fetchAllFromFirestore();
       console.log("[DEBUG] cloudData received:", cloudData);
-      if (cloudData && cloudData.users) {
-        freshUsers = typeof cloudData.users === 'string' ? JSON.parse(cloudData.users) : cloudData.users;
-        console.log("[DEBUG] Users fetched directly from Firestore:", freshUsers.length);
-      } else {
-        console.log("[DEBUG] cloudData.users is missing or cloudData is empty.");
-        // Fallback to local storage
-        console.log("[DEBUG] Falling back to local storage...");
-        freshUsers = getUsers();
+      
+      let cloudUsers: UserAccount[] = [];
+      if (cloudData) {
+        const rawUsers = cloudData.users || cloudData.school_users;
+        if (rawUsers) {
+          cloudUsers = typeof rawUsers === 'string' ? JSON.parse(rawUsers) : rawUsers;
+        }
       }
+      
+      const localUsers = getUsers();
+      
+      // Combine cloud and local users uniquely by ID or username
+      const userMap = new Map<string, UserAccount>();
+      for (const u of [...localUsers, ...cloudUsers]) {
+        if (!u) continue;
+        const key = u.id || u.username?.toLowerCase() || u.email?.toLowerCase();
+        if (key) {
+          userMap.set(key, { ...userMap.get(key), ...u });
+        }
+      }
+      const freshUsers = Array.from(userMap.values());
+      console.log("[DEBUG] Total combined fresh users:", freshUsers.length);
       
       console.log("[DEBUG] Users fetched after sync:", freshUsers.length);
       console.log("[DEBUG] Users list:", freshUsers.map(u => u.username));
