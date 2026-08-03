@@ -23,7 +23,8 @@ export const getDb = (): Firestore | null => {
         projectId: config.projectId,
         storageBucket: config.storageBucket,
         messagingSenderId: config.messagingSenderId,
-        appId: config.appId
+        appId: config.appId,
+        databaseId: 'ai-studio-school-management-4bb388c3-6b05-4d40-827c-07097b2e19d5'
       };
 
       const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);

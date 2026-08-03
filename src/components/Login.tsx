@@ -154,7 +154,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
           const isSuperAdminUser = u.id === 'u1' || u.role === 'Super Admin' || u.systemRole === 'super_admin' || uUsername === 'otienobyron805@gmail.com' || uUsername === 'admin';
 
-          return (
+          const match = (
             (uUsername && uUsername === cleanInput) ||
             (uEmail && uEmail === cleanInput) ||
             (uStaffNo && uStaffNo === cleanInput) ||
@@ -170,23 +170,26 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               cleanInput === 'byron gondi'
             ))
           );
+          
+          if (match) {
+            console.log(`[DEBUG] Found match for input '${cleanInput}':`, u);
+          }
+          return match;
         });
       };
 
-      let freshUsers = getUsers();
-      
-      // Force sync with cloud to ensure we have the latest users
-      await synchronizeWithCloudSQL();
-      freshUsers = getUsers();
-
-      // If still no users, try direct fetch from Firebase
-      if (freshUsers.length <= 1) { // 1 because of default admin user
-        console.log("[DEBUG] Users list empty or only default user, direct fetching from Firestore...");
-        const cloudData = await fetchAllFromFirestore();
-        if (cloudData && cloudData.users) {
-           freshUsers = typeof cloudData.users === 'string' ? JSON.parse(cloudData.users) : cloudData.users;
-           console.log("[DEBUG] Users fetched directly from Firestore:", freshUsers.length);
-        }
+      // Always prioritize fetching the freshest users from Cloud Firestore
+      let freshUsers: UserAccount[] = [];
+      const cloudData = await fetchAllFromFirestore();
+      console.log("[DEBUG] cloudData received:", cloudData);
+      if (cloudData && cloudData.users) {
+        freshUsers = typeof cloudData.users === 'string' ? JSON.parse(cloudData.users) : cloudData.users;
+        console.log("[DEBUG] Users fetched directly from Firestore:", freshUsers.length);
+      } else {
+        console.log("[DEBUG] cloudData.users is missing or cloudData is empty.");
+        // Fallback to local storage
+        console.log("[DEBUG] Falling back to local storage...");
+        freshUsers = getUsers();
       }
       
       console.log("[DEBUG] Users fetched after sync:", freshUsers.length);
@@ -194,25 +197,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
       let foundUser = matchUser(freshUsers);
 
-      if (!foundUser && selectedTab === 'super_admin') {
-        foundUser = freshUsers.find(u => u.role === 'Super Admin' || u.id === 'u1') || {
-          id: 'u1',
-          username: 'otienobyron805@gmail.com',
-          fullName: 'Byron Gondi',
-          role: 'Super Admin',
-          created: '2026-01-10',
-          status: 'Active',
-          password: '805679'
-        };
-      }
-
       if (!foundUser) {
         if (selectedTab === 'super_admin') {
           setError(`⚠️ Super Admin account "${username}" not found.`);
         } else if (selectedTab === 'admin') {
           setError(`⚠️ Admin account "${username}" not found. Please contact the Super Admin.`);
         } else {
-          setError(`⚠️ Teacher/Staff account "${username}" not found. Please check your username, staff number, email or phone number.`);
+          setError(`⚠️ Teacher/Staff account "${username}" not found. Try clicking 'Sync Data' to ensure you are updated.`);
         }
         setIsLoggingIn(false);
         return;
