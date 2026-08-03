@@ -234,7 +234,7 @@ export default function GradesAndStreams() {
                         <button className="p-1 hover:bg-blue-100 rounded text-blue-600"><BarChart className="w-4 h-4" /></button>
                         <button onClick={() => openEditStream(grade.id, stream)} className="p-1 hover:bg-blue-100 rounded"><Edit2 className="w-3 h-3 pointer-events-none" /></button>
                         {canDelete() && (
-                          <button onClick={() => deleteStream(grade.id, stream.id)} className="p-1 hover:bg-red-100 rounded text-red-500"><Trash2 className="w-3 h-3 pointer-events-none" /></button>
+                            <button onClick={() => deleteStream(grade.id, stream.id)} className="p-1 hover:bg-red-100 rounded text-red-500"><Trash2 className="w-3 h-3 pointer-events-none" /></button>
                         )}
                     </div>
                   </div>

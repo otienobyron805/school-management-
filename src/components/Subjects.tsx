@@ -893,7 +893,7 @@ export default function Subjects() {
                     <div className="flex gap-1">
                       <button onClick={() => handleEditSubject(subject)} className="p-2 text-amber-600 hover:bg-amber-50 rounded-xl transition-all" title="Edit Subject"><Edit2 className="w-4 h-4" /></button>
                       {canDelete() && (
-                        <button onClick={() => deleteSubject(subject.id, subject.name)} className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all" title="Delete Subject"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => deleteSubject(subject.id, subject.name)} className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all" title="Delete Subject"><Trash2 className="w-4 h-4" /></button>
                       )}
                     </div>
                   </div>

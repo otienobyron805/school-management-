@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Database, RefreshCw, AlertTriangle } from 'lucide-react';
-import { getFirestore, collection, getDocs } from 'firebase/firestore';
 
 export default function CloudDataExplorer() {
   const [tables, setTables] = useState<string[]>(['learners', 'staff', 'subjects', 'attendance', 'messages', 'exams']);
@@ -12,10 +11,8 @@ export default function CloudDataExplorer() {
   const fetchTableData = async (tableName: string) => {
     setLoading(true);
     try {
-      const db = getFirestore();
-      const querySnapshot = await getDocs(collection(db, tableName));
-      const tableData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setData(tableData);
+      // Mocked data fetching as Firebase was removed
+      setData([]);
     } catch (e) {
       console.error('Error fetching table data:', e);
     } finally {

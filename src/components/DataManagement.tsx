@@ -136,7 +136,7 @@ export default function DataManagement() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `cloud-snapshot-${snap.id}-${snap.timestamp.slice(0, 10)}.json`;
+    a.download = `cloud-snapshot-${snap.id}-${snap.timestamp.toString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };

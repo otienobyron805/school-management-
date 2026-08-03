@@ -7,9 +7,8 @@ import {
 import { 
   secureGet, secureSet, getLearners, getGrades, getSubjects, getGradingRules, 
   getSubjectAssignments, getSubjectPapers, Learner, Grade, Subject, GradingRule, SubjectPaper,
-  getCurrentUser
+  getCurrentUser, logTeacherAction
 } from '../utils/db';
-import { logTeacherAction } from '../utils/firebase';
 
 interface ExamMark {
   examId: string;

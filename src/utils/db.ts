@@ -1,22 +1,134 @@
 import { ActivityEvent } from '../types';
 import { addAlertLog } from './alerts';
-import { 
-  createCloudSnapshotToFirestore,
-  fetchCloudSnapshotsFromFirestore,
-  deleteCloudSnapshotFromFirestore,
-  saveToFirestore,
-  fetchAllFromFirestore,
-  subscribeToFirestore,
-  logTeacherAction as firebaseLogTeacherAction,
-  CloudSnapshotMeta
-} from './firebase';
+
+
+async function saveToFirestore(table: string, data: any): Promise<void> {
+  try {
+    await fetch('/api/mongo/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ collectionName: table, data })
+    });
+  } catch (e) {
+    console.warn('Error saving to MongoDB:', e);
+  }
+}
+
+async function fetchAllFromFirestore(table?: string): Promise<any> {
+  try {
+    if (table) {
+      const res = await fetch('/api/mongo/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collectionName: table, limit: 1000 })
+      });
+      const json = await res.json();
+      return json.success ? json.documents : [];
+    } else {
+      const res = await fetch('/api/sync');
+      const json = await res.json();
+      return json.success ? json.data : {};
+    }
+  } catch (e) {
+    console.warn('Error fetching from MongoDB:', e);
+    return table ? [] : {};
+  }
+}
+
+function subscribeToFirestore(callback: (table: string, data: any[]) => void): () => void {
+  const interval = setInterval(async () => {
+    try {
+      const res = await fetch('/api/sync');
+      const json = await res.json();
+      if (json.success && json.data) {
+        for (const [table, data] of Object.entries(json.data)) {
+          callback(table, data as any[]);
+        }
+      }
+    } catch (e) {}
+  }, 5000);
+  return () => clearInterval(interval);
+}
+
+export interface CloudSnapshotMeta {
+  id: string;
+  name: string;
+  timestamp: number;
+  formattedDate?: string;
+  recordCount?: number;
+  snapshotData?: any;
+}
+
+async function createCloudSnapshotToFirestore(data: any, name: string, note: string): Promise<{ success: boolean; snapshot?: CloudSnapshotMeta; error?: string; }> {
+  try {
+    const snap = {
+      id: `snap-${Date.now()}`,
+      name,
+      note,
+      timestamp: Date.now(),
+      snapshotData: data
+    };
+    await fetch('/api/mongo/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ collectionName: 'cloud_snapshots', data: snap })
+    });
+    return { 
+      success: true, 
+      snapshot: {
+        id: snap.id,
+        name: snap.name,
+        timestamp: snap.timestamp,
+        formattedDate: new Date(snap.timestamp).toLocaleString(),
+        recordCount: Object.keys(data || {}).length,
+        snapshotData: data
+      } 
+    };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+async function fetchCloudSnapshotsFromFirestore(): Promise<CloudSnapshotMeta[]> {
+  try {
+    const res = await fetch('/api/mongo/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ collectionName: 'cloud_snapshots', limit: 50 })
+    });
+    const json = await res.json();
+    if (json.success && Array.isArray(json.documents)) {
+      return json.documents.map((d: any) => ({
+        id: d.id || d._id,
+        name: d.name,
+        timestamp: d.timestamp,
+        formattedDate: new Date(d.timestamp).toLocaleString(),
+        recordCount: d.snapshotData ? Object.keys(d.snapshotData).length : 0,
+        snapshotData: d.snapshotData
+      }));
+    }
+    return [];
+  } catch (e) {
+    return [];
+  }
+}
+
+async function deleteCloudSnapshotFromFirestore(id: string): Promise<boolean> {
+  try {
+    await fetch('/api/mongo/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ collectionName: 'cloud_snapshots', query: { id } })
+    });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
 
 export async function logTeacherAction(teacherId: string, teacherName: string, action: string, details: any): Promise<void> {
-  try {
-    await firebaseLogTeacherAction(teacherId, teacherName, action, details);
-  } catch (e) {
-    console.warn("Failed to log teacher action:", e);
-  }
+  // Firebase logging removed
+  console.log("Teacher action logged locally:", { teacherId, action, details });
 }
 
 
@@ -208,10 +320,6 @@ const rawKey = typeof Storage !== 'undefined' ? Storage.prototype.key : null;
 function isThirdPartyKey(key: string): boolean {
   if (!key) return false;
   return (
-    key.startsWith('firebase') ||
-    key.includes('firebase:') ||
-    key.includes('firestore:') ||
-    key.includes('firebaseLocalStorage') ||
     key.startsWith('gapi:') ||
     key.startsWith('google:') ||
     key.includes('oauth') ||
@@ -221,88 +329,7 @@ function isThirdPartyKey(key: string): boolean {
 }
 
 // Intercept localStorage safely via Storage prototype
-/*
-if (typeof window !== 'undefined' && typeof Storage !== 'undefined') {
-  try {
-    // Clear potentially corrupted firebase/firestore localStorage keys
-    if (rawLocalStorage && rawGetItem && rawKey && rawRemoveItem) {
-      for (let i = rawLocalStorage.length - 1; i >= 0; i--) {
-        const k = rawKey.call(rawLocalStorage, i);
-        if (isThirdPartyKey(k)) {
-          const val = rawGetItem.call(rawLocalStorage, k!);
-          if (val) {
-            try {
-              JSON.parse(val);
-            } catch (e) {
-              rawRemoveItem.call(rawLocalStorage, k!);
-            }
-          }
-        }
-      }
-    }
 
-    // 1. Preload any existing storage items into memory cache (excluding third-party keys), then clear school data from browser local storage
-    if (rawLocalStorage && rawGetItem && rawKey && rawRemoveItem) {
-      const realLen = rawLocalStorage.length;
-      const keysToClear: string[] = [];
-      for (let i = 0; i < realLen; i++) {
-        const k = rawKey.call(rawLocalStorage, i);
-        if (k && !isThirdPartyKey(k)) {
-          const val = rawGetItem.call(rawLocalStorage, k);
-          if (val) {
-            const trimmed = val.trim();
-            if (trimmed.startsWith('[') || trimmed.startsWith('{') || trimmed.startsWith('"') || trimmed === 'true' || trimmed === 'false' || /^\d+\.\d+\.\d+$/.test(trimmed)) {
-              memCache[k] = val;
-            } else {
-              const dec = unscramble(val);
-              memCache[k] = dec || val;
-            }
-          }
-          keysToClear.push(k);
-        }
-      }
-    // Purge browser local storage completely on initialization
-    // try {
-    //   if (rawLocalStorage) {
-    //     rawLocalStorage.clear();
-    //   }
-    // } catch (e) {}
-    }
-
-    // 2. Monkey-patch Storage.prototype methods directly using native references
-    Storage.prototype.getItem = function(key: string) {
-      return secureGet(key);
-    };
-    Storage.prototype.setItem = function(key: string, value: string) {
-      secureSet(key, value);
-    };
-    Storage.prototype.removeItem = function(key: string) {
-      secureRemove(key);
-    };
-    Storage.prototype.clear = function() {
-      Object.keys(memCache).forEach(k => delete memCache[k]);
-      try {
-        if (rawLocalStorage && rawKey && rawRemoveItem) {
-          for (let i = rawLocalStorage.length - 1; i >= 0; i--) {
-            const k = rawKey.call(rawLocalStorage, i);
-            if (k && !isThirdPartyKey(k)) {
-              rawRemoveItem.call(rawLocalStorage, k);
-            }
-          }
-        }
-      } catch (e) {}
-    };
-  } catch (err) {
-    console.warn("Storage interceptor initialized with fallback", err);
-  }
-
-  window.addEventListener('storage', (e) => {
-    if (e && e.key) {
-      delete memCache[e.key];
-    }
-  });
-}
-*/
 
 function scramble(text: string): string {
   try {
@@ -1959,7 +1986,7 @@ if (typeof window !== 'undefined') {
   (window as any).deleteRecord = deleteRecord;
 }
 
-export type { CloudSnapshotMeta };
+
 
 export function getAllStateForSnapshot(): Record<string, any> {
   const snapshot: Record<string, any> = {};

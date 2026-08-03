@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { getUsers, getSchoolProfile, setCurrentUser, getLearners, synchronizeWithCloudSQL, UserAccount } from '../utils/db';
-import { fetchAllFromFirestore } from '../utils/firebase';
 import { Shield, Key, Sparkles, LogIn, GraduationCap, Users, User, ArrowRight, BookOpen, X, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
