@@ -133,6 +133,34 @@ async function startServer() {
 
   // 1. Unified Sync endpoint (Fetches all data in one go)
   app.get("/api/sync", async (req, res) => {
+    try {
+      const mongoStatus = await checkMongoStatus();
+      if (mongoStatus.connected) {
+        const { db: mongoDb } = await getMongoClient();
+        const tables = [
+          'grades', 'subjects', 'learners', 'grading_rules', 'users',
+          'holidays', 'terms', 'attendance_sheets', 'messages', 'staff_attendance_sheets',
+          'schemes_of_work', 'school_profile', 'subject_enrollments', 'subject_assignments',
+          'class_teacher_assignments', 'exams', 'school_exam_marks', 'subject_papers'
+        ];
+        
+        const data: Record<string, any> = {};
+        for (const t of tables) {
+          if (['schemes_of_work', 'school_profile', 'subject_enrollments', 'subject_assignments', 'class_teacher_assignments', 'exams', 'school_exam_marks', 'subject_papers'].includes(t)) {
+            const single = await mongoDb.collection(t).findOne({ _id: t } as any);
+            data[t] = single ? (single.data !== undefined ? single.data : single) : (serverStore[t] || null);
+          } else {
+            const docs = await mongoDb.collection(t).find({}).toArray();
+            data[t] = docs.length > 0 ? docs.map(d => { const { _id, syncedAt, ...rest } = d; return { id: d.id || _id, ...rest }; }) : (serverStore[t] || []);
+          }
+        }
+
+        return res.json({ success: true, data });
+      }
+    } catch (err) {
+      console.warn("MongoDB sync fetch failed, falling back to serverStore:", err);
+    }
+
     // Fallback to serverStore for seamless cross-client sync
     return res.json({
       success: true,
@@ -178,6 +206,34 @@ async function startServer() {
     // Always update serverStore on disk so all connected devices can read it immediately
     serverStore[table] = data;
     persistServerStore();
+
+    // Also sync to MongoDB if connected
+    try {
+      const mongoStatus = await checkMongoStatus();
+      if (mongoStatus.connected) {
+        const { db: mongoDb } = await getMongoClient();
+        const collection = mongoDb.collection(table);
+        if (Array.isArray(data)) {
+          await collection.deleteMany({});
+          if (data.length > 0) {
+            const docs = data.map((item: any) => ({
+              ...item,
+              _id: item.id || item._id || undefined,
+              syncedAt: new Date(),
+            }));
+            await collection.insertMany(docs);
+          }
+        } else {
+          await collection.updateOne(
+            { _id: table },
+            { $set: { _id: table, data, syncedAt: new Date() } },
+            { upsert: true }
+          );
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to sync save to MongoDB:", e);
+    }
 
     if (!process.env.SQL_HOST) {
       return res.json({ success: true, message: `Saved collection '${table}' to server store.` });
