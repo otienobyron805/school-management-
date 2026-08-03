@@ -76,6 +76,7 @@ import ParentAccountManager from './components/ParentAccountManager';
 import GateCheckin from './components/GateCheckin';
 import TeachersOnDuty from './components/TeachersOnDuty';
 import WhatsAppAlerts from './components/WhatsAppAlerts';
+import CloudDataExplorer from './components/CloudDataExplorer';
 import Finances from './components/Finances';
 import Subscriptions from './components/Subscriptions';
 import UpdateNotificationModal from './components/UpdateNotificationModal';
@@ -362,6 +363,7 @@ export default function App() {
         { name: 'Subject Assignments', icon: <BookOpen className="w-4 h-4 text-teal-400" />, visible: !isParent || isSuperAdmin },
         { name: 'Marks Submissions', icon: <ClipboardList className="w-4 h-4 text-emerald-400" />, visible: !isParent || isSuperAdmin },
         { name: 'Data Management', icon: <Database className="w-4 h-4 text-purple-400" />, visible: isSuperAdmin },
+        { name: 'Cloud Data Explorer', icon: <Database className="w-4 h-4 text-blue-500" />, visible: isSuperAdmin },
       ],
     },
     {
@@ -452,6 +454,7 @@ export default function App() {
       case 'Performance Report': return isAdminOrHead ? <PerformanceReport /> : <div className="p-6 text-slate-500 font-bold">Access Denied. Reports are restricted to administrative staff.</div>;
       case 'Gate Check-in': return <GateCheckin currentUser={user} />;
       case 'WhatsApp Alerts': return <WhatsAppAlerts />;
+      case 'Cloud Data Explorer': return isSuperAdmin ? <CloudDataExplorer /> : <div className="p-6 text-slate-500 font-bold">Access Denied.</div>;
       case 'Attendance Roll': return <AttendanceRoll />;
       case 'Attendance Dashboard': return <AttendanceDashboard />;
       case 'Attendance Analytics': return (isSuperAdmin || (localStorage.getItem('allow_attendance_analytics') === 'true' && isAuthorizedRole)) ? <AttendanceAnalytics /> : <div className="p-6 text-slate-500 font-bold">Access Denied. Please contact the Super Admin for access.</div>;
