@@ -432,8 +432,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               onClick={async () => {
                 const ok = await synchronizeWithCloudSQL();
                 if (ok) {
-                  refreshData();
-                  alert("✅ Successfully synced latest accounts & records from Cloud Database!");
+                  window.location.reload();
                 } else {
                   alert("⚠️ Cloud sync failed. Please check your internet connection.");
                 }
