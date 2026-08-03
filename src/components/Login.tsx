@@ -421,6 +421,29 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
           <div className="border-t border-slate-200/50 my-1 relative z-10"></div>
 
+          {/* Cloud Sync Status & Multi-Device Sync Button */}
+          <div className="flex items-center justify-between bg-emerald-50/90 border border-emerald-200/80 p-3 rounded-2xl text-xs font-semibold text-emerald-900 relative z-10 shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="text-[11px] font-bold">Cloud Sync (Phone & PC Connected)</span>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                const ok = await synchronizeWithCloudSQL();
+                if (ok) {
+                  refreshData();
+                  alert("✅ Successfully synced latest accounts & records from Cloud Database!");
+                } else {
+                  alert("⚠️ Cloud sync failed. Please check your internet connection.");
+                }
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-1.5 rounded-xl text-[10px] uppercase tracking-wider transition-all shadow-sm cursor-pointer active:scale-95"
+            >
+              🔄 Sync Now
+            </button>
+          </div>
+
           {/* Lower Part: Authorized Sign In */}
           <div className="space-y-5 relative z-10">
             <div className="space-y-1 text-center sm:text-left">
