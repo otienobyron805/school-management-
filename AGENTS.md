@@ -17,5 +17,5 @@ You can add custom rules, restrictions, and operational guidelines here. These i
   3. Mark attendance roll of assigned class as class teacher
   4. Edit marks for learners
   5. Print exams and report cards
-  6. Cannot delete anything in the software
+  6. Super Admin can delete items in the software
 

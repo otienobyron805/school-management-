@@ -22,6 +22,7 @@ import {
   CloudSnapshotMeta,
   getCurrentUser
 } from '../utils/db';
+import { canDelete } from '../utils/permissions';
 
 export default function CloudSyncHealth() {
   const [snapshots, setSnapshots] = useState<CloudSnapshotMeta[]>([]);
@@ -266,7 +267,7 @@ export default function CloudSyncHealth() {
                     <span>{restoringId === snap.id ? 'Restoring...' : 'Restore'}</span>
                   </button>
 
-                  {isSuperAdmin && (
+                  {canDelete() && (
                     <button 
                       onClick={() => handleDelete(snap.id)}
                       className="p-2 bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 dark:bg-slate-800 dark:hover:bg-rose-950/50 rounded-xl transition"

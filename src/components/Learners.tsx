@@ -4,6 +4,7 @@ import {
   FileSpreadsheet, History, Check, ShieldAlert, ArrowUpRight, Award, CalendarDays
 } from 'lucide-react';
 import { getLearners, saveLearners, Learner, getCurrentUser, logActivity, getAttendanceSheets } from '../utils/db';
+import { canDelete } from '../utils/permissions';
 
 const GRADE_OPTIONS = [
   'PP1', 'PP2', 
@@ -734,7 +735,7 @@ export default function Learners() {
                           >
                             <History className="w-4 h-4" />
                           </button>
-                          {!isParent && (
+                          {canDelete() && (
                             <button 
                               onClick={() => handleDelete(learner.id, learner.name)}
                               className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition cursor-pointer"

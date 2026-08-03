@@ -65,11 +65,18 @@ export function canDelete(): boolean {
   if (permissions.includes('perm_cannot_delete')) {
     return false;
   }
-  const userRole = (user.role || '').toLowerCase();
-  const ADMIN_ROLES = ['admin', 'headteacher', 'deputy', 'senior', 'administrator', 'principal', 'deputy principal', 'senior teacher', 'super admin', 'head teacher'];
-  if (ADMIN_ROLES.some(r => userRole.includes(r))) {
+  
+  // Explicit permission check
+  if (permissions.includes('perm_can_delete')) {
     return true;
   }
-  return permissions.includes('perm_del_staff') || permissions.includes('perm_can_delete');
+
+  // Role check: ONLY Super Admin
+  const userRole = (user.role || '').toLowerCase();
+  if (userRole === 'super admin') {
+    return true;
+  }
+  
+  return false;
 }
 
