@@ -593,13 +593,15 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                 if (availableStaff.length === 0) return null;
 
                 return (
-                  <div className="space-y-1.5 p-3 bg-blue-50/80 border border-blue-200/80 rounded-2xl mb-1">
-                    <div className="flex items-center justify-between text-[10px] font-black uppercase text-blue-900">
-                      <span>⚡️ Easy Select Registered {selectedTab === 'admin' ? 'Admins' : 'Teachers & Staff'}</span>
-                      <span className="bg-blue-200/80 text-blue-900 px-2 py-0.5 rounded-full font-mono text-[9px]">
-                        {availableStaff.length} Accounts
+                  <div className="space-y-2 p-3.5 bg-blue-50/90 border border-blue-200 rounded-2xl mb-2 shadow-sm">
+                    <div className="flex items-center justify-between text-[11px] font-black uppercase text-blue-900">
+                      <span>⚡️ Easy Select {selectedTab === 'admin' ? 'Admins' : 'Teachers & Staff'}</span>
+                      <span className="bg-blue-200 text-blue-900 px-2.5 py-0.5 rounded-full font-mono text-[10px]">
+                        {availableStaff.length} Available
                       </span>
                     </div>
+
+                    {/* Standard Dropdown */}
                     <select
                       onChange={(e) => {
                         const selectedId = e.target.value;
@@ -608,22 +610,55 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                         if (selectedUser) {
                           const identifier = selectedUser.username || selectedUser.staffNo || selectedUser.phone || selectedUser.email || selectedUser.fullName;
                           setUsername(identifier);
-                          setPassword(''); // Require manual password/PIN entry
+                          setPassword('');
                           setError(null);
                         }
                       }}
                       defaultValue=""
-                      className="w-full py-2.5 px-3 rounded-xl bg-white border border-blue-300 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                      className="w-full py-3 px-3.5 rounded-xl bg-white border border-blue-300 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm min-h-[48px]"
                     >
-                      <option value="">-- Click to pick your name & auto-fill username --</option>
+                      <option value="">-- Tap to select your name --</option>
                       {availableStaff.map(t => (
                         <option key={t.id} value={t.id}>
                           {t.fullName} {t.staffNo ? `[${t.staffNo}]` : t.username ? `[@${t.username}]` : ''} ({t.role || 'Teacher'})
                         </option>
                       ))}
                     </select>
+
+                    {/* Mobile Quick-Tap Pill Grid */}
+                    <div className="pt-1">
+                      <p className="text-[10px] font-bold text-blue-800 mb-1.5 uppercase tracking-wide">Quick Tap (Mobile Friendly):</p>
+                      <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 bg-white/60 rounded-xl border border-blue-200">
+                        {availableStaff.map(t => {
+                          const identifier = t.username || t.staffNo || t.phone || t.email || t.fullName;
+                          const isSelected = username === identifier;
+                          return (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => {
+                                setUsername(identifier);
+                                setPassword('');
+                                setError(null);
+                              }}
+                              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[38px] flex items-center gap-1.5 text-left ${
+                                isSelected
+                                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                                  : 'bg-white text-slate-700 hover:bg-blue-100 border border-blue-200'
+                              }`}
+                            >
+                              <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-black shrink-0">
+                                {(t.fullName || 'U').charAt(0).toUpperCase()}
+                              </span>
+                              <span className="truncate max-w-[120px]">{t.fullName}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
                     <p className="text-[10px] text-blue-700 font-medium leading-tight">
-                      Selecting your name populates your username/staff ID. Enter your secret password or PIN below.
+                      Select above to auto-fill your username. Enter your 4-digit PIN/password below to sign in.
                     </p>
                   </div>
                 );

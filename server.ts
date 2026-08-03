@@ -133,60 +133,7 @@ async function startServer() {
 
   // 1. Unified Sync endpoint (Fetches all data in one go)
   app.get("/api/sync", async (req, res) => {
-    if (process.env.SQL_HOST) {
-      try {
-        console.log("Sync requested from Cloud SQL database...");
-        
-        const grades = await db.select().from(schema.dbGrades);
-        const subjects = await db.select().from(schema.dbSubjects);
-        const learners = await db.select().from(schema.dbLearners);
-        const gradingRules = await db.select().from(schema.dbGradingRules);
-        const users = await db.select().from(schema.dbUsers);
-        const holidays = await db.select().from(schema.dbHolidays);
-        const terms = await db.select().from(schema.dbTerms);
-        const attendanceSheets = await db.select().from(schema.dbAttendanceSheets);
-        const messages = await db.select().from(schema.dbMessages);
-        const staffAttendanceSheets = await db.select().from(schema.dbStaffAttendanceSheets);
-
-        const schoolProfileRes = await db.select().from(schema.dbSchoolProfile).where(eq(schema.dbSchoolProfile.key, 'school_profile'));
-        const subjectEnrollmentsRes = await db.select().from(schema.dbSubjectEnrollments).where(eq(schema.dbSubjectEnrollments.key, 'subject_enrollments'));
-        const subjectAssignmentsRes = await db.select().from(schema.dbSubjectAssignments).where(eq(schema.dbSubjectAssignments.key, 'subject_assignments_list'));
-        const classTeacherAssignmentsRes = await db.select().from(schema.dbClassTeacherAssignments).where(eq(schema.dbClassTeacherAssignments.key, 'class_teacher_assignments_list'));
-        const examsRes = await db.select().from(schema.dbExams).where(eq(schema.dbExams.key, 'exams'));
-        const examMarksRes = await db.select().from(schema.dbExamMarks).where(eq(schema.dbExamMarks.key, 'school_exam_marks'));
-        const subjectPapersRes = await db.select().from(schema.dbSubjectPapers).where(eq(schema.dbSubjectPapers.key, 'school_subject_papers'));
-        const schemesOfWorkRes = await db.select().from(schema.dbSchemesOfWork).where(eq(schema.dbSchemesOfWork.key, 'schemes_of_work'));
-
-        return res.json({
-          success: true,
-          data: {
-            grades,
-            subjects,
-            learners,
-            gradingRules,
-            users,
-            holidays,
-            terms,
-            attendanceSheets,
-            messages,
-            staffAttendanceSheets,
-            schemesOfWork: schemesOfWorkRes[0]?.data || serverStore.schemes_of_work || null,
-            schoolProfile: schoolProfileRes[0]?.data || null,
-            subjectEnrollments: subjectEnrollmentsRes[0]?.data || null,
-            subjectAssignments: subjectAssignmentsRes[0]?.data || null,
-            classTeacherAssignments: classTeacherAssignmentsRes[0]?.data || null,
-            exams: examsRes[0]?.data || null,
-            examMarks: examMarksRes[0]?.data || null,
-            subjectPapers: subjectPapersRes[0]?.data || null,
-          }
-        });
-      } catch (error: any) {
-        console.error("Sync GET from Cloud SQL failed, falling back to serverStore:", error);
-      }
-    }
-
     // Fallback to serverStore for seamless cross-client sync
-    console.log("Sync requested from serverStore...");
     return res.json({
       success: true,
       data: {
