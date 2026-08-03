@@ -6,8 +6,10 @@ import {
 } from 'lucide-react';
 import { 
   secureGet, secureSet, getLearners, getGrades, getSubjects, getGradingRules, 
-  getSubjectAssignments, getSubjectPapers, Learner, Grade, Subject, GradingRule, SubjectPaper 
+  getSubjectAssignments, getSubjectPapers, Learner, Grade, Subject, GradingRule, SubjectPaper,
+  getCurrentUser
 } from '../utils/db';
+import { logTeacherAction } from '../utils/firebase';
 
 interface ExamMark {
   examId: string;
@@ -256,7 +258,7 @@ export default function MarkSubmissions() {
   };
 
   // Save changes to grid marks
-  const handleSaveMarks = () => {
+  const handleSaveMarks = async () => {
     const activeExam = selectedExamId === 'all' ? (exams[0]?.id || '') : selectedExamId;
     if (!activeExam) {
       alert('⚠️ Please select an exam period first.');
@@ -283,6 +285,16 @@ export default function MarkSubmissions() {
     const combined = [...otherMarks, ...newRecords];
     setSavedMarks(combined);
     secureSet('school_exam_marks', JSON.stringify(combined));
+    
+    // Log audit action
+    const user = getCurrentUser();
+    await logTeacherAction(
+      user?.id || 'unknown',
+      user?.fullName || 'Unknown Teacher',
+      'Saved Marks',
+      { examId: activeExam, gradeId: selectedGradeId, count: newRecords.length }
+    );
+    
     triggerToast('All class scores saved successfully!');
   };
 

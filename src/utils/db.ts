@@ -7,8 +7,18 @@ import {
   saveToFirestore,
   fetchAllFromFirestore,
   subscribeToFirestore,
+  logTeacherAction as firebaseLogTeacherAction,
   CloudSnapshotMeta
 } from './firebase';
+
+export async function logTeacherAction(teacherId: string, teacherName: string, action: string, details: any): Promise<void> {
+  try {
+    await firebaseLogTeacherAction(teacherId, teacherName, action, details);
+  } catch (e) {
+    console.warn("Failed to log teacher action:", e);
+  }
+}
+
 
 export interface Stream {
   id: string;
@@ -1449,7 +1459,15 @@ export function writeToLocalStorageWithAliases(rawTable: string, data: any): voi
     }
   }
 
-  const serialized = typeof data === 'string' ? data : JSON.stringify(data);
+  let finalData = data;
+  if (Array.isArray(data)) {
+    const existingLocal = secureGet(primaryKey) || secureGet(rawTable);
+    if (Array.isArray(existingLocal)) {
+      finalData = mergeArrays(existingLocal, data);
+    }
+  }
+
+  const serialized = typeof finalData === 'string' ? finalData : JSON.stringify(finalData);
   for (const alias of aliases) {
     memCache[alias] = serialized;
     try {
@@ -1552,7 +1570,9 @@ const mergeArrays = (localArr: any[], cloudArr: any[]): any[] => {
 export async function synchronizeWithCloudSQL(): Promise<boolean> {
   try {
     isSyncingFromServer = true;
-    console.log("[DEBUG] Starting cloud sync...");
+    console.log("[DEBUG] Starting bi-directional cloud sync...");
+    
+    // 1. Pull from Firestore
     const cloudData = await fetchAllFromFirestore();
     console.log("[DEBUG] Cloud data fetched:", cloudData ? Object.keys(cloudData) : "null");
     if (cloudData && typeof cloudData === 'object' && Object.keys(cloudData).length > 0) {
@@ -1561,11 +1581,26 @@ export async function synchronizeWithCloudSQL(): Promise<boolean> {
           continue;
         }
         if (val !== undefined && val !== null) {
-          console.log(`[DEBUG] Syncing table ${table} to local storage`);
+          console.log(`[DEBUG] Syncing table ${table} from cloud to local storage`);
           writeToLocalStorageWithAliases(table, val);
         }
       }
     }
+
+    // 2. Push key local tables to Firestore to ensure cloud has everything
+    const tablesToPush = ['learners', 'grades', 'subjects', 'users', 'exam_marks', 'attendance_sheets', 'fee_payments', 'subject_assignments', 'grading_rules'];
+    for (const t of tablesToPush) {
+      const localVal = secureGet(t) || secureGet(`school_${t}`);
+      if (localVal) {
+        try {
+          const parsed = typeof localVal === 'string' ? JSON.parse(localVal) : localVal;
+          await saveToFirestore(t, parsed);
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+
     isInitialCloudPullCompleted = true;
     secureSet('school_last_sync_time', new Date().toISOString(), { skipCloud: true });
     if (typeof window !== 'undefined') {

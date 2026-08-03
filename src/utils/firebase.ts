@@ -8,7 +8,8 @@ import {
   getDocs,
   deleteDoc,
   collection,
-  onSnapshot
+  onSnapshot,
+  addDoc
 } from "firebase/firestore";
 import config from "../../firebase-applet-config.json";
 
@@ -36,6 +37,26 @@ export const getDb = (): Firestore | null => {
   }
   return dbInstance;
 };
+
+/**
+ * Log teacher actions for audit purposes
+ */
+export async function logTeacherAction(teacherId: string, teacherName: string, action: string, details: any): Promise<void> {
+  try {
+    const db = getDb();
+    if (!db) return;
+    await addDoc(collection(db, 'audit_logs'), {
+      teacherId,
+      teacherName,
+      action,
+      module: 'Marks Submissions',
+      details,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.warn("[AuditLog] Failed to log action:", err);
+  }
+}
 
 /**
  * Save feeding table dataset directly to Cloud Firestore
