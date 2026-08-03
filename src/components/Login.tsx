@@ -82,6 +82,19 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     e.preventDefault();
     setError(null);
     setIsLoggingIn(true);
+    setIsSyncingLogin(true);
+    setSyncMessage("Downloading fresh data from cloud...");
+
+    try {
+      await synchronizeWithCloudSQL(true);
+      setUsers(getUsers());
+      setSchoolProfile(getSchoolProfile());
+    } catch (e) {
+      console.error("Force sync failed:", e);
+    } finally {
+      setIsSyncingLogin(false);
+      setSyncMessage(null);
+    }
 
     try {
       if (selectedTab === 'parent') {
@@ -180,24 +193,16 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         });
       };
 
-      // Always prioritize fetching the freshest users from Cloud Firestore & synchronize
-      await synchronizeWithCloudSQL();
-      const cloudData = await fetchAllFromFirestore();
-      console.log("[DEBUG] cloudData received:", cloudData);
+      // Sync happens in background or when explicitly requested.
+
       
-      let cloudUsers: UserAccount[] = [];
-      if (cloudData) {
-        const rawUsers = cloudData.users || cloudData.school_users;
-        if (rawUsers) {
-          cloudUsers = typeof rawUsers === 'string' ? JSON.parse(rawUsers) : rawUsers;
-        }
-      }
+
       
       const localUsers = getUsers();
       
       // Combine cloud and local users uniquely by ID or username
       const userMap = new Map<string, UserAccount>();
-      for (const u of [...localUsers, ...cloudUsers]) {
+      for (const u of localUsers) {
         if (!u) continue;
         const key = u.id || u.username?.toLowerCase() || u.email?.toLowerCase();
         if (key) {
@@ -685,7 +690,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                 {isLoggingIn ? (
                   <>
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                    <span>Verifying credentials...</span>
+                    <span>{syncMessage || 'Verifying credentials...'}</span>
                   </>
                 ) : (
                   <>

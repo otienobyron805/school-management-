@@ -1567,11 +1567,17 @@ const mergeArrays = (localArr: any[], cloudArr: any[]): any[] => {
   return Array.from(map.values());
 };
 
-export async function synchronizeWithCloudSQL(): Promise<boolean> {
+export async function synchronizeWithCloudSQL(force: boolean = false): Promise<boolean> {
   const syncPromise = (async () => {
     isSyncingFromServer = true;
-    console.log("[DEBUG] Starting bi-directional cloud sync (5s optimized)...");
+    console.log(`[DEBUG] Starting bi-directional cloud sync (force: ${force})...`);
     
+    if (force) {
+      // Clear relevant tables if forcing a fresh sync
+      const tablesToClear = ['learners', 'grades', 'subjects', 'users', 'exam_marks', 'attendance_sheets', 'fee_payments', 'subject_assignments', 'grading_rules'];
+      tablesToClear.forEach(t => secureRemove(t, { skipCloud: true }));
+    }
+
     // 1. Pull from Firestore
     const cloudData = await fetchAllFromFirestore();
     console.log("[DEBUG] Cloud data fetched:", cloudData ? Object.keys(cloudData) : "null");
@@ -1615,7 +1621,7 @@ export async function synchronizeWithCloudSQL(): Promise<boolean> {
 
   const timeoutPromise = new Promise<boolean>((resolve) => {
     setTimeout(() => {
-      console.warn("[CloudSync] Sync took longer than 5s, completing with local fallback.");
+      console.warn("[CloudSync] Sync took longer than 30s, completing with local fallback.");
       isInitialCloudPullCompleted = true;
       secureSet('school_last_sync_time', new Date().toISOString(), { skipCloud: true });
       if (typeof window !== 'undefined') {
@@ -1626,14 +1632,14 @@ export async function synchronizeWithCloudSQL(): Promise<boolean> {
         }));
       }
       resolve(true);
-    }, 5000);
+    }, 30000);
   });
 
   try {
     return await Promise.race([syncPromise, timeoutPromise]);
   } catch (err) {
     console.warn("[CloudSync] Sync failed:", err);
-    return true; // return true so UI shows success within 5s
+    return true; // return true so UI shows success within 30s
   } finally {
     isSyncingFromServer = false;
   }
