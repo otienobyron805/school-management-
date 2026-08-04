@@ -37,7 +37,8 @@ import {
   Sparkles,
   FolderOpen,
   Activity,
-  Search
+  Search,
+  KeyRound
 } from 'lucide-react';
 import GlobalSearchModal from './components/GlobalSearchModal';
 import PerformanceReport from './components/PerformanceReport';
@@ -67,6 +68,7 @@ import StaffAttendance from './components/StaffAttendance';
 import AttendanceDashboard from './components/AttendanceDashboard';
 import AttendanceRoll from './components/AttendanceRoll';
 import MyProfile from './components/MyProfile';
+import ResetPassword from './components/ResetPassword';
 import NotificationBell from './components/NotificationBell';
 import { getCurrentUser, setCurrentUser, getSchoolProfile, UserAccount, getUsers, getLearners, synchronizeWithMongoDB, startRealtimeCloudSync, getMessages } from './utils/db';
 import CloudAutoSyncHeaderBar from './components/CloudAutoSyncHeaderBar';
@@ -428,6 +430,7 @@ export default function App() {
         { name: 'Parent Portal', icon: <Users className="w-4 h-4 text-rose-500" />, visible: true },
         { name: 'Parent Accounts', icon: <UserPlus className="w-4 h-4 text-indigo-500" />, visible: isAdminOrHead },
         { name: 'My Profile', icon: <User className="w-4 h-4 text-slate-400" />, visible: true },
+        { name: 'Reset Password', icon: <KeyRound className="w-4 h-4 text-amber-500" />, visible: !isParent },
         { name: 'Settings', icon: <Settings className="w-4 h-4 text-slate-300" />, visible: isSuperAdmin },
         { name: 'Check-in/out Settings', icon: <Clock className="w-4 h-4 text-slate-300" />, visible: isSuperAdmin },
       ],
@@ -445,6 +448,7 @@ export default function App() {
       case 'Parent Portal': return <ParentPortal user={user} activeTab={parentTab} onTabChange={setParentTab} />;
       case 'Parent Accounts': return isAdminOrHead ? <ParentAccountManager setActiveView={setActiveView} /> : <div className="p-6 text-slate-500 font-bold">Access Denied.</div>;
       case 'My Profile': return <MyProfile />;
+      case 'Reset Password': return <ResetPassword />;
       case 'Settings': return isSuperAdmin ? <SettingsComponent /> : <div className="p-6 text-slate-500 font-bold">Access Denied.</div>;
       case 'Subscriptions': return <Subscriptions />;
       case 'Check-in/out Settings': return isSuperAdmin ? <AttendanceSettingsPanel /> : <div className="p-6 text-slate-500 font-bold">Access Denied.</div>;

@@ -310,13 +310,6 @@ const SEC_KEY = "school_admin_secret_key_987654321_cbc_auth";
 const memCache: Record<string, string> = {};
 let isBackendUnavailable = false;
 
-const rawLocalStorage = typeof window !== 'undefined' ? window.localStorage : null;
-const rawGetItem = typeof Storage !== 'undefined' ? Storage.prototype.getItem : null;
-const rawSetItem = typeof Storage !== 'undefined' ? Storage.prototype.setItem : null;
-const rawRemoveItem = typeof Storage !== 'undefined' ? Storage.prototype.removeItem : null;
-const rawClear = typeof Storage !== 'undefined' ? Storage.prototype.clear : null;
-const rawKey = typeof Storage !== 'undefined' ? Storage.prototype.key : null;
-
 function isThirdPartyKey(key: string): boolean {
   if (!key) return false;
   return (
@@ -328,51 +321,9 @@ function isThirdPartyKey(key: string): boolean {
   );
 }
 
-// Intercept localStorage safely via Storage prototype
-
-
-function scramble(text: string): string {
-  try {
-    const encoder = new TextEncoder();
-    const bytes = encoder.encode(text);
-    const keyLen = SEC_KEY.length;
-    for (let i = 0; i < bytes.length; i++) {
-      bytes[i] ^= SEC_KEY.charCodeAt(i % keyLen);
-    }
-    let binString = "";
-    const chunkSize = 8192;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      binString += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize) as unknown as number[]);
-    }
-    return btoa(binString);
-  } catch (e) {
-    return text;
-  }
-}
-
-function unscramble(encoded: string): string {
-  try {
-    const binString = atob(encoded);
-    const bytes = new Uint8Array(binString.length);
-    const keyLen = SEC_KEY.length;
-    for (let i = 0; i < binString.length; i++) {
-      bytes[i] = binString.charCodeAt(i) ^ SEC_KEY.charCodeAt(i % keyLen);
-    }
-    const decoder = new TextDecoder();
-    return decoder.decode(bytes);
-  } catch (e) {
-    return "";
-  }
-}
-
 export function secureGet(key: string): string | null {
   if (!key) return null;
   if (isThirdPartyKey(key)) {
-    try {
-      if (rawLocalStorage && rawGetItem) {
-        return rawGetItem.call(rawLocalStorage, key);
-      }
-    } catch (e) {}
     return null;
   }
 
@@ -389,25 +340,6 @@ export function secureGet(key: string): string | null {
       return memCache[alias];
     }
   }
-
-  // Fallback to localStorage
-  try {
-    if (rawLocalStorage && rawGetItem) {
-      for (const alias of aliases) {
-        const val = rawGetItem.call(rawLocalStorage, alias);
-        if (val) {
-          const trimmed = val.trim();
-          let finalVal = val;
-          if (!(trimmed.startsWith('[') || trimmed.startsWith('{') || trimmed.startsWith('"') || trimmed === 'true' || trimmed === 'false' || /^\d+\.\d+\.\d+$/.test(trimmed))) {
-            const dec = unscramble(val);
-            if (dec) finalVal = dec;
-          }
-          memCache[key] = finalVal;
-          return finalVal;
-        }
-      }
-    }
-  } catch (e) {}
 
   return null;
 }
@@ -470,11 +402,6 @@ export function getTableNameFromKey(key: string): string | null {
 export function secureSet(key: string, value: string, options?: { skipCloud?: boolean }): void {
   if (!key) return;
   if (isThirdPartyKey(key)) {
-    try {
-      if (rawLocalStorage && rawSetItem) {
-        rawSetItem.call(rawLocalStorage, key, value);
-      }
-    } catch (e) {}
     return;
   }
 
@@ -489,17 +416,6 @@ export function secureSet(key: string, value: string, options?: { skipCloud?: bo
   for (const alias of aliases) {
     memCache[alias] = value;
   }
-
-  try {
-    if (rawLocalStorage && rawSetItem) {
-      const trimmed = value.trim();
-      if (trimmed.startsWith('[') || trimmed.startsWith('{') || trimmed.startsWith('"') || trimmed === 'true' || trimmed === 'false' || /^\d+\.\d+\.\d+$/.test(trimmed)) {
-        rawSetItem.call(rawLocalStorage, key, value);
-      } else {
-        rawSetItem.call(rawLocalStorage, key, scramble(value));
-      }
-    }
-  } catch (e) {}
 
   if (!isSyncingFromServer && !isBackendUnavailable && !options?.skipCloud) {
     const tableName = getTableNameFromKey(key);
@@ -538,11 +454,6 @@ export function saveData(key: string, data: any): void {
 export function secureRemove(key: string, options?: { skipCloud?: boolean }): void {
   if (!key) return;
   if (isThirdPartyKey(key)) {
-    try {
-      if (rawLocalStorage && rawRemoveItem) {
-        rawRemoveItem.call(rawLocalStorage, key);
-      }
-    } catch (e) {}
     return;
   }
   
@@ -556,11 +467,6 @@ export function secureRemove(key: string, options?: { skipCloud?: boolean }): vo
 
   for (const alias of aliases) {
     delete memCache[alias];
-    try {
-      if (rawLocalStorage && rawRemoveItem) {
-        rawRemoveItem.call(rawLocalStorage, alias);
-      }
-    } catch (e) {}
   }
 
   if (!isSyncingFromServer && !isBackendUnavailable && !options?.skipCloud) {
@@ -890,123 +796,22 @@ const DEFAULT_USERS: UserAccount[] = [
 ];
 
 export function getUsers(): UserAccount[] {
-  const data = secureGet('school_users');
-  if (!data) {
-    secureSet('school_users', JSON.stringify(DEFAULT_USERS), { skipCloud: true });
-    return DEFAULT_USERS;
-  }
-  let parsed: UserAccount[] = JSON.parse(data);
-  
-  // Clean up and update the default users' names to remove legacy demo/placeholder values
-  parsed = parsed.map(u => {
-    if (u.id === 'u1' || u.username === 'admin' || u.username === 'otienobyron805@gmail.com') {
-      return { 
-        ...u, 
-        id: 'u1',
-        username: 'otienobyron805@gmail.com',
-        fullName: 'Byron Gondi',
-        role: 'Super Admin',
-        password: '805679'
-      };
-    }
-    return u;
-  });
-  
-  // Explicitly remove legacy demo users
-  parsed = parsed.filter(u => 
-    u.username !== 'john_kamau' && 
-    u.fullName !== 'John Kamau' && 
-    u.fullName !== 'Nancy Wambua'
-  );
-  
-  // Dedup and sanitize any duplicated IDs and usernames (such as legacy 'u3' entries)
-  const uniqueUsers: UserAccount[] = [];
-  const observedIds = new Set<string>();
-  const observedUsernames = new Set<string>();
-  
-  for (const u of parsed) {
-    if (!u) continue;
-    
-    // Ensure every user has a valid username fallback so no registered account is lost
-    const origUsername = u.username || u.staffNo || u.email || u.phone || u.fullName || u.id || `user_${Math.random().toString(36).substring(2, 7)}`;
-    const lowerUsername = origUsername.toLowerCase().trim();
+  // Explicitly remove any teacher/user data from local storage as requested
+  secureRemove('school_users');
+  secureRemove('teachers');
+  secureRemove('users');
+  secureRemove('staff');
 
-    let finalId = u.id || `u_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    if (observedIds.has(finalId)) {
-      finalId = `${u.id}_${Math.random().toString(36).substring(2, 6)}`;
-    }
-    
-    let resolvedUsername = u.username || lowerUsername;
-    if (observedUsernames.has(resolvedUsername.toLowerCase()) && resolvedUsername !== 'u1' && finalId !== 'u1') {
-      resolvedUsername = `${resolvedUsername}_${finalId.slice(-4)}`;
-    }
-    
-    observedIds.add(finalId);
-    observedUsernames.add(resolvedUsername.toLowerCase());
-    
-    uniqueUsers.push({
-      ...u,
-      id: finalId,
-      username: resolvedUsername,
-      status: u.status || 'Active'
-    });
-  }
-
-  // Check if Super Admin user exists; if not, guarantee Byron Gondi (otienobyron805@gmail.com) is added
-  const hasSuperAdmin = uniqueUsers.some(u => 
-    u.id === 'u1' || 
-    u.username?.toLowerCase() === 'otienobyron805@gmail.com' || 
-    u.username?.toLowerCase() === 'admin' ||
-    u.role === 'Super Admin' ||
-    u.systemRole === 'super_admin'
-  );
-
-  if (!hasSuperAdmin) {
-    uniqueUsers.unshift({
-      id: 'u1',
-      username: 'otienobyron805@gmail.com',
-      fullName: 'Byron Gondi',
-      role: 'Super Admin',
-      created: '2026-01-10',
-      status: 'Active',
-      password: '805679'
-    });
-  }
-
-  const serialized = JSON.stringify(uniqueUsers);
-  if (serialized !== data) {
-    secureSet('school_users', serialized);
-  }
-
-  // If current active user was John Kamau, auto-switch them to the main admin (Byron Gondi)
-  const current = getCurrentUser();
-  if (current && (current.username === 'john_kamau' || current.fullName === 'John Kamau')) {
-    const mainAdmin = uniqueUsers.find(u => u.username === 'otienobyron805@gmail.com') || DEFAULT_USERS[0];
-    setCurrentUser(mainAdmin);
-  } else if (current) {
-    // Sync current active admin user attributes
-    const matchedUser = uniqueUsers.find(u => 
-      u.id === current.id || 
-      (u.username && current.username && u.username.toLowerCase() === current.username.toLowerCase())
-    );
-    if (matchedUser && (matchedUser.fullName !== current.fullName || matchedUser.username !== current.username || matchedUser.role !== current.role)) {
-      setCurrentUser({
-        ...current,
-        fullName: matchedUser.fullName,
-        username: matchedUser.username,
-        role: matchedUser.role,
-        status: matchedUser.status || 'Active'
-      });
-    }
-  }
-
-  return uniqueUsers;
+  return DEFAULT_USERS;
 }
 
 
 export async function saveUsers(users: UserAccount[]): Promise<void> {
-  console.log("[DEBUG] Saving users to local storage and backend...");
-  secureSet('school_users', JSON.stringify(users));
+  console.log("[DEBUG] Saving users to backend...");
+  secureRemove('school_users');
+  secureRemove('teachers');
+  secureRemove('users');
+  secureRemove('staff');
   await saveToBackend('users', users);
   console.log("[DEBUG] Users saved.");
   
@@ -1500,16 +1305,6 @@ export function writeToLocalStorageWithAliases(rawTable: string, data: any): voi
   const serialized = typeof finalData === 'string' ? finalData : JSON.stringify(finalData);
   for (const alias of aliases) {
     memCache[alias] = serialized;
-    try {
-      if (rawLocalStorage && rawSetItem) {
-        const trimmed = serialized.trim();
-        if (trimmed.startsWith('[') || trimmed.startsWith('{') || trimmed.startsWith('"') || trimmed === 'true' || trimmed === 'false' || /^\d+\.\d+\.\d+$/.test(trimmed)) {
-          rawSetItem.call(rawLocalStorage, alias, serialized);
-        } else {
-          rawSetItem.call(rawLocalStorage, alias, scramble(serialized));
-        }
-      }
-    } catch (e) {}
   }
 }
 

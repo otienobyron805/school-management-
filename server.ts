@@ -108,6 +108,7 @@ async function startServer() {
     school_staff_attendance_sheets: 'school_staff_attendance_sheets',
     schemes_of_work: 'school_schemes_of_work',
     school_schemes_of_work: 'school_schemes_of_work',
+    profile: 'school_profile',
     school_profile: 'school_profile',
     subject_enrollments: 'school_subject_enrollments',
     subject_assignments: 'school_subject_assignments_list',
@@ -258,10 +259,15 @@ async function startServer() {
   };
 
   app.post("/api/save", async (req, res) => {
-    const { table, data } = req.body;
+    let { table, data } = req.body;
     if (!table) {
       return res.status(400).json({ success: false, error: "Missing 'table' parameter" });
     }
+    if (table.startsWith('school_')) {
+      table = table.replace('school_', '');
+    }
+    if (table === 'teachers' || table === 'staff') table = 'users';
+    if (table === 'profile') table = 'school_profile';
 
     // Always update serverStore on disk so all connected devices can read it immediately
     serverStore[table] = data;
