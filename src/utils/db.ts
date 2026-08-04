@@ -248,6 +248,57 @@ function getTermIndex(item: any): number {
   return 999;
 }
 
+export function getSubjectOrderIndex(val: any): number {
+  if (!val) return 999;
+  let name = '';
+  if (typeof val === 'string') {
+    name = val;
+  } else if (typeof val === 'object') {
+    name = val.name || val.subjectName || val.subject || val.title || val.code || '';
+  }
+  name = String(name).trim().toLowerCase();
+  if (!name) return 999;
+
+  // Chronological order requested:
+  // 1. Mathematics
+  // 2. English
+  // 3. Kiswahili
+  // 4. Science and Technology
+  // 5. Integrated Science
+  // 6. Agriculture and Nutrition
+  // 7. Creative Art and Sports
+  // 8. Pretechnical Studies
+  // 9. CRE
+  // 10. Social Studies
+  // 11. French
+
+  if (name.includes('math')) return 1;
+  if (name.includes('english') || name === 'eng') return 2;
+  if (name.includes('kiswahili') || name.includes('lugha') || name === 'kis' || name === 'swa') return 3;
+  if (name.includes('science and tech') || name.includes('science & tech') || name.includes('technology') || name === 'science and technology') return 4;
+  if (name.includes('integrated') || (name.includes('science') && !name.includes('tech'))) return 5;
+  if (name.includes('agriculture') || name.includes('nutrition') || name.includes('agri')) return 6;
+  if (name.includes('creative') || name.includes('art') || name.includes('sport')) return 7;
+  if (name.includes('pretechnical') || name.includes('pre-technical') || name.includes('pre technical') || name.includes('pretech')) return 8;
+  if (name === 'cre' || name === 'c.r.e' || name.includes('christian') || name.includes('religious')) return 9;
+  if (name.includes('social') || name === 'sst') return 10;
+  if (name.includes('french') || name === 'fre') return 11;
+
+  return 999;
+}
+
+export function sortSubjects<T>(subjects: T[]): T[] {
+  if (!Array.isArray(subjects)) return [];
+  return [...subjects].sort((a: any, b: any) => {
+    const idxA = getSubjectOrderIndex(a);
+    const idxB = getSubjectOrderIndex(b);
+    if (idxA !== idxB) {
+      return idxA - idxB;
+    }
+    return getDefaultComparison(a, b);
+  });
+}
+
 function getDefaultComparison(a: any, b: any): number {
   const getLabel = (x: any): string => {
     if (x === null || x === undefined) return '';
@@ -257,8 +308,11 @@ function getDefaultComparison(a: any, b: any): number {
   return getLabel(a).localeCompare(getLabel(b), undefined, { numeric: true, sensitivity: 'base' });
 }
 
-export function sortList(list: any[], type: "grade" | "gradeStream" | "term" | "default" = "default"): any[] {
+export function sortList(list: any[], type: "grade" | "gradeStream" | "term" | "subject" | "default" = "default"): any[] {
   if (!Array.isArray(list)) return [];
+  if (type === "subject") {
+    return sortSubjects(list);
+  }
   return [...list].sort((a: any, b: any) => {
     if (!a && !b) return 0;
     if (!a) return 1;
@@ -294,11 +348,23 @@ export function sortList(list: any[], type: "grade" | "gradeStream" | "term" | "
   });
 }
 
-export function loadOrdered<T>(items: T[], sortType: "grade" | "gradeStream" | "term" | "default" = "default"): T[] {
+export function loadOrdered<T>(items: T[], sortType: "grade" | "gradeStream" | "term" | "subject" | "default" = "default"): T[] {
   return sortList(items, sortType);
 }
 
-const DEFAULT_SUBJECTS: Subject[] = [];
+const DEFAULT_SUBJECTS: Subject[] = [
+  { id: 's_1', name: 'Mathematics', code: 'MAT', grades: [1, 2, 3, 4, 5, 6, 7, 8, 9], streams: ['All Streams'] },
+  { id: 's_2', name: 'English', code: 'ENG', grades: [1, 2, 3, 4, 5, 6, 7, 8, 9], streams: ['All Streams'] },
+  { id: 's_3', name: 'Kiswahili', code: 'KIS', grades: [1, 2, 3, 4, 5, 6, 7, 8, 9], streams: ['All Streams'] },
+  { id: 's_4', name: 'Science and Technology', code: 'SCI', grades: [1, 2, 3, 4, 5, 6, 7, 8, 9], streams: ['All Streams'] },
+  { id: 's_5', name: 'Integrated Science', code: 'ISC', grades: [1, 2, 3, 4, 5, 6, 7, 8, 9], streams: ['All Streams'] },
+  { id: 's_6', name: 'Agriculture and Nutrition', code: 'AGN', grades: [1, 2, 3, 4, 5, 6, 7, 8, 9], streams: ['All Streams'] },
+  { id: 's_7', name: 'Creative Art and Sports', code: 'CAS', grades: [1, 2, 3, 4, 5, 6, 7, 8, 9], streams: ['All Streams'] },
+  { id: 's_8', name: 'Pretechnical Studies', code: 'PTS', grades: [1, 2, 3, 4, 5, 6, 7, 8, 9], streams: ['All Streams'] },
+  { id: 's_9', name: 'CRE', code: 'CRE', grades: [1, 2, 3, 4, 5, 6, 7, 8, 9], streams: ['All Streams'] },
+  { id: 's_10', name: 'Social Studies', code: 'SST', grades: [1, 2, 3, 4, 5, 6, 7, 8, 9], streams: ['All Streams'] },
+  { id: 's_11', name: 'French', code: 'FRE', grades: [1, 2, 3, 4, 5, 6, 7, 8, 9], streams: ['All Streams'] },
+];
 
 const DEFAULT_LEARNERS: Learner[] = [];
 
@@ -683,11 +749,11 @@ export function getSubjects(): Subject[] {
         seenNames.set(key, { ...s, grades: s.grades || [], streams: s.streams || [] });
       }
     }
-    parsed = sortList(Array.from(seenNames.values()), 'default');
+    parsed = sortSubjects(Array.from(seenNames.values()));
     secureSet('school_subjects', JSON.stringify(parsed), { skipCloud: true });
   }
 
-  return sortList(parsed, 'default');
+  return sortSubjects(parsed);
 }
 
 export function saveSubjects(subjects: Subject[]): void {
@@ -699,7 +765,7 @@ export function saveSubjects(subjects: Subject[]): void {
       seenNames.set(key, { ...s, grades: s.grades || [], streams: s.streams || [] });
     }
   }
-  const cleanSubjects = sortList(Array.from(seenNames.values()), 'default');
+  const cleanSubjects = sortSubjects(Array.from(seenNames.values()));
   secureSet('school_subjects', JSON.stringify(cleanSubjects));
   syncCollectionToMongo('subjects', cleanSubjects).catch(() => {});
   saveToBackend('subjects', cleanSubjects);
