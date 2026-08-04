@@ -1135,7 +1135,18 @@ export function saveAttendanceSheets(sheets: AttendanceSheet[]): void {
 export async function saveToBackend(table: string, data: any) {
   const primaryKey = getStorageKeyForTable(table) || table;
   
-  if (primaryKey === 'current_user' || primaryKey === 'school_current_user' || primaryKey === 'school_last_sync_time' || primaryKey === 'system_update_acknowledged_version') {
+  if (
+    primaryKey === 'current_user' || 
+    primaryKey === 'school_current_user' || 
+    primaryKey === 'school_last_sync_time' || 
+    primaryKey === 'system_update_acknowledged_version' ||
+    primaryKey === 'app_theme' ||
+    primaryKey === 'theme' ||
+    primaryKey === 'last_cloud_sync_time' ||
+    primaryKey.startsWith('parent_active_child_') ||
+    table === 'app_theme' ||
+    table === 'last_cloud_sync_time'
+  ) {
     return;
   }
   
