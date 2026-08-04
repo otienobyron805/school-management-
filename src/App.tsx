@@ -41,6 +41,7 @@ import {
   KeyRound
 } from 'lucide-react';
 import GlobalSearchModal from './components/GlobalSearchModal';
+import BackButton from './components/BackButton';
 import PerformanceReport from './components/PerformanceReport';
 import Exams from './components/Exams';
 import DataManagement, { exportAllData } from './components/DataManagement';
@@ -629,6 +630,7 @@ export default function App() {
         {/* Dynamic Header */}
         <header className="bg-white text-slate-900 p-4 px-6 flex items-center justify-between border-b border-slate-200 z-20 shadow-sm relative">
           <div className="flex items-center gap-3">
+            <BackButton />
             {!isSidebarOpen && (
               <button
                 onClick={() => setIsSidebarOpen(true)}
