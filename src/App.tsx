@@ -38,7 +38,9 @@ import {
   FolderOpen,
   Activity,
   Search,
-  KeyRound
+  KeyRound,
+  FileText,
+  PenTool
 } from 'lucide-react';
 import GlobalSearchModal from './components/GlobalSearchModal';
 import BackButton from './components/BackButton';
@@ -53,6 +55,7 @@ import SchoolProfileForm from './components/SchoolProfileForm';
 import ManageStaff from './components/ManageStaff';
 import SubjectAssignments from './components/SubjectAssignments';
 import MarkSubmissions from './components/MarkSubmissions';
+import MarkEntry from './components/MarkEntry';
 import GradesAndStreams from './components/GradesAndStreams';
 import TermReport from './components/TermReport';
 import CombinedReport from './components/CombinedReport';
@@ -435,6 +438,8 @@ export default function App() {
       title: 'Exams',
       items: [
         { name: 'All Exams', icon: <ClipboardList className="w-4 h-4 text-sky-400" />, visible: isAdminOrHead },
+        { name: 'Marks Submissions', icon: <FileText className="w-4 h-4 text-emerald-400" />, visible: !isParent },
+        { name: 'Mark Entry', icon: <ClipboardList className="w-4 h-4 text-indigo-400" />, visible: !isParent },
         { name: 'Grading', icon: <BarChart3 className="w-4 h-4 text-purple-400" />, visible: isAdminOrHead },
         { name: 'KJSEA Classification', icon: <Award className="w-4 h-4 text-purple-400" />, visible: !isParent },
         { name: 'New Exam', icon: <ClipboardList className="w-4 h-4 text-emerald-400" />, visible: !isParent },
@@ -494,6 +499,7 @@ export default function App() {
       case 'Staff Attendance': return <StaffAttendance />;
       case 'Subject Assignments': return <SubjectAssignments />;
       case 'Marks Submissions': return <MarkSubmissions />;
+      case 'Mark Entry': return <MarkEntry />;
       case 'Term Report': return isAdminOrHead ? <TermReport /> : <div className="p-6 text-slate-500 font-bold">Access Denied. Reports are restricted to administrative staff.</div>;
       case 'Combined Report': return isAdminOrHead ? <CombinedReport /> : <div className="p-6 text-slate-500 font-bold">Access Denied. Reports are restricted to administrative staff.</div>;
       case 'Generate Report': return isAdminOrHead ? <GenerateReport /> : <div className="p-6 text-slate-500 font-bold">Access Denied. Reports are restricted to administrative staff.</div>;
