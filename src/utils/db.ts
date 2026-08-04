@@ -824,22 +824,26 @@ const DEFAULT_USERS: UserAccount[] = [
 ];
 
 export function getUsers(): UserAccount[] {
-  // Explicitly remove any teacher/user data from local storage as requested
-  secureRemove('school_users');
-  secureRemove('teachers');
-  secureRemove('users');
-  secureRemove('staff');
-
+  const data = secureGet('school_users') || secureGet('users');
+  if (data) {
+    try {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    } catch (e) {
+      console.error("Error parsing users:", e);
+    }
+  }
+  secureSet('school_users', JSON.stringify(DEFAULT_USERS));
   return DEFAULT_USERS;
 }
 
-
 export async function saveUsers(users: UserAccount[]): Promise<void> {
-  console.log("[DEBUG] Saving users to backend...");
-  secureRemove('school_users');
-  secureRemove('teachers');
-  secureRemove('users');
-  secureRemove('staff');
+  console.log("[DEBUG] Saving users to backend...", users);
+  const serialized = JSON.stringify(users);
+  secureSet('school_users', serialized);
+  secureSet('users', serialized);
   await saveToBackend('users', users);
   console.log("[DEBUG] Users saved.");
   

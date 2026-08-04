@@ -192,7 +192,11 @@ Here are your official credentials to access the platform:
     };
     refreshUsers();
     window.addEventListener('storage', refreshUsers);
-    return () => window.removeEventListener('storage', refreshUsers);
+    window.addEventListener('db_updated', refreshUsers);
+    return () => {
+      window.removeEventListener('storage', refreshUsers);
+      window.removeEventListener('db_updated', refreshUsers);
+    };
   }, []);
 
   // Sync permissions when system role changes (if no override)
@@ -284,16 +288,16 @@ Here are your official credentials to access the platform:
 
     // Username: Alphanumeric and standard separators
     const usernameRegex = /^[a-zA-Z0-9._-]+$/;
-    if (!username) {
+    if (!username.trim()) {
       newErrors.username = '🔑 Login Identifier (Username) is required.';
-    } else if (!usernameRegex.test(username)) {
+    } else if (!usernameRegex.test(username.trim())) {
       newErrors.username = 'Username can only contain letters, numbers, dots, dashes, or underscores.';
-    } else if (username.length < 3) {
+    } else if (username.trim().length < 3) {
       newErrors.username = 'Username must be at least 3 characters.';
     }
 
     // Check unique username excluding currently edited user
-    const exists = users.some(u => u.username.toLowerCase() === username.toLowerCase() && u.id !== editingUserId);
+    const exists = users.some(u => u.username.toLowerCase() === username.trim().toLowerCase() && u.id !== editingUserId);
     if (exists) {
       newErrors.username = '⚠️ This username is already registered to another staff account.';
     }
@@ -305,23 +309,18 @@ Here are your official credentials to access the platform:
       newErrors.fullName = 'Full name must be at least 2 characters.';
     }
 
-    // Staff Number
-    if (!staffNo.trim()) {
-      newErrors.staffNo = '🆔 Staff number is required.';
-    }
-
     // Phone Number (Optional but validated if provided)
-    if (phone) {
+    if (phone.trim()) {
       const phoneRegex = /^(07\d{8}|\+254\d{9})$/;
-      if (!phoneRegex.test(phone.replace(/\s+/g, ''))) {
+      if (!phoneRegex.test(phone.trim().replace(/\s+/g, ''))) {
         newErrors.phone = 'Phone number must be in format 07xxxxxxxx or +254xxxxxxxxx.';
       }
     }
 
     // Email (Optional but validated if provided)
-    if (email) {
+    if (email.trim()) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
+      if (!emailRegex.test(email.trim())) {
         newErrors.email = 'Please provide a valid email address.';
       }
     }
@@ -339,17 +338,19 @@ Here are your official credentials to access the platform:
     if (!password) {
       newErrors.password = 'Password is required.';
     } else if (!/^\d{4}$/.test(password)) {
-      newErrors.password = 'Password must be a 4-digit numeric PIN.';
+      newErrors.password = 'Password must be a 4-digit numeric PIN (e.g. 1234).';
     }
 
     setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) {
-      // Scroll to top of form container if needed
       return;
     }
 
@@ -369,6 +370,7 @@ Here are your official credentials to access the platform:
 
     const rawUsername = username.trim() || staffNo.trim() || email.trim() || phone.trim() || fullName.trim().replace(/\s+/g, '_');
     const cleanUsername = rawUsername.toLowerCase().replace(/[^\x20-\x7E]/g, '');
+    const finalStaffNo = staffNo.trim() || `ST-${Math.floor(100 + Math.random() * 900)}`;
 
     const savedUser: UserAccount = {
       id: editingUserId || 'u_' + Date.now(),
@@ -378,7 +380,7 @@ Here are your official credentials to access the platform:
       created: editingUserId ? (users.find(u => u.id === editingUserId)?.created || new Date().toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
       status: status,
       password: password,
-      staffNo: staffNo.trim(),
+      staffNo: finalStaffNo,
       nationalId: nationalId.trim(),
       phone: phone.trim(),
       email: email.trim(),
@@ -403,6 +405,7 @@ Here are your official credentials to access the platform:
     setView('list');
     setInviteUserModal(savedUser);
     setCopiedInviteText(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDeleteUser = (id: string, name: string) => {

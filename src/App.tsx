@@ -194,7 +194,7 @@ export default function App() {
   const [isSynced, setIsSynced] = useState(true);
 
   useEffect(() => {
-    // Initialize theme preference from localStorage
+    // Initialize theme preference from secure database cache
     initTheme();
     // Start instant real-time MongoDB sync listener
     startRealtimeCloudSync();
@@ -229,7 +229,7 @@ export default function App() {
       const current = getCurrentUser();
       setUser(current);
       
-      // Force re-render to fetch latest data from localStorage
+      // Force re-render to fetch latest data from secure storage
       setTick(t => t + 1);
     };
 

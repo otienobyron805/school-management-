@@ -38,7 +38,7 @@ import {
 import { VerificationQRCode } from './VerificationQRCode';
 import { PrintHeader } from './PrintHeader';
 
-// Fallback Mock Exams if none exist in localStorage
+// Fallback Mock Exams if none exist in secure storage
 const FALLBACK_EXAMS: any[] = [];
 
 // Fallback Mock Learners to ensure immediate visual success
