@@ -669,14 +669,6 @@ export default function TermReport() {
                                 </thead>
                                 <tbody className="divide-y divide-slate-200 font-medium">
                                   <tr>
-                                    <td className="p-3 font-extrabold text-slate-800">English Language & Composition</td>
-                                    <td className="p-3 text-center font-mono text-slate-600">{learner.cat1}</td>
-                                    <td className="p-3 text-center font-mono text-slate-600">{learner.cat2}</td>
-                                    <td className="p-3 text-center font-mono text-slate-600">{learner.endTerm}</td>
-                                    <td className="p-3 text-center font-black text-slate-900 bg-slate-50">{totalScore}</td>
-                                    <td className="p-3 text-center font-black text-emerald-600">{getSubjectCBCRating(totalScore, 100)}</td>
-                                  </tr>
-                                  <tr>
                                     <td className="p-3 font-extrabold text-slate-800">Mathematics & Quantitative Reasoning</td>
                                     <td className="p-3 text-center font-mono text-slate-600">{Math.round(learner.cat1 * 0.9)}</td>
                                     <td className="p-3 text-center font-mono text-slate-600">{Math.round(learner.cat2 * 0.9)}</td>
@@ -685,7 +677,31 @@ export default function TermReport() {
                                     <td className="p-3 text-center font-black text-blue-600">{getSubjectCBCRating(Math.round(totalScore * 0.9), 100)}</td>
                                   </tr>
                                   <tr>
-                                    <td className="p-3 font-extrabold text-slate-800">Integrated Science (Physics & Biology)</td>
+                                    <td className="p-3 font-extrabold text-slate-800">English Language & Composition</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{learner.cat1}</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{learner.cat2}</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{learner.endTerm}</td>
+                                    <td className="p-3 text-center font-black text-slate-900 bg-slate-50">{totalScore}</td>
+                                    <td className="p-3 text-center font-black text-emerald-600">{getSubjectCBCRating(totalScore, 100)}</td>
+                                  </tr>
+                                  <tr>
+                                    <td className="p-3 font-extrabold text-slate-800">Kiswahili Lugha na Insha</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{Math.round(learner.cat1 * 0.95)}</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{Math.round(learner.cat2 * 0.95)}</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{Math.round(learner.endTerm * 0.95)}</td>
+                                    <td className="p-3 text-center font-black text-slate-900 bg-slate-50">{Math.round(totalScore * 0.95)}</td>
+                                    <td className="p-3 text-center font-black text-emerald-600">{getSubjectCBCRating(Math.round(totalScore * 0.95), 100)}</td>
+                                  </tr>
+                                  <tr>
+                                    <td className="p-3 font-extrabold text-slate-800">Science and Technology</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{Math.min(30, Math.round(learner.cat1 * 1.02))}</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{Math.min(30, Math.round(learner.cat2 * 1.02))}</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{Math.min(40, Math.round(learner.endTerm * 1.02))}</td>
+                                    <td className="p-3 text-center font-black text-slate-900 bg-slate-50">{Math.min(100, Math.round(totalScore * 1.02))}</td>
+                                    <td className="p-3 text-center font-black text-blue-600">{getSubjectCBCRating(Math.min(100, Math.round(totalScore * 1.02)), 100)}</td>
+                                  </tr>
+                                  <tr>
+                                    <td className="p-3 font-extrabold text-slate-800">Integrated Science</td>
                                     <td className="p-3 text-center font-mono text-slate-600">{Math.min(30, Math.round(learner.cat1 * 1.05))}</td>
                                     <td className="p-3 text-center font-mono text-slate-600">{Math.min(30, Math.round(learner.cat2 * 1.05))}</td>
                                     <td className="p-3 text-center font-mono text-slate-600">{Math.min(40, Math.round(learner.endTerm * 1.05))}</td>
@@ -693,12 +709,52 @@ export default function TermReport() {
                                     <td className="p-3 text-center font-black text-emerald-600">{getSubjectCBCRating(Math.min(100, Math.round(totalScore * 1.05)), 100)}</td>
                                   </tr>
                                   <tr>
-                                    <td className="p-3 font-extrabold text-slate-800">Social Studies & Citizenship</td>
+                                    <td className="p-3 font-extrabold text-slate-800">Agriculture and Nutrition</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{Math.round(learner.cat1 * 0.88)}</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{Math.round(learner.cat2 * 0.88)}</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{Math.round(learner.endTerm * 0.88)}</td>
+                                    <td className="p-3 text-center font-black text-slate-900 bg-slate-50">{Math.round(totalScore * 0.88)}</td>
+                                    <td className="p-3 text-center font-black text-emerald-600">{getSubjectCBCRating(Math.round(totalScore * 0.88), 100)}</td>
+                                  </tr>
+                                  <tr>
+                                    <td className="p-3 font-extrabold text-slate-800">Creative Art and Sports</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{Math.min(30, Math.round(learner.cat1 * 1.08))}</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{Math.min(30, Math.round(learner.cat2 * 1.08))}</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{Math.min(40, Math.round(learner.endTerm * 1.08))}</td>
+                                    <td className="p-3 text-center font-black text-slate-900 bg-slate-50">{Math.min(100, Math.round(totalScore * 1.08))}</td>
+                                    <td className="p-3 text-center font-black text-blue-600">{getSubjectCBCRating(Math.min(100, Math.round(totalScore * 1.08)), 100)}</td>
+                                  </tr>
+                                  <tr>
+                                    <td className="p-3 font-extrabold text-slate-800">Pretechnical Studies</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{Math.round(learner.cat1 * 0.92)}</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{Math.round(learner.cat2 * 0.92)}</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{Math.round(learner.endTerm * 0.92)}</td>
+                                    <td className="p-3 text-center font-black text-slate-900 bg-slate-50">{Math.round(totalScore * 0.92)}</td>
+                                    <td className="p-3 text-center font-black text-blue-600">{getSubjectCBCRating(Math.round(totalScore * 0.92), 100)}</td>
+                                  </tr>
+                                  <tr>
+                                    <td className="p-3 font-extrabold text-slate-800">CRE</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{Math.min(30, Math.round(learner.cat1 * 1.04))}</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{Math.min(30, Math.round(learner.cat2 * 1.04))}</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{Math.min(40, Math.round(learner.endTerm * 1.04))}</td>
+                                    <td className="p-3 text-center font-black text-slate-900 bg-slate-50">{Math.min(100, Math.round(totalScore * 1.04))}</td>
+                                    <td className="p-3 text-center font-black text-emerald-600">{getSubjectCBCRating(Math.min(100, Math.round(totalScore * 1.04)), 100)}</td>
+                                  </tr>
+                                  <tr>
+                                    <td className="p-3 font-extrabold text-slate-800">Social Studies</td>
                                     <td className="p-3 text-center font-mono text-slate-600">{Math.round(learner.cat1 * 0.85)}</td>
                                     <td className="p-3 text-center font-mono text-slate-600">{Math.round(learner.cat2 * 0.85)}</td>
                                     <td className="p-3 text-center font-mono text-slate-600">{Math.round(learner.endTerm * 0.85)}</td>
                                     <td className="p-3 text-center font-black text-slate-900 bg-slate-50">{Math.round(totalScore * 0.85)}</td>
                                     <td className="p-3 text-center font-black text-amber-600">{getSubjectCBCRating(Math.round(totalScore * 0.85), 100)}</td>
+                                  </tr>
+                                  <tr>
+                                    <td className="p-3 font-extrabold text-slate-800">French</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{Math.round(learner.cat1 * 0.9)}</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{Math.round(learner.cat2 * 0.9)}</td>
+                                    <td className="p-3 text-center font-mono text-slate-600">{Math.round(learner.endTerm * 0.9)}</td>
+                                    <td className="p-3 text-center font-black text-slate-900 bg-slate-50">{Math.round(totalScore * 0.9)}</td>
+                                    <td className="p-3 text-center font-black text-blue-600">{getSubjectCBCRating(Math.round(totalScore * 0.9), 100)}</td>
                                   </tr>
                                 </tbody>
                               </table>

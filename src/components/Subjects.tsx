@@ -4,6 +4,7 @@ import {
   getSubjects, 
   saveSubjects, 
   getLearners, 
+  saveLearners,
   getGrades,
   getSubjectEnrollments, 
   saveSubjectEnrollments, 
@@ -259,6 +260,32 @@ export default function Subjects() {
   });
 
   // --- ENROLLMENT LOGIC ---
+  const saveEnrollmentsAndSyncLearners = (nextEnrollments: Record<string, string[]>) => {
+    setEnrollments(nextEnrollments);
+    saveSubjectEnrollments(nextEnrollments);
+
+    if (!activeEnrollmentSubject) return;
+    const subjectCode = activeEnrollmentSubject.code;
+    const subjectName = activeEnrollmentSubject.name;
+    const currentSubjectId = activeEnrollmentSubject.id;
+    const enrolledIds = nextEnrollments[currentSubjectId] || [];
+
+    const updatedLearners = learners.map(learner => {
+      const isEnrolled = enrolledIds.includes(learner.id);
+      let linked = Array.isArray(learner.linkedSubjects) ? [...learner.linkedSubjects] : [];
+      if (isEnrolled) {
+        if (!linked.includes(subjectCode)) linked.push(subjectCode);
+        if (subjectName && !linked.includes(subjectName)) linked.push(subjectName);
+      } else {
+        linked = linked.filter(s => s !== subjectCode && s !== subjectName);
+      }
+      return { ...learner, linkedSubjects: linked };
+    });
+
+    setLearners(updatedLearners);
+    saveLearners(updatedLearners);
+  };
+
   const handleToggleEnrollment = (learnerId: string, admNo: string) => {
     if (!activeEnrollmentSubject) return;
     const currentSubjectId = activeEnrollmentSubject.id;
@@ -274,8 +301,7 @@ export default function Subjects() {
     }
 
     const nextEnrollments = { ...enrollments, [currentSubjectId]: updatedEnrolled };
-    setEnrollments(nextEnrollments);
-    saveSubjectEnrollments(nextEnrollments);
+    saveEnrollmentsAndSyncLearners(nextEnrollments);
   };
 
   // Filter learners for the enrollment screen
@@ -306,8 +332,7 @@ export default function Subjects() {
     const addedCount = nextEnrolled.length - subjectEnrolledIds.length;
 
     const nextEnrollments = { ...enrollments, [currentSubjectId]: nextEnrolled };
-    setEnrollments(nextEnrollments);
-    saveSubjectEnrollments(nextEnrollments);
+    saveEnrollmentsAndSyncLearners(nextEnrollments);
     triggerToast(`${addedCount} learners registered`);
   };
 
@@ -323,8 +348,7 @@ export default function Subjects() {
     const removedCount = subjectEnrolledIds.length - nextEnrolled.length;
 
     const nextEnrollments = { ...enrollments, [currentSubjectId]: nextEnrolled };
-    setEnrollments(nextEnrollments);
-    saveSubjectEnrollments(nextEnrollments);
+    saveEnrollmentsAndSyncLearners(nextEnrollments);
     triggerToast(`${removedCount} learners removed`);
   };
 
