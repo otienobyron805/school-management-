@@ -137,6 +137,18 @@ Here are your official credentials to access the platform:
     setTimeout(() => setCopiedInviteText(false), 2500);
   };
 
+  // Toast notification state
+  const [toast, setToast] = useState<{ message: string; type?: 'success' | 'info' | 'error' } | null>(null);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => {
+        setToast(null);
+      }, 4500);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
   // Form Fields State
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
@@ -198,6 +210,25 @@ Here are your official credentials to access the platform:
       window.removeEventListener('db_updated', refreshUsers);
     };
   }, []);
+
+  useEffect(() => {
+    const handleBack = (e: any) => {
+      if (inviteUserModal || bulkModalOpen || showRbacGuide) {
+        setInviteUserModal(null);
+        setBulkModalOpen(false);
+        setShowRbacGuide(false);
+        if (e.detail) e.detail.handled = true;
+        return;
+      }
+      if (view !== 'list') {
+        setView('list');
+        if (e.detail) e.detail.handled = true;
+        return;
+      }
+    };
+    window.addEventListener('app_request_go_back', handleBack);
+    return () => window.removeEventListener('app_request_go_back', handleBack);
+  }, [view, inviteUserModal, bulkModalOpen, showRbacGuide]);
 
   // Sync permissions when system role changes (if no override)
   useEffect(() => {
@@ -405,6 +436,12 @@ Here are your official credentials to access the platform:
     setView('list');
     setInviteUserModal(savedUser);
     setCopiedInviteText(false);
+    setToast({
+      message: editingUserId
+        ? `Staff member "${savedUser.fullName}" updated successfully!`
+        : `Staff member "${savedUser.fullName}" successfully added to staff directory!`,
+      type: 'success'
+    });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -477,8 +514,27 @@ Here are your official credentials to access the platform:
     });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
       
+      {/* SUCCESS / FEEDBACK TOAST NOTIFICATION */}
+      {toast && (
+        <div className="fixed top-6 right-6 z-50 max-w-md w-full sm:w-auto animate-bounce-in flex items-center gap-3 bg-slate-900 text-white px-5 py-4 rounded-2xl shadow-2xl border border-slate-700/60 transition-all">
+          <div className="w-9 h-9 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+          </div>
+          <div className="flex-1 text-sm font-semibold pr-2">
+            {toast.message}
+          </div>
+          <button
+            onClick={() => setToast(null)}
+            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+            title="Dismiss notification"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* HEADER SECTION BAR */}
       <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
         <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-blue-600">

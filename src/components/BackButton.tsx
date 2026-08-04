@@ -1,5 +1,4 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 
 interface BackButtonProps {
   onBack?: () => void;
@@ -7,40 +6,45 @@ interface BackButtonProps {
 }
 
 const BackButton: React.FC<BackButtonProps> = ({ onBack, className }) => {
-  let navigate: ((delta: number) => void) | null = null;
-  try {
-    navigate = useNavigate();
-  } catch (e) {
-    // Fallback if rendered outside Router context
-  }
-
   const goBackSafely = () => {
     if (onBack) {
       onBack();
       return;
     }
-    if (navigate) {
-      navigate(-1);
-    } else if (typeof window !== 'undefined' && window.history.length > 1) {
-      window.history.back();
+    
+    const event = new CustomEvent('app_request_go_back', {
+      bubbles: true,
+      cancelable: true,
+      detail: { handled: false }
+    });
+    
+    window.dispatchEvent(event);
+
+    if (!event.detail.handled) {
+      if (typeof window !== 'undefined' && window.history.length > 1) {
+        window.history.back();
+      }
     }
   };
 
   return (
     <button
       onClick={goBackSafely}
+      type="button"
       className={className}
       style={!className ? {
         padding: '8px 16px',
-        fontSize: '16px',
+        fontSize: '15px',
+        fontWeight: '600',
         borderRadius: '8px',
         border: 'none',
         background: '#2563eb',
         color: 'white',
         cursor: 'pointer',
-        display: 'flex',
+        display: 'inline-flex',
         alignItems: 'center',
         gap: '6px',
+        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
       } : undefined}
       onMouseOver={(e) => {
         if (!className) e.currentTarget.style.background = '#1d4ed8';

@@ -130,6 +130,8 @@ export default function App() {
     const currUser = getCurrentUser();
     return currUser?.role === 'Parent' ? 'Parent Portal' : 'Home';
   });
+  const [viewHistory, setViewHistory] = useState<string[]>([]);
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
     return typeof window !== 'undefined' ? window.innerWidth >= 1024 : false;
   });
@@ -147,11 +149,36 @@ export default function App() {
   }, []);
 
   const selectView = (viewName: string) => {
-    setActiveView(viewName);
+    if (viewName !== activeView) {
+      setViewHistory(prev => [...prev, activeView]);
+      setActiveView(viewName);
+    }
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
       setIsSidebarOpen(false);
     }
   };
+
+  useEffect(() => {
+    const handleGoBack = (e: any) => {
+      if (e.detail?.handled) return;
+
+      if (viewHistory.length > 0) {
+        const prevView = viewHistory[viewHistory.length - 1];
+        setViewHistory(prev => prev.slice(0, -1));
+        setActiveView(prevView);
+        if (e.detail) e.detail.handled = true;
+      } else {
+        const defaultView = user?.role === 'Parent' ? 'Parent Portal' : 'Home';
+        if (activeView !== defaultView) {
+          setActiveView(defaultView);
+          if (e.detail) e.detail.handled = true;
+        }
+      }
+    };
+
+    window.addEventListener('app_request_go_back', handleGoBack);
+    return () => window.removeEventListener('app_request_go_back', handleGoBack);
+  }, [viewHistory, activeView, user]);
   const [schoolProfile, setSchoolProfile] = useState(() => getSchoolProfile());
   const [parentTab, setParentTab] = useState<'academics' | 'attendance' | 'messages' | 'profile'>('academics');
 
