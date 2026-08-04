@@ -95,7 +95,7 @@ export default function ParentPortal({ user, activeTab, onTabChange }: ParentPor
     setMyChildren(matched);
     if (matched.length > 0) {
       // Restore selected child preference or pick first
-      const storedPref = localStorage.getItem(`parent_active_child_${user.id}`);
+      const storedPref = secureGet(`parent_active_child_${user.id}`);
       const foundPref = matched.find(c => c.id === storedPref);
       setSelectedChild(foundPref || matched[0]);
     }
@@ -103,7 +103,7 @@ export default function ParentPortal({ user, activeTab, onTabChange }: ParentPor
 
   const handleSelectChild = (child: Learner) => {
     setSelectedChild(child);
-    localStorage.setItem(`parent_active_child_${user.id}`, child.id);
+    secureSet(`parent_active_child_${user.id}`, child.id);
     triggerToast(`Switched view to ${child.name}`);
   };
 

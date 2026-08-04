@@ -70,7 +70,7 @@ import AttendanceRoll from './components/AttendanceRoll';
 import MyProfile from './components/MyProfile';
 import ResetPassword from './components/ResetPassword';
 import NotificationBell from './components/NotificationBell';
-import { getCurrentUser, setCurrentUser, getSchoolProfile, UserAccount, getUsers, getLearners, synchronizeWithMongoDB, startRealtimeCloudSync, getMessages } from './utils/db';
+import { getCurrentUser, setCurrentUser, getSchoolProfile, UserAccount, getUsers, getLearners, synchronizeWithMongoDB, startRealtimeCloudSync, getMessages, secureGet, secureSet } from './utils/db';
 import CloudAutoSyncHeaderBar from './components/CloudAutoSyncHeaderBar';
 import CloudSyncHealth from './components/CloudSyncHealth';
 import ParentPortal from './components/ParentPortal';
@@ -93,7 +93,7 @@ export default function App() {
   const [user, setUser] = useState<UserAccount | null>(() => getCurrentUser());
   const [showUpdateModal, setShowUpdateModal] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      const ackVersion = localStorage.getItem('system_update_acknowledged_version');
+      const ackVersion = secureGet('system_update_acknowledged_version');
       return ackVersion !== CURRENT_SYSTEM_VERSION;
     }
     return false;
@@ -101,14 +101,14 @@ export default function App() {
 
   const handleDismissUpdateModal = () => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('system_update_acknowledged_version', CURRENT_SYSTEM_VERSION);
+      secureSet('system_update_acknowledged_version', CURRENT_SYSTEM_VERSION);
     }
     setShowUpdateModal(false);
   };
 
   const handleRefreshUpdateModal = async () => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('system_update_acknowledged_version', CURRENT_SYSTEM_VERSION);
+      secureSet('system_update_acknowledged_version', CURRENT_SYSTEM_VERSION);
       setShowUpdateModal(false);
       // Run sync in background so it never holds up the UI
       Promise.race([
@@ -274,7 +274,7 @@ export default function App() {
   useEffect(() => {
     const root = window.document.documentElement;
     root.classList.remove('dark');
-    localStorage.setItem('theme', 'light');
+    secureSet('theme', 'light');
   }, []);
 
   useEffect(() => {
@@ -307,7 +307,7 @@ export default function App() {
   const handleLoginSuccess = (loggedInUser: UserAccount) => {
     setUser(loggedInUser);
     if (typeof window !== 'undefined') {
-      const ackVersion = localStorage.getItem('system_update_acknowledged_version');
+      const ackVersion = secureGet('system_update_acknowledged_version');
       if (ackVersion !== CURRENT_SYSTEM_VERSION) {
         setShowUpdateModal(true);
       }
@@ -381,9 +381,9 @@ export default function App() {
       items: [
         { name: 'Teachers On Duty (TOD)', icon: <ShieldCheck className="w-4 h-4 text-emerald-500" />, visible: !isParent },
         { name: 'Gate Check-in', icon: <UserCheck className="w-4 h-4 text-emerald-500" />, visible: !isParent },
-        { name: 'Attendance Roll', icon: <UserCheck className="w-4 h-4 text-blue-500" />, visible: isSuperAdmin || (localStorage.getItem('allow_attendance_roll') === 'true' && isAuthorizedRole) || !isParent },
+        { name: 'Attendance Roll', icon: <UserCheck className="w-4 h-4 text-blue-500" />, visible: isSuperAdmin || (secureGet('allow_attendance_roll') === 'true' && isAuthorizedRole) || !isParent },
         { name: 'Attendance Dashboard', icon: <BarChart3 className="w-4 h-4 text-emerald-500" />, visible: !isParent },
-        { name: 'Attendance Analytics', icon: <BarChart3 className="w-4 h-4 text-blue-500" />, visible: isSuperAdmin || (localStorage.getItem('allow_attendance_analytics') === 'true' && isAuthorizedRole) },
+        { name: 'Attendance Analytics', icon: <BarChart3 className="w-4 h-4 text-blue-500" />, visible: isSuperAdmin || (secureGet('allow_attendance_analytics') === 'true' && isAuthorizedRole) },
         { name: 'Staff Attendance', icon: <Users className="w-4 h-4 text-slate-300" />, visible: isSuperAdmin || isAuthorizedRole },
         { name: 'WhatsApp Alerts', icon: <MessageSquare className="w-4 h-4 text-emerald-500" />, visible: !isParent },
       ],
@@ -394,7 +394,6 @@ export default function App() {
         { name: 'Grades and Streams', icon: <GraduationCap className="w-4 h-4 text-indigo-400" />, visible: isAdminOrHead },
         { name: 'Subjects', icon: <BookOpen className="w-4 h-4 text-blue-400" />, visible: isAdminOrHead },
         { name: 'Learners', icon: <Users className="w-4 h-4 text-amber-400" />, visible: !isParent },
-        { name: 'Grading', icon: <BarChart3 className="w-4 h-4 text-purple-400" />, visible: isAdminOrHead },
         { name: 'Class Promotion', icon: <Sparkles className="w-4 h-4 text-yellow-400" />, visible: isAdminOrHead },
       ],
     },
@@ -408,6 +407,8 @@ export default function App() {
       title: 'Exams',
       items: [
         { name: 'All Exams', icon: <ClipboardList className="w-4 h-4 text-sky-400" />, visible: isAdminOrHead },
+        { name: 'Grading', icon: <BarChart3 className="w-4 h-4 text-purple-400" />, visible: isAdminOrHead },
+        { name: 'KJSEA Classification', icon: <Award className="w-4 h-4 text-purple-400" />, visible: !isParent },
         { name: 'New Exam', icon: <ClipboardList className="w-4 h-4 text-emerald-400" />, visible: !isParent },
         { name: 'Exam Setup', icon: <Settings className="w-4 h-4 text-amber-400" />, visible: isAdminOrHead },
         { name: 'Trash', icon: <X className="w-4 h-4 text-rose-400" />, visible: isAdminOrHead },
@@ -461,7 +462,7 @@ export default function App() {
       case 'Cloud Data Explorer': return isSuperAdmin ? <CloudDataExplorer /> : <div className="p-6 text-slate-500 font-bold">Access Denied.</div>;
       case 'Attendance Roll': return <AttendanceRoll />;
       case 'Attendance Dashboard': return <AttendanceDashboard />;
-      case 'Attendance Analytics': return (isSuperAdmin || (localStorage.getItem('allow_attendance_analytics') === 'true' && isAuthorizedRole)) ? <AttendanceAnalytics /> : <div className="p-6 text-slate-500 font-bold">Access Denied. Please contact the Super Admin for access.</div>;
+      case 'Attendance Analytics': return (isSuperAdmin || (secureGet('allow_attendance_analytics') === 'true' && isAuthorizedRole)) ? <AttendanceAnalytics /> : <div className="p-6 text-slate-500 font-bold">Access Denied. Please contact the Super Admin for access.</div>;
       case 'Staff Attendance': return <StaffAttendance />;
       case 'Subject Assignments': return <SubjectAssignments />;
       case 'Marks Submissions': return <MarkSubmissions />;
@@ -479,6 +480,7 @@ export default function App() {
       case 'Class Promotion': return isAdminOrHead ? <ClassPromotion /> : <div className="p-6 text-slate-500 font-bold">Access Denied. Class Promotion is restricted to administrative staff.</div>;
       case 'Scheme of Work': return <SchemeOfWorkRepository />;
       case 'All Exams': return isAdminOrHead ? <Exams setActiveView={setActiveView} /> : <div className="p-6 text-slate-500 font-bold">Access Denied. All Exams management is restricted to administrative staff.</div>;
+      case 'KJSEA Classification': return <Exams setActiveView={setActiveView} initialTab="kjsea" />;
       default: return <div className="text-gray-500 p-6 font-medium">View for {activeView} is not yet implemented.</div>;
     }
   };

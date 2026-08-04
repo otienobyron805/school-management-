@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, Pencil } from 'lucide-react';
+import { Trash2, Pencil, Award, ClipboardList } from 'lucide-react';
 import { secureGet, secureSet, deleteRecord, saveToBackend } from '../utils/db';
 import { canDelete } from '../utils/permissions';
+import KJSEAClassificationComponent from './KJSEAClassificationComponent';
 
 interface Exam {
   id: string;
@@ -17,9 +18,11 @@ interface Exam {
 
 interface ExamsProps {
   setActiveView: (view: string) => void;
+  initialTab?: 'all' | 'kjsea';
 }
 
-const Exams: React.FC<ExamsProps> = ({ setActiveView }) => {
+const Exams: React.FC<ExamsProps> = ({ setActiveView, initialTab = 'all' }) => {
+  const [activeTab, setActiveTab] = useState<'all' | 'kjsea'>(initialTab);
   const [exams, setExams] = useState<Exam[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newExamName, setNewExamName] = useState('');
@@ -81,67 +84,102 @@ const Exams: React.FC<ExamsProps> = ({ setActiveView }) => {
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-      {/* PAGE HEADER */}
-      <div className="flex justify-between items-center p-8 border-b border-slate-100">
-        <div>
-          <h3 className="text-2xl font-black text-slate-900 tracking-tight">Examinations</h3>
-          <p className="text-sm text-slate-500 font-semibold mt-1">Manage and track all academic assessments.</p>
-        </div>
-        <div className="flex gap-3 items-center">
-          <button onClick={() => setActiveView('Trash')} className="px-5 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-200 transition cursor-pointer active:scale-95">
-            🗑️ Trash
-          </button>
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition shadow-sm shadow-blue-600/20 active:scale-95 cursor-pointer"
-          >
-            ➕ New Exam
-          </button>
-        </div>
-      </div>
-
-      {/* EXAMS TABLE */}
-      <div className="p-2 overflow-x-auto">
-        {/* TABLE HEADINGS */}
-        <div className="grid grid-cols-6 gap-4 p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 min-w-[700px]">
-          <div>Exam Name</div>
-          <div>Year</div>
-          <div>Term</div>
-          <div>Subjects</div>
-          <div>Created</div>
-          <div className="text-center">Actions</div>
-        </div>
-
-        {/* EXAM ROWS OR EMPTY STATE */}
-        {exams.length === 0 ? (
-          <div className="py-20 text-center text-slate-400">
-            <div className="text-6xl mb-4 opacity-20">📝</div>
-            <p className="text-sm font-bold text-slate-700 mb-1">No examinations created yet</p>
-            <span className="text-xs font-semibold">Click "New Exam" to begin.</span>
+    <div className="space-y-6">
+      {/* PAGE HEADER WITH TABS */}
+      <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between p-8 border-b border-slate-100 gap-4">
+          <div>
+            <h3 className="text-2xl font-black text-slate-900 tracking-tight">Examinations</h3>
+            <p className="text-sm text-slate-500 font-semibold mt-1">Manage assessments and KJSEA learner point classifications.</p>
           </div>
-        ) : (
-          exams.map(exam => (
-            <div key={exam.id} className="grid grid-cols-6 gap-4 p-4 text-sm text-slate-700 border-b border-slate-50 min-w-[700px] items-center hover:bg-slate-50 transition">
-              <div className="font-bold text-slate-900">{exam.examName || exam.name}</div>
-              <div className="font-mono text-xs text-slate-500">{exam.academicYear || exam.year}</div>
-              <div><span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider">{exam.term}</span></div>
-              <div className="text-emerald-600 font-black text-xs">{exam.subjects || 0} subjects</div>
-              <div className="text-xs text-slate-500 font-mono">{exam.examDate || exam.created}</div>
-              <div className="flex justify-center gap-2">
-                 <button className="text-xs bg-slate-100 p-2 rounded-lg text-slate-600 hover:bg-slate-200 active:scale-90 transition">
-                    <Pencil size={14} />
-                 </button>
-                 {canDelete() && (
-                   <button onClick={() => deleteExam(exam.id)} className="text-xs bg-red-50 p-2 rounded-lg text-red-600 hover:bg-red-100 active:scale-90 transition">
-                      <Trash2 size={14} />
-                   </button>
-                 )}
-              </div>
+          <div className="flex gap-3 items-center">
+            <button onClick={() => setActiveView('Trash')} className="px-5 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-200 transition cursor-pointer active:scale-95">
+              🗑️ Trash
+            </button>
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition shadow-sm shadow-blue-600/20 active:scale-95 cursor-pointer"
+            >
+              ➕ New Exam
+            </button>
+          </div>
+        </div>
+
+        {/* SUB-TABS NAVIGATION */}
+        <div className="flex gap-2 p-3 bg-slate-50 border-b border-slate-100">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider transition cursor-pointer ${
+              activeTab === 'all'
+                ? 'bg-white text-blue-600 shadow-xs border border-slate-200'
+                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <ClipboardList className="w-4 h-4" />
+            <span>All Examinations</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('kjsea')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider transition cursor-pointer ${
+              activeTab === 'kjsea'
+                ? 'bg-white text-indigo-600 shadow-xs border border-slate-200'
+                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <Award className="w-4 h-4 text-indigo-600" />
+            <span>KJSEA Total Point Classification</span>
+          </button>
+        </div>
+
+        {/* TAB CONTENT: ALL EXAMS */}
+        {activeTab === 'all' && (
+          <div className="p-2 overflow-x-auto">
+            {/* TABLE HEADINGS */}
+            <div className="grid grid-cols-6 gap-4 p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 min-w-[700px]">
+              <div>Exam Name</div>
+              <div>Year</div>
+              <div>Term</div>
+              <div>Subjects</div>
+              <div>Created</div>
+              <div className="text-center">Actions</div>
             </div>
-          ))
+
+            {/* EXAM ROWS OR EMPTY STATE */}
+            {exams.length === 0 ? (
+              <div className="py-20 text-center text-slate-400">
+                <div className="text-6xl mb-4 opacity-20">📝</div>
+                <p className="text-sm font-bold text-slate-700 mb-1">No examinations created yet</p>
+                <span className="text-xs font-semibold">Click "New Exam" to begin.</span>
+              </div>
+            ) : (
+              exams.map(exam => (
+                <div key={exam.id} className="grid grid-cols-6 gap-4 p-4 text-sm text-slate-700 border-b border-slate-50 min-w-[700px] items-center hover:bg-slate-50 transition">
+                  <div className="font-bold text-slate-900">{exam.examName || exam.name}</div>
+                  <div className="font-mono text-xs text-slate-500">{exam.academicYear || exam.year}</div>
+                  <div><span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider">{exam.term}</span></div>
+                  <div className="text-emerald-600 font-black text-xs">{exam.subjects || 0} subjects</div>
+                  <div className="text-xs text-slate-500 font-mono">{exam.examDate || exam.created}</div>
+                  <div className="flex justify-center gap-2">
+                     <button className="text-xs bg-slate-100 p-2 rounded-lg text-slate-600 hover:bg-slate-200 active:scale-90 transition">
+                        <Pencil size={14} />
+                     </button>
+                     {canDelete() && (
+                       <button onClick={() => deleteExam(exam.id)} className="text-xs bg-red-50 p-2 rounded-lg text-red-600 hover:bg-red-100 active:scale-90 transition">
+                          <Trash2 size={14} />
+                       </button>
+                     )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         )}
       </div>
+
+      {/* TAB CONTENT: KJSEA CLASSIFICATION */}
+      {activeTab === 'kjsea' && (
+        <KJSEAClassificationComponent />
+      )}
 
       {/* MODAL */}
       {isModalOpen && (

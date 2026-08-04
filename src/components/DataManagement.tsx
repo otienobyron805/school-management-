@@ -14,6 +14,8 @@ import {
   getCurrentUser,
   MongoStatusResponse,
   secureSet,
+  getAllMemCacheData,
+  clearMemCacheData,
   triggerManualCloudSnapshot,
   getCloudSnapshots,
   deleteCloudSnapshot,
@@ -22,15 +24,8 @@ import {
 } from '../utils/db';
 
 export const exportAllData = () => {
-  const allData: Record<string, string | null> = {};
-  console.log("Exporting keys:", []);
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key) {
-      allData[key] = localStorage.getItem(key);
-      console.log(`Exported key: ${key}`);
-    }
-  }
+  const allData = getAllMemCacheData();
+  console.log("Exporting keys:", Object.keys(allData));
 
   // Record administrative backup export security notice
   addAlertLog(
@@ -193,7 +188,7 @@ export default function DataManagement() {
           throw new Error("Invalid backup format");
         }
         
-        localStorage.clear();
+        clearMemCacheData();
         Object.keys(data).forEach((key) => {
           if (data[key]) {
             secureSet(key, data[key]);

@@ -461,9 +461,9 @@ export default function Settings() {
                   <label key={item.key} className="flex items-center gap-3 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={localStorage.getItem(item.key) === 'true'}
+                      checked={secureGet(item.key) === 'true'}
                       onChange={(e) => {
-                        localStorage.setItem(item.key, e.target.checked.toString());
+                        secureSet(item.key, e.target.checked.toString());
                         // Trigger a re-render or force update if necessary
                         window.dispatchEvent(new Event('storage'));
                       }}

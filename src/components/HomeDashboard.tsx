@@ -1181,7 +1181,7 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
                       <td className="py-2.5 px-2 text-center">
                         <button
                           onClick={() => {
-                            localStorage.setItem('selected_exam_id_for_marks', exam.id);
+                            secureSet('selected_exam_id_for_marks', exam.id);
                             setActiveView?.('Marks Submissions');
                           }}
                           className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md font-bold text-[11px] transition cursor-pointer inline-flex items-center gap-1"

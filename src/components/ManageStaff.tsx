@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUsers, saveUsers, UserAccount, getSchoolProfile } from '../utils/db';
+import { getUsers, saveUsers, UserAccount, getSchoolProfile, secureGet } from '../utils/db';
 import { canDelete } from '../utils/permissions';
 import { useAccessControl } from '../hooks/useAccessControl';
 import { 
@@ -161,7 +161,7 @@ Here are your official credentials to access the platform:
   
   const getRolePermissions = (role: string) => {
     try {
-      const saved = localStorage.getItem('school_role_permissions_matrix_v1');
+      const saved = secureGet('school_role_permissions_matrix_v1');
       if (!saved) return [];
       const matrix = JSON.parse(saved);
       const perms = matrix[role] || {};

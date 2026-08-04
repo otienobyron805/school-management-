@@ -128,6 +128,8 @@ async function startServer() {
     gate_logs: 'school_gate_logs',
     audit_trail: 'school_audit_trail',
     activity_logs: 'school_activity_logs',
+    learner_classification: 'learner_classification',
+    classification: 'learner_classification',
   };
 
   app.post("/api/mongo/save", async (req, res) => {
@@ -174,6 +176,88 @@ async function startServer() {
       res.json({ success: true, documents: docs, count: docs.length });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message || "Failed to query MongoDB collection" });
+    }
+  });
+
+  function getKJSEAClassification(totalPoints: number) {
+    if (totalPoints >= 68) return { code: 'EE1', performance: 'Exceeding Expectations 1', category: 'C1 — National' };
+    if (totalPoints >= 60) return { code: 'EE2', performance: 'Exceeding Expectations 2', category: 'C1 — National' };
+    if (totalPoints >= 52) return { code: 'ME1', performance: 'Meeting Expectations 1', category: 'C2 — Extra-County' };
+    if (totalPoints >= 43) return { code: 'ME2', performance: 'Meeting Expectations 2', category: 'C2 — Extra-County' };
+    if (totalPoints >= 34) return { code: 'AE1', performance: 'Approaching Expectations 1', category: 'C3 — County' };
+    if (totalPoints >= 25) return { code: 'AE2', performance: 'Approaching Expectations 2', category: 'C3 — County' };
+    if (totalPoints >= 16) return { code: 'BE1', performance: 'Below Expectations 1', category: 'C4 — Sub-County' };
+    if (totalPoints >= 9) return { code: 'BE2', performance: 'Below Expectations 2', category: 'C4 — Sub-County' };
+    return { code: 'BE2', performance: 'Below Expectations 2', category: 'C4 — Sub-County' };
+  }
+
+  app.post("/api/classification/save", async (req, res) => {
+    const { admissionNumber, totalPoints, learnerName } = req.body;
+    if (!admissionNumber || totalPoints === undefined) {
+      return res.status(400).json({ success: false, error: "Missing admissionNumber or totalPoints" });
+    }
+    const pts = Number(totalPoints);
+    const classification = getKJSEAClassification(pts);
+    const doc = {
+      admissionNumber,
+      learnerName: learnerName || '',
+      totalPoints: pts,
+      ...classification,
+      updatedAt: new Date().toISOString()
+    };
+
+    try {
+      const mongoStatus = await checkMongoStatus();
+      if (mongoStatus.connected) {
+        const { db: mongoDb } = await getMongoClient();
+        const collection = mongoDb.collection('learner_classification');
+        await collection.updateOne(
+          { admissionNumber },
+          { $set: doc },
+          { upsert: true }
+        );
+        return res.json({ success: true, classification: doc });
+      }
+    } catch (err: any) {
+      console.warn("MongoDB saveClassification failed:", err);
+    }
+
+    if (!serverStore.learner_classification) serverStore.learner_classification = [];
+    const idx = serverStore.learner_classification.findIndex((item: any) => item.admissionNumber === admissionNumber);
+    if (idx >= 0) {
+      serverStore.learner_classification[idx] = doc;
+    } else {
+      serverStore.learner_classification.push(doc);
+    }
+    persistServerStore();
+    return res.json({ success: true, classification: doc });
+  });
+
+  app.post("/api/classification/get", async (req, res) => {
+    const { admissionNumber } = req.body;
+    try {
+      const mongoStatus = await checkMongoStatus();
+      if (mongoStatus.connected) {
+        const { db: mongoDb } = await getMongoClient();
+        const collection = mongoDb.collection('learner_classification');
+        if (admissionNumber) {
+          const doc = await collection.findOne({ admissionNumber });
+          return res.json({ success: true, classification: doc });
+        } else {
+          const docs = await collection.find({}).toArray();
+          return res.json({ success: true, documents: docs });
+        }
+      }
+    } catch (err: any) {
+      console.warn("MongoDB getClassification failed:", err);
+    }
+
+    if (!serverStore.learner_classification) serverStore.learner_classification = [];
+    if (admissionNumber) {
+      const doc = serverStore.learner_classification.find((item: any) => item.admissionNumber === admissionNumber);
+      return res.json({ success: true, classification: doc || null });
+    } else {
+      return res.json({ success: true, documents: serverStore.learner_classification });
     }
   });
 

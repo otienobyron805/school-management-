@@ -310,6 +310,14 @@ const SEC_KEY = "school_admin_secret_key_987654321_cbc_auth";
 const memCache: Record<string, string> = {};
 let isBackendUnavailable = false;
 
+export function getAllMemCacheData(): Record<string, string> {
+  return { ...memCache };
+}
+
+export function clearMemCacheData(): void {
+  Object.keys(memCache).forEach(k => delete memCache[k]);
+}
+
 function isThirdPartyKey(key: string): boolean {
   if (!key) return false;
   return (
@@ -341,6 +349,21 @@ export function secureGet(key: string): string | null {
     }
   }
 
+  if (typeof window !== 'undefined' && window.localStorage) {
+    for (const alias of aliases) {
+      try {
+        const val = window.localStorage.getItem(alias);
+        if (val !== null) {
+          memCache[alias] = val;
+          memCache[key] = val;
+          return val;
+        }
+      } catch (e) {
+        // ignore storage errors
+      }
+    }
+  }
+
   return null;
 }
 
@@ -349,15 +372,6 @@ export let isInitialCloudPullCompleted = false;
 
 export function getTableNameFromKey(key: string): string | null {
   if (!key) return null;
-  if (
-    key === 'theme' ||
-    key === 'system_update_acknowledged_version' ||
-    key.startsWith('parent_active_child_') ||
-    key === 'selected_exam_id_for_marks' ||
-    key === 'school_last_sync_time'
-  ) {
-    return null;
-  }
 
   if (key === 'school_grades' || key === 'classes' || key === 'grades') return 'grades';
   if (key === 'school_current_user' || key === 'current_user') return 'current_user';
@@ -415,6 +429,13 @@ export function secureSet(key: string, value: string, options?: { skipCloud?: bo
 
   for (const alias of aliases) {
     memCache[alias] = value;
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem(alias, value);
+      } catch (e) {
+        // ignore quota errors
+      }
+    }
   }
 
   if (!isSyncingFromServer && !isBackendUnavailable && !options?.skipCloud) {
@@ -467,6 +488,13 @@ export function secureRemove(key: string, options?: { skipCloud?: boolean }): vo
 
   for (const alias of aliases) {
     delete memCache[alias];
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.removeItem(alias);
+      } catch (e) {
+        // ignore storage errors
+      }
+    }
   }
 
   if (!isSyncingFromServer && !isBackendUnavailable && !options?.skipCloud) {
@@ -1305,6 +1333,13 @@ export function writeToLocalStorageWithAliases(rawTable: string, data: any): voi
   const serialized = typeof finalData === 'string' ? finalData : JSON.stringify(finalData);
   for (const alias of aliases) {
     memCache[alias] = serialized;
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem(alias, serialized);
+      } catch (e) {
+        // ignore
+      }
+    }
   }
 }
 

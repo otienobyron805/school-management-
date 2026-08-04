@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Cloud, RefreshCw, CheckCircle2 } from 'lucide-react';
-import { synchronizeWithMongoDB } from '../utils/db';
+import { synchronizeWithMongoDB, secureGet, secureSet } from '../utils/db';
 
 export default function CloudAutoSyncHeaderBar({ onOpenSyncHealth }: { onOpenSyncHealth: () => void }) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncDone, setSyncDone] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string>(() => {
-    return localStorage.getItem('last_cloud_sync_time') || 'Never';
+    return secureGet('last_cloud_sync_time') || 'Never';
   });
 
   const updateLastSync = () => {
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     setLastSyncTime(timeStr);
-    localStorage.setItem('last_cloud_sync_time', timeStr);
+    secureSet('last_cloud_sync_time', timeStr);
   };
 
   const handleManualSync = async (e: React.MouseEvent) => {

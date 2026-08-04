@@ -1,10 +1,12 @@
+import { secureGet, secureSet } from './db';
+
 export type ThemeMode = 'light' | 'dark';
 
 const THEME_STORAGE_KEY = 'app_theme';
 
 export function getStoredTheme(): ThemeMode {
   if (typeof window === 'undefined') return 'light';
-  const saved = localStorage.getItem(THEME_STORAGE_KEY);
+  const saved = secureGet(THEME_STORAGE_KEY);
   if (saved === 'dark' || saved === 'light') {
     return saved;
   }
@@ -29,7 +31,7 @@ export function applyTheme(theme: ThemeMode): void {
     root.setAttribute('data-theme', 'light');
   }
   
-  localStorage.setItem(THEME_STORAGE_KEY, theme);
+  secureSet(THEME_STORAGE_KEY, theme);
   window.dispatchEvent(new CustomEvent('theme_changed', { detail: { theme } }));
 }
 

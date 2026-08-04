@@ -1,4 +1,6 @@
-// Local storage-backed system notifications replacing MongoDB
+import { secureGet, secureSet } from './db';
+
+// Database-backed system notifications
 export interface Notification {
   id?: string;
   teacherId: string;
@@ -10,7 +12,7 @@ export interface Notification {
 export const sendNotification = async (teacherId: string, message: string) => {
   try {
     if (typeof window === 'undefined') return;
-    const existingStr = window.localStorage.getItem('school_notifications');
+    const existingStr = secureGet('school_notifications');
     const existing: Notification[] = existingStr ? JSON.parse(existingStr) : [];
     
     const newNote: Notification = {
@@ -22,10 +24,10 @@ export const sendNotification = async (teacherId: string, message: string) => {
     };
 
     existing.unshift(newNote);
-    window.localStorage.setItem('school_notifications', JSON.stringify(existing.slice(0, 100)));
+    secureSet('school_notifications', JSON.stringify(existing.slice(0, 100)));
     window.dispatchEvent(new CustomEvent('notifications_updated'));
   } catch (e) {
-    console.warn("Could not save notification locally: ", e);
+    console.warn("Could not save notification: ", e);
   }
 };
 
@@ -36,7 +38,7 @@ export const subscribeNotifications = (teacherId: string, callback: (notificatio
         callback([]);
         return;
       }
-      const existingStr = window.localStorage.getItem('school_notifications');
+      const existingStr = secureGet('school_notifications');
       const existing: Notification[] = existingStr ? JSON.parse(existingStr) : [];
       const userNotes = existing.filter(n => n.teacherId === teacherId);
       callback(userNotes);

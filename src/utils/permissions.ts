@@ -1,4 +1,4 @@
-import { getCurrentUser } from './db';
+import { getCurrentUser, secureGet } from './db';
 
 export const PERMISSION_RULES = {
   get currentUser() {
@@ -6,7 +6,7 @@ export const PERMISSION_RULES = {
   },
   get dutySchedules() {
     try {
-      const saved = localStorage.getItem('tod_duty_roster_v1') || localStorage.getItem('dutySchedules');
+      const saved = secureGet('tod_duty_roster_v1') || secureGet('dutySchedules');
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];

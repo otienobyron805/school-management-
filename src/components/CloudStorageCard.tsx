@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Database, ShieldCheck } from 'lucide-react';
-import { getCurrentUser } from '../utils/db';
+import { getCurrentUser, getAllMemCacheData } from '../utils/db';
 
 export default function CloudStorageCard() {
   const [isSuperAdmin, setIsSuperAdmin] = useState<boolean>(() => {
@@ -24,10 +24,9 @@ export default function CloudStorageCard() {
     checkUser();
     try {
       let totalBytes = 0;
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key) {
-          const val = localStorage.getItem(key) || '';
+      const data = getAllMemCacheData();
+      for (const [key, val] of Object.entries(data)) {
+        if (key && val) {
           totalBytes += new Blob([key + val]).size;
         }
       }
