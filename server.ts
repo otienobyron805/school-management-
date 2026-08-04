@@ -4,7 +4,7 @@ import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { db } from "./src/db/index.ts";
 import * as schema from "./src/db/schema.ts";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { checkMongoStatus, getMongoClient } from "./src/db/mongodb.ts";
 
 // --- FILE-BACKED SERVER STORE FOR FALLBACK CROSS-CLIENT PERSISTENCE ---
@@ -395,7 +395,7 @@ async function startServer() {
         console.log(`Saving collection '${table}' to PostgreSQL (sequential queue)...`);
 
         if (table === "grades") {
-          await db.delete(schema.dbGrades);
+          await db.delete(schema.dbGrades).where(sql`1=1`);
           if (Array.isArray(data) && data.length > 0) {
             const validGrades = data.filter((g: any) => g && g.id);
             if (validGrades.length > 0) {
@@ -417,7 +417,7 @@ async function startServer() {
             }
           }
         } else if (table === "subjects") {
-          await db.delete(schema.dbSubjects);
+          await db.delete(schema.dbSubjects).where(sql`1=1`);
           if (Array.isArray(data) && data.length > 0) {
             const validSubjects = data.filter((s: any) => s && s.id);
             if (validSubjects.length > 0) {
@@ -440,7 +440,7 @@ async function startServer() {
             }
           }
         } else if (table === "learners") {
-          await db.delete(schema.dbLearners);
+          await db.delete(schema.dbLearners).where(sql`1=1`);
           if (Array.isArray(data) && data.length > 0) {
             const validLearners = data.filter((l: any) => l && l.id);
             if (validLearners.length > 0) {
@@ -475,7 +475,7 @@ async function startServer() {
             }
           }
         } else if (table === "grading_rules") {
-          await db.delete(schema.dbGradingRules);
+          await db.delete(schema.dbGradingRules).where(sql`1=1`);
           if (Array.isArray(data) && data.length > 0) {
             const validRules = data.filter((r: any) => r && r.id);
             if (validRules.length > 0) {
@@ -506,7 +506,7 @@ async function startServer() {
             }
           }
         } else if (table === "users") {
-          await db.delete(schema.dbUsers);
+          await db.delete(schema.dbUsers).where(sql`1=1`);
           if (Array.isArray(data) && data.length > 0) {
             const validUsers = data.filter((u: any) => u && u.id && u.username);
             if (validUsers.length > 0) {
@@ -542,7 +542,7 @@ async function startServer() {
             }
           }
         } else if (table === "holidays") {
-          await db.delete(schema.dbHolidays);
+          await db.delete(schema.dbHolidays).where(sql`1=1`);
           if (Array.isArray(data) && data.length > 0) {
             const validHolidays = data.filter((h: any) => h && h.id);
             if (validHolidays.length > 0) {
@@ -564,7 +564,7 @@ async function startServer() {
             }
           }
         } else if (table === "terms") {
-          await db.delete(schema.dbTerms);
+          await db.delete(schema.dbTerms).where(sql`1=1`);
           if (Array.isArray(data) && data.length > 0) {
             const validTerms = data.filter((t: any) => t && t.id);
             if (validTerms.length > 0) {
@@ -587,7 +587,7 @@ async function startServer() {
             }
           }
         } else if (table === "attendance_sheets") {
-          await db.delete(schema.dbAttendanceSheets);
+          await db.delete(schema.dbAttendanceSheets).where(sql`1=1`);
           if (Array.isArray(data) && data.length > 0) {
             const validSheets = data.filter((s: any) => s && (s.date || s.id));
             if (validSheets.length > 0) {
@@ -683,7 +683,7 @@ async function startServer() {
               set: { data, updatedAt: new Date() },
             });
         } else if (table === "messages") {
-          await db.delete(schema.dbMessages);
+          await db.delete(schema.dbMessages).where(sql`1=1`);
           if (Array.isArray(data) && data.length > 0) {
             const validMessages = data.filter((m: any) => m && m.id && m.senderId);
             if (validMessages.length > 0) {
@@ -719,7 +719,7 @@ async function startServer() {
             }
           }
         } else if (table === "staff_attendance_sheets") {
-          await db.delete(schema.dbStaffAttendanceSheets);
+          await db.delete(schema.dbStaffAttendanceSheets).where(sql`1=1`);
           if (Array.isArray(data) && data.length > 0) {
             const validStaffSheets = data.filter((s: any) => s && (s.date || s.id));
             if (validStaffSheets.length > 0) {

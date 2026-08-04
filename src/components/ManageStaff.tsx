@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getUsers, saveUsers, UserAccount, getSchoolProfile, secureGet } from '../utils/db';
 import { canDelete } from '../utils/permissions';
 import { useAccessControl } from '../hooks/useAccessControl';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { 
   Plus, 
   Trash2, 
   Search, 
   User, 
+  Users,
   Shield, 
   Check, 
   X, 
@@ -25,7 +27,8 @@ import {
   ChevronUp,
   CheckCircle2,
   AlertTriangle,
-  ShieldCheck
+  ShieldCheck,
+  PieChart as PieChartIcon
 } from 'lucide-react';
 
 const PERMISSIONS = [
@@ -513,6 +516,62 @@ Here are your official credentials to access the platform:
       return a.fullName.localeCompare(b.fullName);
     });
 
+  const staffMembers = useMemo(() => {
+    return users.filter(u => u.role !== 'Parent');
+  }, [users]);
+
+  const activeStaffCount = useMemo(() => {
+    return staffMembers.filter(u => u.status === 'Active').length;
+  }, [staffMembers]);
+
+  const inactiveStaffCount = useMemo(() => {
+    return staffMembers.filter(u => u.status === 'Inactive').length;
+  }, [staffMembers]);
+
+  const roleDistributionData = useMemo(() => {
+    const counts: Record<string, number> = {};
+
+    staffMembers.forEach(u => {
+      let roleName = u.role || 'Support Staff';
+      if (roleName.toLowerCase().includes('admin') || roleName.toLowerCase().includes('headteacher')) {
+        roleName = 'Admin & Leadership';
+      } else if (roleName.toLowerCase().includes('teacher')) {
+        roleName = 'Teachers';
+      } else if (
+        roleName.toLowerCase().includes('support') || 
+        roleName.toLowerCase().includes('accountant') || 
+        roleName.toLowerCase().includes('clerk') || 
+        roleName.toLowerCase().includes('bursar') || 
+        roleName.toLowerCase().includes('secretary') ||
+        roleName.toLowerCase().includes('staff')
+      ) {
+        roleName = 'Support & Operations';
+      } else {
+        roleName = u.role;
+      }
+      counts[roleName] = (counts[roleName] || 0) + 1;
+    });
+
+    const ROLE_COLORS: Record<string, string> = {
+      'Admin & Leadership': '#2563eb',
+      'Teachers': '#10b981',
+      'Support & Operations': '#f59e0b',
+      'Super Admin': '#1d4ed8',
+      'Admin': '#3b82f6',
+      'Class Teacher': '#059669',
+      'Subject Teacher': '#34d399',
+      'Support Staff': '#f59e0b',
+    };
+
+    const PALETTE = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#64748b'];
+
+    return Object.entries(counts).map(([name, value], idx) => ({
+      name,
+      value,
+      color: ROLE_COLORS[name] || PALETTE[idx % PALETTE.length]
+    }));
+  }, [staffMembers]);
+
   return (
     <div className="space-y-6 relative">
       
@@ -560,6 +619,141 @@ Here are your official credentials to access the platform:
               >
                 <Plus className="w-4 h-4" /> Add Staff Member
               </button>
+            </div>
+
+            {/* STAFF ROLE DISTRIBUTION DONUT CHART & ANALYTICS HEADER */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 text-white p-6 rounded-3xl shadow-xl border border-slate-700/60">
+              
+              {/* Left: Summary Metrics */}
+              <div className="lg:col-span-5 flex flex-col justify-between space-y-4 border-b lg:border-b-0 lg:border-r border-slate-700/70 pb-5 lg:pb-0 lg:pr-6">
+                <div className="space-y-1.5">
+                  <div className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">
+                    <PieChartIcon className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Staff Analytics</span>
+                  </div>
+                  <h2 className="text-lg font-black text-white tracking-tight">Role Distribution</h2>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Live breakdown of staff account designations, access levels, and active personnel across departments.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5 pt-1">
+                  <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-3 space-y-0.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Staff</span>
+                    <div className="text-xl font-black text-white">{staffMembers.length}</div>
+                    <span className="text-[10px] text-blue-400 font-semibold">Registered Accounts</span>
+                  </div>
+
+                  <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-3 space-y-0.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Status</span>
+                    <div className="text-xl font-black text-emerald-400">{activeStaffCount}</div>
+                    <span className="text-[10px] text-emerald-300 font-semibold">
+                      {staffMembers.length > 0 ? `${Math.round((activeStaffCount / staffMembers.length) * 100)}% Active` : '0%'}
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-3 space-y-0.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Inactive</span>
+                    <div className="text-xl font-black text-amber-400">{inactiveStaffCount}</div>
+                    <span className="text-[10px] text-amber-300 font-semibold">Deactivated Staff</span>
+                  </div>
+
+                  <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-3 space-y-0.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Role Groups</span>
+                    <div className="text-xl font-black text-indigo-400">{roleDistributionData.length}</div>
+                    <span className="text-[10px] text-indigo-300 font-semibold">Designations</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Recharts Donut Chart */}
+              <div className="lg:col-span-7 flex flex-col sm:flex-row items-center justify-center gap-6 min-h-[200px]">
+                {roleDistributionData.length > 0 ? (
+                  <>
+                    {/* Donut Canvas */}
+                    <div className="relative w-44 h-44 shrink-0 flex items-center justify-center">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={roleDistributionData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={50}
+                            outerRadius={75}
+                            paddingAngle={4}
+                            dataKey="value"
+                            stroke="#0f172a"
+                            strokeWidth={2}
+                          >
+                            {roleDistributionData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            content={({ active, payload }: any) => {
+                              if (active && payload && payload.length) {
+                                const data = payload[0].payload;
+                                const total = staffMembers.length || 1;
+                                const pct = Math.round((data.value / total) * 100);
+                                return (
+                                  <div className="bg-slate-950 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-2xl border border-slate-700">
+                                    <div className="flex items-center gap-2">
+                                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: data.color }} />
+                                      <span className="font-bold">{data.name}:</span>
+                                    </div>
+                                    <div className="text-blue-400 font-black mt-0.5 text-sm">
+                                      {data.value} member{data.value > 1 ? 's' : ''} ({pct}%)
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      {/* Donut Center text */}
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                        <span className="text-2xl font-black text-white leading-none">{staffMembers.length}</span>
+                        <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-400 mt-0.5">Staff</span>
+                      </div>
+                    </div>
+
+                    {/* Donut Legend */}
+                    <div className="flex-1 space-y-2 w-full">
+                      <div className="text-xs font-bold text-slate-300 border-b border-slate-700/80 pb-1.5 flex justify-between items-center">
+                        <span>Role Breakdown</span>
+                        <span className="text-[11px] text-slate-400 font-normal">{staffMembers.length} Total</span>
+                      </div>
+                      <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                        {roleDistributionData.map((item) => {
+                          const total = staffMembers.length || 1;
+                          const percentage = Math.round((item.value / total) * 100);
+                          return (
+                            <div key={item.name} className="flex items-center justify-between text-xs bg-slate-800/50 p-2 rounded-xl border border-slate-700/50 hover:bg-slate-800 transition-all">
+                              <div className="flex items-center gap-2 truncate">
+                                <span className="w-3 h-3 rounded-full shrink-0 shadow-sm" style={{ backgroundColor: item.color }} />
+                                <span className="font-semibold text-slate-200 truncate">{item.name}</span>
+                              </div>
+                              <div className="flex items-center gap-2.5 shrink-0">
+                                <span className="text-slate-300 font-bold">{item.value}</span>
+                                <span className="font-black text-[11px] px-2 py-0.5 rounded-md bg-slate-700/70 text-blue-300">
+                                  {percentage}%
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-6 text-slate-400 text-xs">
+                    No staff records found.
+                  </div>
+                )}
+              </div>
+
             </div>
 
             {/* RBAC EXPLANATION BANNER */}
