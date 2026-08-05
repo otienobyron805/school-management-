@@ -7,15 +7,41 @@
       "id": "u1",
       "username": "otienobyron805@gmail.com",
       "fullName": "Byron Gondi",
-      "role": "Super Admin"
+      "role": "Super Admin",
+      "created": "2026-08-05",
+      "status": "Active",
+      "password": null,
+      "staffNo": null,
+      "nationalId": null,
+      "phone": null,
+      "email": null,
+      "empDate": null,
+      "designatedRole": null,
+      "department": null,
+      "systemRole": null,
+      "adminOverride": false,
+      "permissions": [],
+      "createdAt": "2026-08-05T15:55:16.653Z"
     },
     {
       "id": "u_test_123",
       "username": "teacher1",
       "fullName": "Jane Doe",
       "role": "Teacher",
+      "created": "2026-08-05",
+      "status": "Active",
+      "password": null,
       "staffNo": "ST-101",
-      "status": "Active"
+      "nationalId": null,
+      "phone": null,
+      "email": null,
+      "empDate": null,
+      "designatedRole": null,
+      "department": null,
+      "systemRole": null,
+      "adminOverride": false,
+      "permissions": [],
+      "createdAt": "2026-08-05T15:55:16.653Z"
     }
   ],
   "attendance_sheets": [],
@@ -901,6 +927,15 @@
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
       "createdAt": "2026-07-27T04:09:29.856Z"
+    }
+  ],
+  "fee_payments": [],
+  "exams": [
+    {
+      "id": "e101",
+      "examName": "Term 1 Mid-Term 2026",
+      "academicYear": "2026",
+      "term": "Term 1"
     }
   ]
 }

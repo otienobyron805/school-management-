@@ -100,6 +100,14 @@ async function syncSQLToServerStore() {
       if (sqlStaffAttendance && sqlStaffAttendance.length > 0) {
         serverStore.staff_attendance_sheets = sqlStaffAttendance;
       }
+
+      const sqlProfile = await db.select().from(schema.dbSchoolProfile);
+      if (sqlProfile && sqlProfile.length > 0) {
+        const profDoc = sqlProfile.find((p: any) => p.key === 'school_profile');
+        if (profDoc && profDoc.data) {
+          serverStore.school_profile = profDoc.data;
+        }
+      }
     } catch (sqlErr) {
       console.warn("Error hydrating serverStore from SQL:", sqlErr);
     }
@@ -356,6 +364,16 @@ async function startServer() {
           { key: 'exams', col: 'school_exams', isArray: false },
           { key: 'exam_marks', col: 'school_exam_marks', isArray: false },
           { key: 'subject_papers', col: 'school_subject_papers', isArray: false },
+          { key: 'system_settings', col: 'school_system_settings', isArray: false },
+          { key: 'attendance_settings', col: 'school_attendance_settings', isArray: false },
+          { key: 'teachers_on_duty', col: 'school_teachers_on_duty', isArray: false },
+          { key: 'gate_logs', col: 'school_gate_logs', isArray: true },
+          { key: 'fee_structures', col: 'school_fee_structures', isArray: true },
+          { key: 'fee_payments', col: 'school_fee_payments', isArray: true },
+          { key: 'term_reports', col: 'school_term_reports', isArray: false },
+          { key: 'role_permissions', col: 'school_role_permissions_matrix_v1', isArray: false },
+          { key: 'whatsapp_templates', col: 'school_whatsapp_templates', isArray: false },
+          { key: 'exam_submission_statuses', col: 'school_exam_submission_statuses', isArray: false },
         ];
         
         const data: Record<string, any> = {};
@@ -395,9 +413,19 @@ async function startServer() {
         subject_enrollments: serverStore.subject_enrollments || null,
         subject_assignments: serverStore.subject_assignments || null,
         class_teacher_assignments: serverStore.class_teacher_assignments || null,
-        exams: serverStore.exams || null,
-        exam_marks: serverStore.school_exam_marks || null,
-        subject_papers: serverStore.subject_papers || null,
+        exams: serverStore.exams || serverStore.school_exams || null,
+        exam_marks: serverStore.school_exam_marks || serverStore.exam_marks || null,
+        subject_papers: serverStore.subject_papers || serverStore.school_subject_papers || null,
+        system_settings: serverStore.system_settings || serverStore.school_system_settings || null,
+        attendance_settings: serverStore.attendance_settings || serverStore.school_attendance_settings || null,
+        teachers_on_duty: serverStore.teachers_on_duty || serverStore.school_teachers_on_duty || null,
+        gate_logs: serverStore.gate_logs || serverStore.school_gate_logs || [],
+        fee_structures: serverStore.fee_structures || serverStore.school_fee_structures || [],
+        fee_payments: serverStore.fee_payments || serverStore.school_fee_payments || [],
+        term_reports: serverStore.term_reports || serverStore.school_term_reports || null,
+        role_permissions: serverStore.role_permissions || serverStore.school_role_permissions_matrix_v1 || null,
+        whatsapp_templates: serverStore.whatsapp_templates || serverStore.school_whatsapp_templates || null,
+        exam_submission_statuses: serverStore.exam_submission_statuses || serverStore.school_exam_submission_statuses || null,
       }
     });
   });

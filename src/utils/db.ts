@@ -2,13 +2,56 @@ import { ActivityEvent } from '../types';
 import { addAlertLog } from './alerts';
 
 
+const pendingChangesSet = new Set<string>();
+
+export function getPendingChangesCount(): number {
+  return pendingChangesSet.size;
+}
+
+export function getPendingChangesTables(): string[] {
+  return Array.from(pendingChangesSet);
+}
+
+function notifyPendingChanges() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('pending_changes_updated', {
+      detail: {
+        pendingCount: pendingChangesSet.size,
+        pendingTables: Array.from(pendingChangesSet)
+      }
+    }));
+  }
+}
+
+export function markPendingChange(table: string) {
+  if (!table || isSyncingFromServer) return;
+  pendingChangesSet.add(table);
+  notifyPendingChanges();
+}
+
+export function clearPendingChange(table: string) {
+  pendingChangesSet.delete(table);
+  notifyPendingChanges();
+}
+
+export function clearAllPendingChanges() {
+  pendingChangesSet.clear();
+  notifyPendingChanges();
+}
+
 async function saveToCloud(table: string, data: any): Promise<void> {
+  if (!table) return;
+  markPendingChange(table);
   try {
-    await fetch('/api/save', {
+    const res = await fetch('/api/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ table, data })
     });
+    const json = await res.json();
+    if (json && json.success) {
+      clearPendingChange(table);
+    }
   } catch (e) {
     console.warn('Error saving to server:', e);
   }
@@ -811,7 +854,17 @@ export function getSubjectEnrollments(): Record<string, string[]> {
 }
 
 export function saveSubjectEnrollments(enrollments: Record<string, string[]>): void {
-  secureSet('subject_enrollments', JSON.stringify(enrollments));
+  const serialized = JSON.stringify(enrollments);
+  secureSet('subject_enrollments', serialized);
+  secureSet('school_subject_enrollments', serialized);
+  saveToBackend('subject_enrollments', enrollments);
+  try {
+    const current = getCurrentUser();
+    logActivity('general_change', 'Updated subject enrollments mapping', current?.fullName || 'System');
+  } catch (err) {}
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('db_updated'));
+  }
 }
 
 export interface GradingRule {
@@ -835,7 +888,7 @@ const DEFAULT_GRADING_RULES: GradingRule[] = [
 ];
 
 export function getGradingRules(): GradingRule[] {
-  const data = secureGet('school_grading_rules');
+  const data = secureGet('school_grading_rules') || secureGet('grading_rules');
   if (!data) {
     secureSet('school_grading_rules', JSON.stringify(DEFAULT_GRADING_RULES));
     return DEFAULT_GRADING_RULES;
@@ -844,16 +897,106 @@ export function getGradingRules(): GradingRule[] {
 }
 
 export function saveGradingRules(rules: GradingRule[]): void {
-  secureSet('school_grading_rules', JSON.stringify(rules));
+  const serialized = JSON.stringify(rules);
+  secureSet('school_grading_rules', serialized);
+  secureSet('grading_rules', serialized);
+  saveToBackend('grading_rules', rules);
+  try {
+    const current = getCurrentUser();
+    logActivity('general_change', 'Updated grading system rules', current?.fullName || 'System');
+  } catch (err) {}
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('db_updated'));
+  }
 }
 
 export function getSubjectPapers(): SubjectPaper[] {
-  const data = secureGet('school_subject_papers');
+  const data = secureGet('school_subject_papers') || secureGet('subject_papers');
   return data ? JSON.parse(data) : [];
 }
 
 export function saveSubjectPapers(papers: SubjectPaper[]): void {
-  secureSet('school_subject_papers', JSON.stringify(papers));
+  const serialized = JSON.stringify(papers);
+  secureSet('school_subject_papers', serialized);
+  secureSet('subject_papers', serialized);
+  saveToBackend('subject_papers', papers);
+  try {
+    const current = getCurrentUser();
+    logActivity('general_change', 'Updated subject paper configurations', current?.fullName || 'System');
+  } catch (err) {}
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('db_updated'));
+  }
+}
+
+export interface Exam {
+  id: string;
+  name?: string;
+  examName?: string;
+  year?: string;
+  academicYear?: string;
+  term: string;
+  subjects?: number;
+  created?: string;
+  examDate?: string;
+  openingDate?: string;
+  closingDate?: string;
+}
+
+export function getExams(): Exam[] {
+  const data = secureGet('exams') || secureGet('school_exams');
+  return data ? JSON.parse(data) : [];
+}
+
+export function saveExams(exams: Exam[]): void {
+  const serialized = JSON.stringify(exams);
+  secureSet('exams', serialized);
+  secureSet('school_exams', serialized);
+  saveToBackend('exams', exams);
+  try {
+    const current = getCurrentUser();
+    logActivity('general_change', `Updated exam catalog (${exams.length} exams)`, current?.fullName || 'System');
+  } catch (err) {}
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('db_updated'));
+  }
+}
+
+export function getExamMarks(): any[] {
+  const data = secureGet('school_exam_marks') || secureGet('exam_marks') || secureGet('marks');
+  return data ? JSON.parse(data) : [];
+}
+
+export function saveExamMarks(marks: any): void {
+  const serialized = typeof marks === 'string' ? marks : JSON.stringify(marks);
+  secureSet('school_exam_marks', serialized);
+  secureSet('exam_marks', serialized);
+  secureSet('marks', serialized);
+  const parsed = typeof marks === 'string' ? JSON.parse(marks) : marks;
+  saveToBackend('school_exam_marks', parsed);
+  try {
+    const current = getCurrentUser();
+    const count = Array.isArray(parsed) ? parsed.length : Object.keys(parsed).length;
+    logActivity('general_change', `Saved ${count} exam mark records`, current?.fullName || 'System');
+  } catch (err) {}
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('db_updated'));
+  }
+}
+
+export function getExamSubmissionStatuses(): Record<string, any> {
+  const data = secureGet('school_exam_submission_statuses') || secureGet('exam_submission_statuses');
+  return data ? JSON.parse(data) : {};
+}
+
+export function saveExamSubmissionStatuses(statuses: Record<string, any>): void {
+  const serialized = JSON.stringify(statuses);
+  secureSet('school_exam_submission_statuses', serialized);
+  secureSet('exam_submission_statuses', serialized);
+  saveToBackend('exam_submission_statuses', statuses);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('db_updated'));
+  }
 }
 
 export interface UserAccount {
@@ -1086,12 +1229,12 @@ const DEFAULT_SCHOOL_PROFILE: SchoolProfile = {
 export function getSchoolProfile(): SchoolProfile {
   const data = secureGet('school_profile');
   if (!data) {
-    secureSet('school_profile', JSON.stringify(DEFAULT_SCHOOL_PROFILE), { skipCloud: true });
     return DEFAULT_SCHOOL_PROFILE;
   }
   try {
-    const parsed = JSON.parse(data);
-    const profile = { ...DEFAULT_SCHOOL_PROFILE, ...parsed };
+    const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+    const { _id, syncedAt, ...rest } = parsed;
+    const profile = { ...DEFAULT_SCHOOL_PROFILE, ...rest };
     
     // Migration: ensure currentTerm includes the current year if it's just 'Term X'
     const currentYear = new Date().getFullYear().toString();
@@ -1107,10 +1250,16 @@ export function getSchoolProfile(): SchoolProfile {
 }
 
 export function saveSchoolProfile(profile: SchoolProfile): void {
-  secureSet('school_profile', JSON.stringify(profile));
+  const serialized = JSON.stringify(profile);
+  secureSet('school_profile', serialized);
   saveToBackend('school_profile', profile);
+  try {
+    const current = getCurrentUser();
+    logActivity('general_change', 'Updated school profile information', current?.fullName || 'System');
+  } catch (err) {}
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('db_updated'));
+    window.dispatchEvent(new Event('storage'));
   }
 }
 
@@ -1150,12 +1299,22 @@ export interface StaffAttendanceSheet {
 }
 
 export function getStaffAttendanceSheets(): StaffAttendanceSheet[] {
-  const data = secureGet('school_staff_attendance_sheets');
+  const data = secureGet('school_staff_attendance_sheets') || secureGet('staff_attendance_sheets');
   return data ? JSON.parse(data) : [];
 }
 
 export function saveStaffAttendanceSheets(sheets: StaffAttendanceSheet[]): void {
-  secureSet('school_staff_attendance_sheets', JSON.stringify(sheets));
+  const serialized = JSON.stringify(sheets);
+  secureSet('school_staff_attendance_sheets', serialized);
+  secureSet('staff_attendance_sheets', serialized);
+  saveToBackend('staff_attendance_sheets', sheets);
+  try {
+    const current = getCurrentUser();
+    logActivity('general_change', `Updated staff attendance sheets (${sheets.length} records)`, current?.fullName || 'System');
+  } catch (err) {}
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('db_updated'));
+  }
 }
 
 export interface Holiday {
@@ -1172,40 +1331,77 @@ export interface Term {
 }
 
 export function getHolidays(): Holiday[] {
-  const data = secureGet('school_holidays');
+  const data = secureGet('school_holidays') || secureGet('holidays');
   return data ? JSON.parse(data) : [];
 }
 
 export function saveHolidays(holidays: Holiday[]): void {
-  secureSet('school_holidays', JSON.stringify(holidays));
+  const serialized = JSON.stringify(holidays);
+  secureSet('school_holidays', serialized);
+  secureSet('holidays', serialized);
+  saveToBackend('holidays', holidays);
+  try {
+    const current = getCurrentUser();
+    logActivity('general_change', `Updated school holidays schedule (${holidays.length} holidays)`, current?.fullName || 'System');
+  } catch (err) {}
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('db_updated'));
+  }
 }
 
 export function getTerms(): Term[] {
-  const data = secureGet('school_terms');
+  const data = secureGet('school_terms') || secureGet('terms');
   const items = data ? JSON.parse(data) : [];
   return sortList(items, 'term');
 }
 
 export function saveTerms(terms: Term[]): void {
-  secureSet('school_terms', JSON.stringify(terms));
+  const serialized = JSON.stringify(terms);
+  secureSet('school_terms', serialized);
+  secureSet('terms', serialized);
+  saveToBackend('terms', terms);
+  try {
+    const current = getCurrentUser();
+    logActivity('general_change', 'Updated academic term calendar', current?.fullName || 'System');
+  } catch (err) {}
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('db_updated'));
+  }
 }
 
 export function getMessages(): Message[] {
-  const data = secureGet('school_messages');
+  const data = secureGet('school_messages') || secureGet('messages');
   return data ? JSON.parse(data) : [];
 }
 
 export function saveMessages(messages: Message[]): void {
-  secureSet('school_messages', JSON.stringify(messages));
+  const serialized = JSON.stringify(messages);
+  secureSet('school_messages', serialized);
+  secureSet('messages', serialized);
+  saveToBackend('messages', messages);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('db_updated'));
+  }
 }
 
 export function getAttendanceSheets(): AttendanceSheet[] {
-  const data = secureGet('school_attendance_sheets');
+  const data = secureGet('school_attendance_sheets') || secureGet('attendance_sheets') || secureGet('attendance');
   return data ? JSON.parse(data) : [];
 }
 
 export function saveAttendanceSheets(sheets: AttendanceSheet[]): void {
-  secureSet('school_attendance_sheets', JSON.stringify(sheets));
+  const serialized = JSON.stringify(sheets);
+  secureSet('school_attendance_sheets', serialized);
+  secureSet('attendance_sheets', serialized);
+  secureSet('attendance', serialized);
+  saveToBackend('attendance_sheets', sheets);
+  try {
+    const current = getCurrentUser();
+    logActivity('general_change', `Updated learner attendance sheets (${sheets.length} records)`, current?.fullName || 'System');
+  } catch (err) {}
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('db_updated'));
+  }
 }
 
 // Offline-ready persistence helpers
@@ -1537,23 +1733,28 @@ export async function synchronizeWithMongoDB(force: boolean = false): Promise<bo
     if (force) {
       // If forcing a fresh sync, we only pull. We don't push local data to avoid overwriting cloud.
     } else {
-      // Push key local tables to server to ensure any offline changes are saved
-      const tablesToPush = ['learners', 'grades', 'subjects', 'users', 'exam_marks', 'attendance_sheets', 'fee_payments', 'subject_assignments', 'grading_rules', 'school_profile'];
-      await Promise.allSettled(tablesToPush.map(async (t) => {
-        const localVal = secureGet(t) || secureGet(`school_${t}`);
-        if (localVal) {
-          try {
-            const parsed = typeof localVal === 'string' ? JSON.parse(localVal) : localVal;
-            await saveToCloud(t, parsed);
-          } catch (e) {
-            // ignore
+      // Push only pending local tables to server to ensure offline changes are saved safely
+      const pendingTables = getPendingChangesTables();
+      if (pendingTables.length > 0) {
+        await Promise.allSettled(pendingTables.map(async (t) => {
+          const localVal = secureGet(t) || secureGet(`school_${t}`);
+          if (localVal) {
+            try {
+              const parsed = typeof localVal === 'string' ? JSON.parse(localVal) : localVal;
+              await saveToCloud(t, parsed);
+            } catch (e) {
+              // ignore
+            }
           }
-        }
-      }));
+        }));
+      }
     }
 
     isInitialCloudPullCompleted = true;
-    secureSet('school_last_sync_time', new Date().toISOString(), { skipCloud: true });
+    clearAllPendingChanges();
+    const nowIso = new Date().toISOString();
+    secureSet('school_last_sync_time', nowIso, { skipCloud: true });
+    secureSet('last_cloud_sync_time', new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), { skipCloud: true });
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('db_updated'));
       window.dispatchEvent(new Event('storage'));
@@ -1919,6 +2120,19 @@ export function getAllStateForSnapshot(): Record<string, any> {
     snapshot['school_user_accounts'] = getUsers();
     snapshot['school_profile'] = getSchoolProfile();
     snapshot['school_messages'] = getMessages();
+    snapshot['exams'] = getExams();
+    snapshot['school_exam_marks'] = getExamMarks();
+    snapshot['school_subject_papers'] = getSubjectPapers();
+    snapshot['school_grading_rules'] = getGradingRules();
+    snapshot['subject_enrollments'] = getSubjectEnrollments();
+    snapshot['subject_assignments_list'] = getSubjectAssignments();
+    snapshot['class_teacher_assignments_list'] = getClassTeacherAssignments();
+    snapshot['school_attendance_sheets'] = getAttendanceSheets();
+    snapshot['school_staff_attendance_sheets'] = getStaffAttendanceSheets();
+    snapshot['school_holidays'] = getHolidays();
+    snapshot['school_terms'] = getTerms();
+    snapshot['school_schemes_of_work'] = getSchemesOfWork();
+    snapshot['school_gate_logs'] = getGateLogs();
   } catch (e) {
     console.error('Error gathering core datasets for snapshot:', e);
   }
@@ -1932,7 +2146,9 @@ export function getAllStateForSnapshot(): Record<string, any> {
     'school_whatsapp_templates_v1',
     'school_tod_roster_v1',
     'school_tod_logs_v1',
-    'system_settings'
+    'system_settings',
+    'exam_submission_statuses',
+    'term_reports'
   ];
 
   for (const key of auxiliaryKeys) {
