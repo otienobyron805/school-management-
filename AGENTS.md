@@ -19,3 +19,6 @@ You can add custom rules, restrictions, and operational guidelines here. These i
   5. Print exams and report cards
   6. Super Admin can delete items in the software
 
+## Operational Rules
+- **Commit History**: ALWAYS call `logActivity('general_change', 'message', 'user')` from `src/utils/db.ts` after making ANY major code change or feature update, to ensure the Activity Feed reflects the change history.
+

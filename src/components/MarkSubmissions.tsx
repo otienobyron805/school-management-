@@ -7,7 +7,7 @@ import {
 import { 
   secureGet, secureSet, getLearners, getGrades, getSubjects, getGradingRules, 
   getSubjectAssignments, getSubjectPapers, Learner, Grade, Subject, GradingRule, SubjectPaper,
-  getCurrentUser, logTeacherAction
+  getCurrentUser, logTeacherAction, logActivity
 } from '../utils/db';
 
 interface ExamMark {
@@ -58,10 +58,34 @@ export default function MarkSubmissions() {
   const [scannedBlanks, setScannedBlanks] = useState<boolean>(false);
   const [checkedAbsentLearners, setCheckedAbsentLearners] = useState<Set<string>>(new Set());
 
+  // Draft autosave states
+  const [draftLastSaved, setDraftLastSaved] = useState<string | null>(null);
+  const [hasRestoredDraft, setHasRestoredDraft] = useState<boolean>(false);
+
   // UI toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Load baseline DB values
+  // Helper to persist draft scores automatically
+  const persistDraft = (scoresToSave: Record<string, Record<string, number | ''>>) => {
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const activeExam = selectedExamId === 'all' ? (exams[0]?.id || '') : selectedExamId;
+    secureSet('mark_submissions_draft', JSON.stringify({
+      gridScores: scoresToSave,
+      examId: activeExam,
+      gradeId: selectedGradeId,
+      timestamp: timeStr
+    }));
+    setDraftLastSaved(timeStr);
+  };
+
+  const handleClearDraft = () => {
+    secureSet('mark_submissions_draft', '');
+    setDraftLastSaved(null);
+    setHasRestoredDraft(false);
+    triggerToast('Autosaved draft cleared.');
+  };
+
+  // Load baseline DB values & check for autosaved draft
   useEffect(() => {
     const loadedExams = secureGet('exams') ? JSON.parse(secureGet('exams')!) : [];
     setExams(loadedExams);
@@ -90,6 +114,21 @@ export default function MarkSubmissions() {
     const storedSubStatuses = secureGet('exam_submission_statuses');
     if (storedSubStatuses) {
       setSubmissionStatuses(JSON.parse(storedSubStatuses));
+    }
+
+    // Check for existing draft autosave
+    const storedDraft = secureGet('mark_submissions_draft');
+    if (storedDraft) {
+      try {
+        const parsedDraft = JSON.parse(storedDraft);
+        if (parsedDraft?.gridScores && Object.keys(parsedDraft.gridScores).length > 0) {
+          setGridScores(parsedDraft.gridScores);
+          setDraftLastSaved(parsedDraft.timestamp || 'Recent session');
+          setHasRestoredDraft(true);
+        }
+      } catch (e) {
+        console.error('Error loading draft', e);
+      }
     }
   }, []);
 
@@ -284,8 +323,11 @@ export default function MarkSubmissions() {
     const combined = [...otherMarks, ...newRecords];
     setSavedMarks(combined);
     secureSet('school_exam_marks', JSON.stringify(combined));
+    secureSet('mark_submissions_draft', '');
+    setDraftLastSaved(null);
+    setHasRestoredDraft(false);
     
-    // Log audit action
+    // Log audit action & Activity Feed history
     const user = getCurrentUser();
     await logTeacherAction(
       user?.id || 'unknown',
@@ -293,6 +335,7 @@ export default function MarkSubmissions() {
       'Saved Marks',
       { examId: activeExam, gradeId: selectedGradeId, count: newRecords.length }
     );
+    await logActivity('general_change', `Saved ${newRecords.length} exam mark records to database`, user?.fullName || 'Teacher');
     
     triggerToast('All class scores saved successfully!');
   };
@@ -321,7 +364,8 @@ export default function MarkSubmissions() {
     });
 
     setGridScores(updatedScores);
-    triggerToast('Generated realistic sample scores for visible subjects!');
+    persistDraft(updatedScores);
+    triggerToast('Generated realistic sample scores and autosaved draft!');
   };
 
   const handleClearMarks = () => {
@@ -336,7 +380,8 @@ export default function MarkSubmissions() {
         updatedScores[l.id] = {};
       });
       setGridScores(updatedScores);
-      triggerToast('Scores cleared in memory. Remember to Save.');
+      handleClearDraft();
+      triggerToast('Scores cleared in memory and draft reset.');
     }
   };
 
@@ -361,19 +406,20 @@ export default function MarkSubmissions() {
 
   const handleGridScoreChange = (learnerId: string, subjectCode: string, val: string, paperId?: string) => {
     const key = paperId ? `${subjectCode}_${paperId}` : subjectCode;
-    if (val === '') {
-      setGridScores(prev => ({
-        ...prev,
-        [learnerId]: { ...(prev[learnerId] || {}), [key]: '' }
-      }));
-      return;
+    let newScore: number | '' = '';
+    if (val !== '') {
+      const num = parseInt(val, 10);
+      if (isNaN(num) || num < 0 || num > 100) return;
+      newScore = num;
     }
-    const num = parseInt(val, 10);
-    if (isNaN(num) || num < 0 || num > 100) return;
-    setGridScores(prev => ({
-      ...prev,
-      [learnerId]: { ...(prev[learnerId] || {}), [key]: num }
-    }));
+    setGridScores(prev => {
+      const next = {
+        ...prev,
+        [learnerId]: { ...(prev[learnerId] || {}), [key]: newScore }
+      };
+      persistDraft(next);
+      return next;
+    });
   };
 
   const handleScanBlanks = () => {
@@ -668,6 +714,34 @@ export default function MarkSubmissions() {
       ) : (
         /* Score Entry Grid View */
         <div className="space-y-6">
+
+          {/* Autosave Draft Notification Banner */}
+          {draftLastSaved && (
+            <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-amber-900 shadow-sm animate-fade-in">
+              <div className="flex items-center gap-2.5">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                </span>
+                <div>
+                  <span className="font-extrabold text-amber-950">Draft Autosave Active:</span>{' '}
+                  <span className="font-medium">
+                    {hasRestoredDraft ? 'Restored saved draft from previous session (' : 'Last autosaved at '}
+                    <strong>{draftLastSaved}</strong>{hasRestoredDraft ? ')' : ''}. Progress is preserved if you navigate away.
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={handleClearDraft}
+                  className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-950 rounded-xl font-extrabold text-[11px] transition cursor-pointer border border-amber-300/60"
+                >
+                  Clear Draft
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-700 flex items-center gap-2">

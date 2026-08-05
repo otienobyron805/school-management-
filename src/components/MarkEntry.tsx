@@ -15,6 +15,7 @@ interface MarkEntryRecord {
   learnerId: string;
   subject: string;
   mark: number | null;
+  rawInput: string;
 }
 
 // ===== FULL MARK ENTRY COMPONENT =====
@@ -88,7 +89,10 @@ const MarkEntry: React.FC = () => {
 
   // ✅ UPDATE MARK AS USER TYPES
   const handleMarkChange = (learnerId: string, inputValue: string) => {
-    const value = inputValue.trim() === '' ? null : Math.min(100, Math.max(0, Number(inputValue)));
+    const numValue = Number(inputValue);
+    const isNumeric = inputValue.trim() !== '' && !isNaN(numValue);
+    const isValidRange = isNumeric && numValue >= 0 && numValue <= 100;
+    
     const markKey = `${learnerId}-${selectedSubject}`;
 
     setMarks(prev => ({
@@ -96,7 +100,8 @@ const MarkEntry: React.FC = () => {
       [markKey]: {
         learnerId,
         subject: selectedSubject,
-        mark: value,
+        mark: isNumeric && isValidRange ? numValue : null,
+        rawInput: inputValue
       },
     }));
   };
@@ -190,7 +195,12 @@ const MarkEntry: React.FC = () => {
               <tbody className="divide-y divide-slate-100">
                 {registeredLearners.map((learner: Learner) => {
                   const markKey = `${learner.id}-${selectedSubject}`;
-                  const currentMark = marks[markKey]?.mark ?? '';
+                  const record = marks[markKey];
+                  const rawInput = record?.rawInput ?? '';
+                  
+                  // Validation
+                  const numValue = Number(rawInput);
+                  const isInvalid = rawInput !== '' && (isNaN(numValue) || numValue < 0 || numValue > 100);
 
                   return (
                     <tr key={learner.id} className="hover:bg-blue-50/50 transition-colors">
@@ -199,12 +209,14 @@ const MarkEntry: React.FC = () => {
                       <td className="px-5 py-3 text-slate-600 font-medium">{learner.stream || 'A'}</td>
                       <td className="px-5 py-3 text-center">
                         <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={currentMark}
+                          type="text"
+                          value={rawInput}
                           onChange={(e) => handleMarkChange(learner.id, e.target.value)}
-                          className="w-24 px-3 py-1.5 border-2 border-slate-200 focus:border-blue-600 rounded-xl text-center font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                          className={`w-24 px-3 py-1.5 border-2 rounded-xl text-center font-bold text-slate-900 focus:outline-none focus:ring-2 transition-all ${
+                            isInvalid 
+                              ? 'border-red-500 bg-red-50 ring-2 ring-red-500/20' 
+                              : 'border-slate-200 focus:border-blue-600 focus:ring-blue-500/20'
+                          }`}
                           placeholder="—"
                         />
                       </td>

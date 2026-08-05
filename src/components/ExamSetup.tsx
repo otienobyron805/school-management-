@@ -4,7 +4,7 @@ import {
   GraduationCap, BookOpen, Scale, Plus, Settings, ListChecks, 
   Edit3, X, Trash2, Save
 } from 'lucide-react';
-import { getGrades, getSubjects, Grade, Subject, getSubjectPapers, saveSubjectPapers, SubjectPaper } from '../utils/db';
+import { getGrades, getSubjects, Grade, Subject, getSubjectPapers, saveSubjectPapers, SubjectPaper, secureGet, secureSet } from '../utils/db';
 import { canDelete } from '../utils/permissions';
 
 export default function ExamSetup() {
@@ -24,9 +24,18 @@ export default function ExamSetup() {
   const [editingPaperId, setEditingPaperId] = useState<string | null>(null);
 
   useEffect(() => {
+    const savedSubjects = secureGet('exam_subjects');
+    if (savedSubjects) {
+      setAddedSubjects(JSON.parse(savedSubjects));
+    }
     setGrades(getGrades());
     setSubjects(getSubjects());
   }, []);
+
+  const saveAddedSubjects = (subjects: typeof addedSubjects) => {
+    setAddedSubjects(subjects);
+    secureSet('exam_subjects', JSON.stringify(subjects));
+  };
 
   const togglePaperSetup = (subjectName?: string) => {
     setSelectedSubject(subjectName || null);
@@ -52,13 +61,13 @@ export default function ExamSetup() {
     if (!selectedGradeId || !selectedSubjectId) return;
     const gradeName = grades.find(g => g.id === selectedGradeId)?.name || 'Unknown';
     const subjectName = subjects.find(s => s.id === selectedSubjectId)?.name || 'Unknown';
-    setAddedSubjects([...addedSubjects, { id: Date.now().toString(), grade: gradeName, subject: subjectName, maxMarks }]);
+    saveAddedSubjects([...addedSubjects, { id: Date.now().toString(), grade: gradeName, subject: subjectName, maxMarks }]);
     setSelectedGradeId('');
     setSelectedSubjectId('');
   };
 
   const removeSubject = (id: string) => {
-    setAddedSubjects(addedSubjects.filter(s => s.id !== id));
+    saveAddedSubjects(addedSubjects.filter(s => s.id !== id));
   };
 
   // Paper Handlers

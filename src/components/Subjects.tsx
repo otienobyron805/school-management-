@@ -54,6 +54,7 @@ export default function Subjects() {
   const [searchFilter, setSearchFilter] = useState<string>('');
   const [appliedStreamFilter, setAppliedStreamFilter] = useState<string>('all');
   const [appliedSearchFilter, setAppliedSearchFilter] = useState<string>('');
+  const [highlightedLearnerId, setHighlightedLearnerId] = useState<string | null>(null);
 
   // Toast notifications
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -237,6 +238,7 @@ export default function Subjects() {
 
   const manageLearners = (subject: Subject) => {
     setActiveEnrollmentSubject(subject);
+    setLearners(getLearners());
     // Reset filters for learner view
     setStreamFilter('all');
     setSearchFilter('');
@@ -246,7 +248,7 @@ export default function Subjects() {
     if (subject.grades && subject.grades.length > 0) {
       setActiveGradeTab(subject.grades[0]);
     } else {
-      setActiveGradeTab(8);
+      setActiveGradeTab(1);
     }
   };
 
@@ -299,6 +301,9 @@ export default function Subjects() {
       updatedEnrolled = [...subjectEnrolledIds, learnerId];
       triggerToast(`Learner ${admNo} added`);
     }
+
+    setHighlightedLearnerId(learnerId);
+    setTimeout(() => setHighlightedLearnerId(null), 1000);
 
     const nextEnrollments = { ...enrollments, [currentSubjectId]: updatedEnrolled };
     saveEnrollmentsAndSyncLearners(nextEnrollments);
@@ -536,7 +541,7 @@ export default function Subjects() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {shownLearners.length === 0 ? (
+              {shownLearners.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="py-12 text-center text-slate-400 font-medium">
                       No learners match the selected filters for Grade {activeGradeTab}.
@@ -545,8 +550,9 @@ export default function Subjects() {
                 ) : (
                   shownLearners.map(learner => {
                     const isEnrolled = enrolledIds.includes(learner.id);
+                    const isHighlighted = highlightedLearnerId === learner.id;
                     return (
-                      <tr key={learner.id} className="hover:bg-blue-50/30 transition-colors">
+                      <tr key={learner.id} className={`transition-all duration-300 ${isHighlighted ? 'bg-amber-100' : 'hover:bg-blue-50/30'}`}>
                         <td className="py-3.5 px-4 font-bold text-blue-900">{learner.name}</td>
                         <td className="py-3.5 px-4 font-mono text-xs text-slate-600 font-semibold">{learner.admNo}</td>
                         <td className="py-3.5 px-4 text-sm text-slate-600 font-medium">{learner.stream}</td>
