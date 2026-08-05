@@ -61,5 +61,6 @@
     "principalName": "",
     "appointmentDate": "",
     "logoUrl": ""
-  }
+  },
+  "subject_enrollments": {}
 }

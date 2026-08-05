@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, BookOpen, Users, Filter, Save, ArrowLeft, Search, Check, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, BookOpen, Users, Filter, Save, ArrowLeft, Search, Check, X, BarChart2, List } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { 
   getSubjects, 
   saveSubjects, 
@@ -12,7 +13,8 @@ import {
   sortList,
   Subject, 
   Learner,
-  Grade
+  Grade,
+  logActivity
 } from '../utils/db';
 import { canDelete } from '../utils/permissions';
 
@@ -47,7 +49,7 @@ export default function Subjects() {
 
   // --- SUBJECT ENROLLMENT STATE ---
   const [activeEnrollmentSubject, setActiveEnrollmentSubject] = useState<Subject | null>(null);
-  const [activeGradeTab, setActiveGradeTab] = useState<number>(1);
+  const [activeGradeTab, setActiveGradeTab] = useState<number | 'all'>('all');
   
   // Filters for enrollment screen
   const [streamFilter, setStreamFilter] = useState<string>('all');
@@ -244,11 +246,13 @@ export default function Subjects() {
     setSearchFilter('');
     setAppliedStreamFilter('all');
     setAppliedSearchFilter('');
-    // Pick the first grade level assigned to this subject, or default to 8
+    // Pick the first grade level assigned to this subject, or default to 'all' or first system grade
     if (subject.grades && subject.grades.length > 0) {
       setActiveGradeTab(subject.grades[0]);
+    } else if (systemGradeList.length > 0) {
+      setActiveGradeTab(systemGradeList[0].num);
     } else {
-      setActiveGradeTab(1);
+      setActiveGradeTab('all');
     }
   };
 
@@ -286,6 +290,7 @@ export default function Subjects() {
 
     setLearners(updatedLearners);
     saveLearners(updatedLearners);
+    logActivity('general_change', `Updated learner registrations for subject ${subjectName || subjectCode} (${enrolledIds.length} registered)`, 'Teacher/Admin');
   };
 
   const handleToggleEnrollment = (learnerId: string, admNo: string) => {
@@ -309,8 +314,32 @@ export default function Subjects() {
     saveEnrollmentsAndSyncLearners(nextEnrollments);
   };
 
-  // Filter learners for the enrollment screen
-  const learnersInActiveGrade = learners.filter(l => l.grade === activeGradeTab);
+  // Filter learners for the enrollment screen with robust grade matching
+  const activeGradeObj = typeof activeGradeTab === 'number' 
+    ? systemGradeList.find(g => g.num === activeGradeTab) 
+    : null;
+  const activeGradeLabel = activeGradeObj?.label || (typeof activeGradeTab === 'number' ? `Grade ${activeGradeTab}` : '');
+
+  const learnersInActiveGrade = learners.filter(l => {
+    if (activeGradeTab === 'all') return true;
+    
+    // 1. Direct number match
+    if (l.grade === activeGradeTab || Number(l.grade) === activeGradeTab) return true;
+    
+    // 2. Direct label string match (e.g., "Grade 8" === "Grade 8")
+    if (l.gradeLabel && activeGradeLabel && l.gradeLabel.toLowerCase().trim() === activeGradeLabel.toLowerCase().trim()) return true;
+    if (l.grade && activeGradeLabel && String(l.grade).toLowerCase().trim() === activeGradeLabel.toLowerCase().trim()) return true;
+
+    // 3. Numeric extraction match (e.g. "Grade 8" -> 8 vs activeGradeTab 8)
+    const lGradeNum = typeof l.grade === 'number' 
+      ? l.grade 
+      : parseInt(String(l.gradeLabel || l.grade || '').replace(/\D/g, ''), 10);
+    const activeGradeNum = parseInt(activeGradeLabel.replace(/\D/g, ''), 10) || (typeof activeGradeTab === 'number' ? activeGradeTab : NaN);
+
+    if (!isNaN(lGradeNum) && !isNaN(activeGradeNum) && lGradeNum === activeGradeNum) return true;
+
+    return false;
+  });
 
   const shownLearners = learnersInActiveGrade.filter(learner => {
     const matchesStream = appliedStreamFilter === 'all' || learner.stream.toLowerCase() === appliedStreamFilter.toLowerCase();
@@ -412,6 +441,19 @@ export default function Subjects() {
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-indigo-50/80">
           <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-3">Select Grade:</span>
           <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => {
+                setActiveGradeTab('all');
+                triggerToast('All Grades selected');
+              }}
+              className={`min-w-[80px] py-2.5 px-4 rounded-xl text-sm font-bold border-2 transition-all min-h-[44px] text-center ${
+                activeGradeTab === 'all' 
+                  ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white border-blue-700 shadow-md shadow-blue-500/10' 
+                  : 'bg-slate-50 border-slate-100 text-slate-600 hover:border-blue-400 hover:text-blue-600'
+              }`}
+            >
+              All Grades
+            </button>
             {systemGradeList.map((g) => {
               const isAssigned = activeEnrollmentSubject.grades.includes(g.num);
               const isActive = activeGradeTab === g.num;
@@ -448,7 +490,7 @@ export default function Subjects() {
                 <span className="text-3xl font-extrabold text-blue-600">{enrolledInActiveGradeAndSubject.length}</span>
               </div>
             </div>
-            {!activeEnrollmentSubject.grades.includes(activeGradeTab) && (
+            {typeof activeGradeTab === 'number' && !activeEnrollmentSubject.grades.includes(activeGradeTab) && (
               <div className="bg-amber-50 border border-amber-200 text-amber-800 text-xs px-3.5 py-2.5 rounded-xl font-semibold flex items-center gap-2">
                 ⚠️ This subject is not assigned to Grade {activeGradeTab} yet. Go to Subjects and click "Change Grades & Streams" to assign it.
               </div>
@@ -544,7 +586,7 @@ export default function Subjects() {
               {shownLearners.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="py-12 text-center text-slate-400 font-medium">
-                      No learners match the selected filters for Grade {activeGradeTab}.
+                      No learners match the selected filters for {activeGradeTab === 'all' ? 'All Grades' : `Grade ${activeGradeTab}`}.
                     </td>
                   </tr>
                 ) : (
@@ -654,7 +696,7 @@ export default function Subjects() {
         </div>
       </div>
 
-      {/* ADD / EDIT SUBJECT MODAL */}
+      
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-white p-6 rounded-2xl w-full max-w-md shadow-xl space-y-5 my-8">
