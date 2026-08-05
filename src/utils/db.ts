@@ -40,6 +40,10 @@ export function clearAllPendingChanges() {
 }
 
 export async function pushPendingChangesToCloud(): Promise<boolean> {
+  if (!isInitialCloudPullCompleted) {
+    console.log('[BulkPush] Initial cloud pull has not completed yet; skipping automatic push to avoid overwriting remote data.');
+    return false;
+  }
   const pendingTables = getPendingChangesTables();
   if (pendingTables.length === 0) return true;
 
@@ -884,14 +888,14 @@ export function saveLearners(learners: Learner[]): void {
 export function getSubjectEnrollments(): Record<string, string[]> {
   const data = secureGet('subject_enrollments');
   if (!data) {
-    secureSet('subject_enrollments', JSON.stringify(DEFAULT_ENROLLMENTS));
+    secureSet('subject_enrollments', JSON.stringify(DEFAULT_ENROLLMENTS), { skipCloud: true });
     return DEFAULT_ENROLLMENTS;
   }
   const parsed = JSON.parse(data);
   // Clear legacy enrollments that refer to old demo learner IDs starting with 'l1', 'l2', etc.
   const hasLegacy = Object.values(parsed).some((arr: any) => arr.some((id: string) => id.startsWith('l') && !id.startsWith('l_')));
   if (hasLegacy) {
-    secureSet('subject_enrollments', JSON.stringify({}));
+    secureSet('subject_enrollments', JSON.stringify({}), { skipCloud: true });
     return {};
   }
   return parsed;
@@ -934,7 +938,7 @@ const DEFAULT_GRADING_RULES: GradingRule[] = [
 export function getGradingRules(): GradingRule[] {
   const data = secureGet('school_grading_rules') || secureGet('grading_rules');
   if (!data) {
-    secureSet('school_grading_rules', JSON.stringify(DEFAULT_GRADING_RULES));
+    secureSet('school_grading_rules', JSON.stringify(DEFAULT_GRADING_RULES), { skipCloud: true });
     return DEFAULT_GRADING_RULES;
   }
   return JSON.parse(data);
@@ -1088,7 +1092,7 @@ export function getUsers(): UserAccount[] {
       console.error("Error parsing users:", e);
     }
   }
-  secureSet('school_users', JSON.stringify(DEFAULT_USERS));
+  secureSet('school_users', JSON.stringify(DEFAULT_USERS), { skipCloud: true });
   return DEFAULT_USERS;
 }
 
@@ -1760,12 +1764,7 @@ export async function synchronizeWithMongoDB(force: boolean = false): Promise<bo
     isSyncingFromServer = true;
     console.log(`[DEBUG] Starting bi-directional cloud sync (force: ${force})...`);
 
-    // 1. First, push any local pending changes in bulk so local modifications are preserved immediately
-    if (!force) {
-      await pushPendingChangesToCloud();
-    }
-
-    // 2. Pull latest dataset from Cloud
+    // 1. Pull latest dataset from Cloud FIRST
     const cloudData = await fetchAllFromCloud();
     console.log("[DEBUG] Cloud data fetched:", cloudData ? Object.keys(cloudData) : "null");
     if (cloudData && typeof cloudData === 'object' && Object.keys(cloudData).length > 0) {
@@ -1780,7 +1779,10 @@ export async function synchronizeWithMongoDB(force: boolean = false): Promise<bo
     }
 
     isInitialCloudPullCompleted = true;
+
+    // 2. Clear initial default pending flags so client pull takes full precedence
     clearAllPendingChanges();
+
     const nowIso = new Date().toISOString();
     secureSet('school_last_sync_time', nowIso, { skipCloud: true });
     secureSet('last_cloud_sync_time', new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), { skipCloud: true });
@@ -1873,7 +1875,7 @@ export function getSystemSettings(): SystemSettings {
       saturdayStartTime: '09:00',
       schoolName: 'St Augustine School'
     };
-    secureSet('school_system_settings', JSON.stringify(defaultSettings));
+    secureSet('school_system_settings', JSON.stringify(defaultSettings), { skipCloud: true });
     return defaultSettings;
   }
   return JSON.parse(data);
@@ -1921,7 +1923,7 @@ export function logActivity(type: ActivityEvent['type'], message: string, user: 
 
 // Log major code updates
 try {
-  logActivity('general_change', 'Implemented delay-free bulk push functionality with dedicated /api/save-bulk endpoint and instant pushPendingChangesToCloud helper', 'Super Admin');
+  logActivity('general_change', 'Protected published site data by enforcing cloud-first pull order and adding skipCloud flag to all default local data getters', 'Super Admin');
 } catch (e) {}
 
 // --- FINANCE & FEE MANAGEMENT TYPES AND STORAGE ---
@@ -1956,7 +1958,7 @@ const DEFAULT_FEE_STRUCTURES: FeeStructure[] = [];
 export function getFeeStructures(): FeeStructure[] {
   const data = secureGet('school_fee_structures');
   if (!data) {
-    secureSet('school_fee_structures', JSON.stringify([]));
+    secureSet('school_fee_structures', JSON.stringify([]), { skipCloud: true });
     return [];
   }
   return JSON.parse(data);
@@ -2106,7 +2108,7 @@ const DEFAULT_SCHEMES_OF_WORK: SchemeOfWork[] = [
 export function getSchemesOfWork(): SchemeOfWork[] {
   const data = secureGet('school_schemes_of_work');
   if (!data) {
-    secureSet('school_schemes_of_work', JSON.stringify(DEFAULT_SCHEMES_OF_WORK));
+    secureSet('school_schemes_of_work', JSON.stringify(DEFAULT_SCHEMES_OF_WORK), { skipCloud: true });
     return DEFAULT_SCHEMES_OF_WORK;
   }
   try {

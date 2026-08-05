@@ -3,7 +3,6 @@ import { getCurrentUser, getSchoolProfile, UserAccount, SchoolProfile, saveUsers
 import { getAttendanceSettings } from '../utils/attendance';
 import { Calendar, Clock, GraduationCap, ShieldCheck, User, Camera, Upload, X, Link, Check, AlertCircle, Trash2, ArrowRight, LogIn, LogOut, Lock, Pencil, Zap, UserPlus, FileText, Settings, BookOpen, TrendingUp, PieChart, Bell, Megaphone, CheckCircle2, ListTodo, Plus, Activity, ChevronRight, UserCheck } from 'lucide-react';
 import CurrentLocationDisplay from './CurrentLocationDisplay';
-import ActivityFeed from './ActivityFeed';
 import CloudStorageCard from './CloudStorageCard';
 
 export interface HomeDashboardProps {
@@ -1138,8 +1137,6 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
             <CloudStorageCard />
           </div>
         )}
-
-        <ActivityFeed />
 
         {/* Recent Exams Card */}
         <div className="bg-white p-4 sm:p-5 rounded-xl shadow-xs border border-slate-100 space-y-3">

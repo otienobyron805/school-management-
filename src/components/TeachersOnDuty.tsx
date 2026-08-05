@@ -143,7 +143,7 @@ const TeachersOnDuty: React.FC<TeachersOnDutyProps> = ({ onNavigate }) => {
           }] : [])
         ];
         setRoster(seedRoster);
-        secureSet(STORAGE_KEY_ROSTER, JSON.stringify(seedRoster));
+        secureSet(STORAGE_KEY_ROSTER, JSON.stringify(seedRoster), { skipCloud: true });
       }
     } catch (e) {
       console.error('Error loading TOD roster:', e);

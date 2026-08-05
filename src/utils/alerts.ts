@@ -40,7 +40,7 @@ const DEFAULT_ALERT_CONFIG: AlertConfig = {
 export function getAlertConfig(): AlertConfig {
   const stored = secureGet('school_alert_config');
   if (!stored) {
-    secureSet('school_alert_config', JSON.stringify(DEFAULT_ALERT_CONFIG));
+    secureSet('school_alert_config', JSON.stringify(DEFAULT_ALERT_CONFIG), { skipCloud: true });
     return DEFAULT_ALERT_CONFIG;
   }
   try {
