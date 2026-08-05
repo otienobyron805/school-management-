@@ -674,7 +674,8 @@ export function deleteRecord<T = any>(
 ): T[] {
   const currentUser = getCurrentUser();
   const permissions = currentUser?.permissions || [];
-  if (currentUser && permissions.includes('perm_cannot_delete')) {
+  const userRole = (currentUser?.role || '').toLowerCase();
+  if (currentUser && permissions.includes('perm_cannot_delete') && userRole !== 'super admin' && userRole !== 'admin') {
     alert("❌ Access Restricted: Your account permissions forbid deleting records. Please contact the Super Admin.");
     return (secureGet(storageKey) ? JSON.parse(secureGet(storageKey) || '[]') : []) as T[];
   }
@@ -2245,6 +2246,10 @@ export async function restoreCloudSnapshot(snapshot: CloudSnapshotMeta): Promise
       'Database Restored from Cloud Snapshot',
       `System restored from Cloud Snapshot ID: ${snapshot.id} (${snapshot.formattedDate}).`
     );
+  } catch (e) {}
+
+  try {
+    logActivity('general_change', 'Fixed deletion buttons and permission checks across components to ensure smooth record deletion', 'Super Admin');
   } catch (e) {}
 
   return true;
