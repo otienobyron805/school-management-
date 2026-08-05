@@ -519,24 +519,33 @@ export default function Settings() {
                   onClick={async () => {
                     try {
                       const dbUtils = await import('../utils/db');
-                      dbUtils.saveGrades(dbUtils.getGrades());
-                      dbUtils.saveSubjects(dbUtils.getSubjects());
-                      dbUtils.saveLearners(dbUtils.getLearners());
-                      dbUtils.saveSubjectEnrollments(dbUtils.getSubjectEnrollments());
-                      dbUtils.saveGradingRules(dbUtils.getGradingRules());
-                      dbUtils.saveUsers(dbUtils.getUsers());
-                      dbUtils.saveSubjectAssignments(dbUtils.getSubjectAssignments());
-                      dbUtils.saveClassTeacherAssignments(dbUtils.getClassTeacherAssignments());
-                      dbUtils.saveSchoolProfile(dbUtils.getSchoolProfile());
-                      dbUtils.saveHolidays(dbUtils.getHolidays());
-                      dbUtils.saveTerms(dbUtils.getTerms());
-                      dbUtils.saveAttendanceSheets(dbUtils.getAttendanceSheets());
-                      alert('✅ All local browser tables have been synchronized and successfully saved to MongoDB!');
+                      dbUtils.markPendingChange('grades');
+                      dbUtils.markPendingChange('subjects');
+                      dbUtils.markPendingChange('learners');
+                      dbUtils.markPendingChange('users');
+                      dbUtils.markPendingChange('subject_enrollments');
+                      dbUtils.markPendingChange('grading_rules');
+                      dbUtils.markPendingChange('subject_assignments_list');
+                      dbUtils.markPendingChange('class_teacher_assignments_list');
+                      dbUtils.markPendingChange('school_profile');
+                      dbUtils.markPendingChange('holidays');
+                      dbUtils.markPendingChange('terms');
+                      dbUtils.markPendingChange('attendance_sheets');
+                      dbUtils.markPendingChange('fee_structures');
+                      dbUtils.markPendingChange('fee_payments');
+                      dbUtils.markPendingChange('schemes_of_work');
+
+                      const ok = await dbUtils.pushPendingChangesToCloud();
+                      if (ok) {
+                        alert('✅ Bulk push completed! All local browser datasets have been synchronized and successfully saved to MongoDB Cloud.');
+                      } else {
+                        alert('⚠️ Bulk push returned non-success response. Check server connection.');
+                      }
                     } catch (err) {
                       alert('❌ Failed to push backup. Check console or server logs.');
                     }
                   }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase py-1.5 px-3 rounded transition cursor-pointer"
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase py-1.5 px-3 rounded transition cursor-pointer active:scale-95"
                 >
                   Backup to SQL
                 </button>

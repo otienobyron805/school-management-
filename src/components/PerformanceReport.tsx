@@ -15,7 +15,8 @@ import {
   TrendingDown,
   Flame,
   CheckCircle2,
-  ShieldAlert
+  ShieldAlert,
+  Download
 } from 'lucide-react';
 import { 
   getLearners, 
@@ -278,18 +279,26 @@ export default function PerformanceReport() {
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button 
               onClick={() => window.print()}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-sm"
+              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-sm cursor-pointer active:scale-95"
+              title="Download PDF document (via Print)"
             >
-              <Printer className="w-4 h-4" /> Print Report
+              <Download className="w-4 h-4 pointer-events-none" /> Download PDF
+            </button>
+            <button 
+              onClick={() => window.print()}
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-sm cursor-pointer active:scale-95"
+              title="Print report"
+            >
+              <Printer className="w-4 h-4 pointer-events-none" /> Print Report
             </button>
             <button 
               onClick={toggleFullscreen}
-              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-sm"
+              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-sm cursor-pointer active:scale-95"
             >
-              <Expand className="w-4 h-4" /> {isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
+              <Expand className="w-4 h-4 pointer-events-none" /> {isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
             </button>
           </div>
         </div>

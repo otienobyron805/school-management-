@@ -440,6 +440,76 @@ async function startServer() {
     return next;
   };
 
+  // Bulk save endpoint for instant, delay-free pending pushes
+  app.post("/api/save-bulk", async (req, res) => {
+    try {
+      const { items } = req.body;
+      if (!items || typeof items !== 'object') {
+        return res.status(400).json({ success: false, error: "Invalid payload format" });
+      }
+
+      const entries = Array.isArray(items) 
+        ? items 
+        : Object.entries(items).map(([t, val]) => ({ table: t, data: val }));
+
+      for (const item of entries) {
+        let table = item.table;
+        const data = item.data;
+        if (!table) continue;
+        if (table.startsWith('school_')) {
+          table = table.replace('school_', '');
+        }
+        if (table === 'teachers' || table === 'staff') table = 'users';
+        if (table === 'profile') table = 'school_profile';
+
+        serverStore[table] = data;
+      }
+      persistServerStore();
+
+      // Sync to MongoDB in bulk if connected
+      try {
+        const mongoStatus = await checkMongoStatus();
+        if (mongoStatus.connected) {
+          const { db: mongoDb } = await getMongoClient();
+          await Promise.allSettled(entries.map(async (item) => {
+            let table = item.table;
+            if (!table) return;
+            if (table.startsWith('school_')) table = table.replace('school_', '');
+            if (table === 'teachers' || table === 'staff') table = 'users';
+            if (table === 'profile') table = 'school_profile';
+            const data = item.data;
+            const colName = TABLE_TO_COLLECTION[table] || table;
+            const collection = mongoDb.collection(colName);
+
+            if (Array.isArray(data)) {
+              await collection.deleteMany({});
+              if (data.length > 0) {
+                const docs = data.map((d: any) => ({
+                  ...d,
+                  _id: d.id || d._id || undefined,
+                  syncedAt: new Date(),
+                }));
+                await collection.insertMany(docs);
+              }
+            } else if (data && typeof data === 'object') {
+              await collection.updateOne(
+                { _id: data.id || data._id || colName },
+                { $set: { ...data, syncedAt: new Date() } },
+                { upsert: true }
+              );
+            }
+          }));
+        }
+      } catch (err) {
+        console.warn("[MongoBulkSave] Bulk push warning:", err);
+      }
+
+      return res.json({ success: true, count: entries.length, message: "Bulk save completed successfully." });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err?.message || "Failed bulk save" });
+    }
+  });
+
   app.post("/api/save", async (req, res) => {
     let { table, data } = req.body;
     if (!table) {

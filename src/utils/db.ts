@@ -39,6 +39,50 @@ export function clearAllPendingChanges() {
   notifyPendingChanges();
 }
 
+export async function pushPendingChangesToCloud(): Promise<boolean> {
+  const pendingTables = getPendingChangesTables();
+  if (pendingTables.length === 0) return true;
+
+  const payload: Record<string, any> = {};
+  for (const t of pendingTables) {
+    const localVal = secureGet(t) || secureGet(`school_${t}`);
+    if (localVal !== null && localVal !== undefined) {
+      try {
+        payload[t] = typeof localVal === 'string' ? JSON.parse(localVal) : localVal;
+      } catch (e) {
+        payload[t] = localVal;
+      }
+    }
+  }
+
+  if (Object.keys(payload).length === 0) {
+    clearAllPendingChanges();
+    return true;
+  }
+
+  try {
+    const res = await fetch('/api/save-bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: payload })
+    });
+    const json = await res.json();
+    if (json && json.success) {
+      clearAllPendingChanges();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cloud_sync_status', {
+          detail: { status: 'synced', table: 'all', timestamp: new Date() }
+        }));
+        window.dispatchEvent(new Event('db_updated'));
+      }
+      return true;
+    }
+  } catch (err) {
+    console.warn('[BulkPush] Error in pushPendingChangesToCloud:', err);
+  }
+  return false;
+}
+
 async function saveToCloud(table: string, data: any): Promise<void> {
   if (!table) return;
   markPendingChange(table);
@@ -1716,7 +1760,12 @@ export async function synchronizeWithMongoDB(force: boolean = false): Promise<bo
     isSyncingFromServer = true;
     console.log(`[DEBUG] Starting bi-directional cloud sync (force: ${force})...`);
 
-    // 1. Pull from Cloud
+    // 1. First, push any local pending changes in bulk so local modifications are preserved immediately
+    if (!force) {
+      await pushPendingChangesToCloud();
+    }
+
+    // 2. Pull latest dataset from Cloud
     const cloudData = await fetchAllFromCloud();
     console.log("[DEBUG] Cloud data fetched:", cloudData ? Object.keys(cloudData) : "null");
     if (cloudData && typeof cloudData === 'object' && Object.keys(cloudData).length > 0) {
@@ -1727,26 +1776,6 @@ export async function synchronizeWithMongoDB(force: boolean = false): Promise<bo
         if (val !== undefined && val !== null) {
           writeToLocalStorageWithAliases(table, val);
         }
-      }
-    }
-
-    if (force) {
-      // If forcing a fresh sync, we only pull. We don't push local data to avoid overwriting cloud.
-    } else {
-      // Push only pending local tables to server to ensure offline changes are saved safely
-      const pendingTables = getPendingChangesTables();
-      if (pendingTables.length > 0) {
-        await Promise.allSettled(pendingTables.map(async (t) => {
-          const localVal = secureGet(t) || secureGet(`school_${t}`);
-          if (localVal) {
-            try {
-              const parsed = typeof localVal === 'string' ? JSON.parse(localVal) : localVal;
-              await saveToCloud(t, parsed);
-            } catch (e) {
-              // ignore
-            }
-          }
-        }));
       }
     }
 
@@ -1892,7 +1921,7 @@ export function logActivity(type: ActivityEvent['type'], message: string, user: 
 
 // Log major code updates
 try {
-  logActivity('general_change', 'Enhanced all deletion buttons across Exams, Reports, System, Attendance, Staff, Grades, Schemes, and WhatsApp modules with tactile click response and custom confirmation dialogs', 'Super Admin');
+  logActivity('general_change', 'Implemented delay-free bulk push functionality with dedicated /api/save-bulk endpoint and instant pushPendingChangesToCloud helper', 'Super Admin');
 } catch (e) {}
 
 // --- FINANCE & FEE MANAGEMENT TYPES AND STORAGE ---

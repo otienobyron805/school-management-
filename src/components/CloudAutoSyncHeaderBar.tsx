@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Cloud, RefreshCw, CheckCircle2, Clock, UploadCloud } from 'lucide-react';
 import { 
   synchronizeWithMongoDB, 
+  pushPendingChangesToCloud,
   secureGet, 
   secureSet, 
   getPendingChangesCount, 
@@ -48,7 +49,16 @@ export default function CloudAutoSyncHeaderBar({ onOpenSyncHealth }: { onOpenSyn
     if (isSyncing) return;
     setIsSyncing(true);
     setSyncDone(false);
-    const success = await synchronizeWithMongoDB();
+
+    let success = false;
+    if (pendingCount > 0) {
+      // Execute instantaneous bulk push for pending changes
+      success = await pushPendingChangesToCloud();
+    }
+    // Also perform full sync update
+    const syncResult = await synchronizeWithMongoDB();
+    success = success || syncResult;
+
     setIsSyncing(false);
     if (success) {
       setSyncDone(true);
