@@ -910,8 +910,15 @@ export async function saveUsers(users: UserAccount[]): Promise<void> {
   const serialized = JSON.stringify(users);
   secureSet('school_users', serialized);
   secureSet('users', serialized);
+  secureSet('teachers', serialized);
+  secureSet('staff', serialized);
   await saveToBackend('users', users);
   console.log("[DEBUG] Users saved.");
+
+  try {
+    const current = getCurrentUser();
+    logActivity('general_change', `Updated staff directory (${users.length} member accounts saved)`, current?.fullName || 'System');
+  } catch (err) {}
   
   // If current logged-in user was modified in this update, refresh their active session
   const current = getCurrentUser();
@@ -1512,12 +1519,6 @@ export async function synchronizeWithMongoDB(force: boolean = false): Promise<bo
   const syncPromise = (async () => {
     isSyncingFromServer = true;
     console.log(`[DEBUG] Starting bi-directional cloud sync (force: ${force})...`);
-    
-    if (force) {
-      // Clear relevant tables if forcing a fresh sync
-      const tablesToClear = ['learners', 'grades', 'subjects', 'users', 'exam_marks', 'attendance_sheets', 'fee_payments', 'subject_assignments', 'grading_rules'];
-      tablesToClear.forEach(t => secureRemove(t, { skipCloud: true }));
-    }
 
     // 1. Pull from Cloud
     const cloudData = await fetchAllFromCloud();

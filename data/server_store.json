@@ -7,10 +7,15 @@
       "id": "u1",
       "username": "otienobyron805@gmail.com",
       "fullName": "Byron Gondi",
-      "role": "Super Admin",
-      "created": "2026-01-10",
-      "status": "Active",
-      "password": "805679"
+      "role": "Super Admin"
+    },
+    {
+      "id": "u_test_123",
+      "username": "teacher1",
+      "fullName": "Jane Doe",
+      "role": "Teacher",
+      "staffNo": "ST-101",
+      "status": "Active"
     }
   ],
   "attendance_sheets": [],
@@ -62,5 +67,840 @@
     "appointmentDate": "",
     "logoUrl": ""
   },
-  "subject_enrollments": {}
+  "subject_enrollments": {},
+  "messages": [
+    {
+      "id": "gate_in_l_1784557557328627_1784837463021",
+      "senderId": "system_gate",
+      "receiverId": "parent_l_1784557557328627",
+      "learnerId": "l_1784557557328627",
+      "text": "✅ ST AUGUSTINE SCHOOL ALERT: Joy Clare (Adm: 1681) has ARRIVED safely at school. Time: 23:11. — Admin",
+      "senderRole": "Teacher",
+      "timestamp": "2026-07-23T20:11:03.021Z",
+      "read": false
+    },
+    {
+      "id": "gate_out_l_1784557557328627_1784774712856",
+      "senderId": "system_gate",
+      "receiverId": "parent_l_1784557557328627",
+      "learnerId": "l_1784557557328627",
+      "text": "🔴 ST AUGUSTINE SCHOOL ALERT: Joy Clare (Adm: 1681) has DEPARTED school. Time: 05:45. — Admin",
+      "senderRole": "Teacher",
+      "timestamp": "2026-07-23T02:56:13.871Z",
+      "read": true
+    },
+    {
+      "id": "gate_in_l_1784557557328627_1784774703623",
+      "senderId": "system_gate",
+      "receiverId": "parent_l_1784557557328627",
+      "learnerId": "l_1784557557328627",
+      "text": "✅ ST AUGUSTINE SCHOOL ALERT: Joy Clare (Adm: 1681) has ARRIVED safely at school. Time: 05:45. — Admin",
+      "senderRole": "Teacher",
+      "timestamp": "2026-07-23T02:56:13.871Z",
+      "read": true
+    }
+  ],
+  "staff_attendance_sheets": [
+    {
+      "id": "2026-07-19",
+      "date": "2026-07-19",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "17:30",
+          "checkOutTime": "17:30"
+        }
+      },
+      "lastUpdatedBy": "Administrator",
+      "lastUpdatedAt": "2026-07-19T14:30:47.240Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08",
+          "checkOutTime": "16:46"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T13:46:58.984Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08",
+          "checkOutTime": "16:46"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T13:46:58.984Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46_47",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46_47_48",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46_47_48_49",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46_47_48_49_50",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46_47_48_49_50_51",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46_47_48_49_50_51_52",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46_47_48_49_50_51_52_53",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46_47_48_49_50_51_52_53_54",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46_47_48_49_50_51_52_53_54_55",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    },
+    {
+      "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46_47_48_49_50_51_52_53_54_55_56",
+      "date": "2026-07-25",
+      "records": {
+        "u1": {
+          "status": "Present",
+          "userId": "u1",
+          "checkInTime": "05:08"
+        }
+      },
+      "lastUpdatedBy": "Byron Gondi",
+      "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
+      "createdAt": "2026-07-27T04:09:29.856Z"
+    }
+  ]
 }

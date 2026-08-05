@@ -38,7 +38,76 @@ function persistServerStore() {
   }
 }
 
+async function syncSQLToServerStore() {
+  if (process.env.SQL_HOST && process.env.SQL_HOST.trim()) {
+    try {
+      const sqlUsers = await db.select().from(schema.dbUsers);
+      if (sqlUsers && sqlUsers.length > 0) {
+        serverStore.users = sqlUsers.map((u: any) => ({
+          ...u,
+          fullName: u.fullName || u.full_name || 'Unknown',
+          staffNo: u.staffNo || u.staff_no || null,
+          nationalId: u.nationalId || u.national_id || null,
+          empDate: u.empDate || u.emp_date || null,
+          designatedRole: u.designatedRole || u.designated_role || null,
+          systemRole: u.systemRole || u.system_role || null,
+          adminOverride: u.adminOverride !== undefined ? u.adminOverride : (u.admin_override || false),
+          permissions: Array.isArray(u.permissions) ? u.permissions : []
+        }));
+      }
+
+      const sqlLearners = await db.select().from(schema.dbLearners);
+      if (sqlLearners && sqlLearners.length > 0) {
+        serverStore.learners = sqlLearners;
+      }
+
+      const sqlGrades = await db.select().from(schema.dbGrades);
+      if (sqlGrades && sqlGrades.length > 0) {
+        serverStore.grades = sqlGrades;
+      }
+
+      const sqlSubjects = await db.select().from(schema.dbSubjects);
+      if (sqlSubjects && sqlSubjects.length > 0) {
+        serverStore.subjects = sqlSubjects;
+      }
+
+      const sqlGradingRules = await db.select().from(schema.dbGradingRules);
+      if (sqlGradingRules && sqlGradingRules.length > 0) {
+        serverStore.grading_rules = sqlGradingRules;
+      }
+
+      const sqlHolidays = await db.select().from(schema.dbHolidays);
+      if (sqlHolidays && sqlHolidays.length > 0) {
+        serverStore.holidays = sqlHolidays;
+      }
+
+      const sqlTerms = await db.select().from(schema.dbTerms);
+      if (sqlTerms && sqlTerms.length > 0) {
+        serverStore.terms = sqlTerms;
+      }
+
+      const sqlAttendance = await db.select().from(schema.dbAttendanceSheets);
+      if (sqlAttendance && sqlAttendance.length > 0) {
+        serverStore.attendance_sheets = sqlAttendance;
+      }
+
+      const sqlMessages = await db.select().from(schema.dbMessages);
+      if (sqlMessages && sqlMessages.length > 0) {
+        serverStore.messages = sqlMessages;
+      }
+
+      const sqlStaffAttendance = await db.select().from(schema.dbStaffAttendanceSheets);
+      if (sqlStaffAttendance && sqlStaffAttendance.length > 0) {
+        serverStore.staff_attendance_sheets = sqlStaffAttendance;
+      }
+    } catch (sqlErr) {
+      console.warn("Error hydrating serverStore from SQL:", sqlErr);
+    }
+  }
+}
+
 loadServerStore();
+syncSQLToServerStore().catch(err => console.warn("Initial SQL hydration warning:", err));
 
 async function startServer() {
   const app = express();
@@ -307,6 +376,7 @@ async function startServer() {
     }
 
     // Fallback to serverStore for seamless cross-client sync
+    await syncSQLToServerStore();
     return res.json({
       success: true,
       data: {

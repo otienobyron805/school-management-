@@ -85,7 +85,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     setSyncMessage("Downloading fresh data from cloud...");
 
     try {
-      await synchronizeWithMongoDB(true);
+      await synchronizeWithMongoDB();
       setUsers(getUsers());
       setSchoolProfile(getSchoolProfile());
     } catch (e) {
