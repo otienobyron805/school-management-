@@ -33,6 +33,7 @@ import {
   getSchoolProfile 
 } from '../utils/db';
 import { canDelete } from '../utils/permissions';
+import { confirmAction } from './ConfirmDialog';
 
 export default function SchemeOfWorkRepository() {
   const [schemes, setSchemes] = useState<SchemeOfWork[]>(() => getSchemesOfWork());
@@ -150,16 +151,28 @@ export default function SchemeOfWorkRepository() {
     });
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: string, title?: string) => {
     if (!canDelete()) {
-      alert('⚠️ Access denied: You have a restriction ("cannot delete") preventing you from deleting items in this software.');
+      confirmAction({
+        title: 'Permission Restricted',
+        message: 'Only Super Admin can delete Schemes of Work.',
+        confirmText: 'OK',
+        variant: 'warning',
+        onConfirm: () => {}
+      });
       return;
     }
-    if (window.confirm('Are you sure you want to delete this Scheme of Work?')) {
-      const updated = schemes.filter(s => s.id !== id);
-      saveSchemesOfWork(updated);
-      setSchemes(updated);
-    }
+    confirmAction({
+      title: 'Delete Scheme of Work',
+      message: `Are you sure you want to delete scheme of work "${title || 'selected scheme'}"?`,
+      confirmText: 'Delete Scheme',
+      variant: 'danger',
+      onConfirm: () => {
+        const updated = schemes.filter(s => s.id !== id);
+        saveSchemesOfWork(updated);
+        setSchemes(updated);
+      }
+    });
   };
 
   const handleKicdImport = () => {
@@ -675,11 +688,14 @@ export default function SchemeOfWorkRepository() {
                                   )}
 
                                   <button
-                                    onClick={() => handleDelete(scheme.id)}
-                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDelete(scheme.id, scheme.title);
+                                    }}
+                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer active:scale-90"
                                     title="Delete Scheme"
                                   >
-                                    <Trash2 className="w-4 h-4" />
+                                    <Trash2 className="w-4 h-4 pointer-events-none" />
                                   </button>
                                 </div>
                               </div>

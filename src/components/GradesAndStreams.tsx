@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, BarChart, Save, CheckCircle2, RefreshCw } from 'lucide-react';
 import { getGrades, saveGrades, Grade, Stream } from '../utils/db';
 import { canDelete } from '../utils/permissions';
+import { confirmAction } from './ConfirmDialog';
 
 export default function GradesAndStreams() {
   const [grades, setGrades] = useState<Grade[]>(() => getGrades());
@@ -78,15 +79,27 @@ export default function GradesAndStreams() {
     }
   };
 
-  const deleteGrade = (id: string) => {
+  const deleteGrade = (id: string, name?: string) => {
     if (!canDelete()) {
-      alert('⚠️ Access denied: You have a restriction ("cannot delete") preventing you from deleting items in this software.');
+      confirmAction({
+        title: 'Permission Restricted',
+        message: 'Only Super Admin can delete grades in this software.',
+        confirmText: 'OK',
+        variant: 'warning',
+        onConfirm: () => {}
+      });
       return;
     }
-    if(confirm('⚠️ Delete this grade and all its streams? This cannot be undone.')) {
+    confirmAction({
+      title: 'Delete Grade Level',
+      message: `Are you sure you want to delete ${name || 'this grade'} and all its associated streams?`,
+      confirmText: 'Delete Grade',
+      variant: 'danger',
+      onConfirm: () => {
         const nextGrades = grades.filter(g => g.id !== id);
         triggerSave(nextGrades);
-    }
+      }
+    });
   };
 
   const addStream = (gradeId: string) => {
@@ -104,15 +117,27 @@ export default function GradesAndStreams() {
     }
   };
 
-  const deleteStream = (gradeId: string, streamId: string) => {
+  const deleteStream = (gradeId: string, streamId: string, streamName?: string) => {
     if (!canDelete()) {
-      alert('⚠️ Access denied: You have a restriction ("cannot delete") preventing you from deleting items in this software.');
+      confirmAction({
+        title: 'Permission Restricted',
+        message: 'Only Super Admin can delete streams.',
+        confirmText: 'OK',
+        variant: 'warning',
+        onConfirm: () => {}
+      });
       return;
     }
-    if(confirm('⚠️ Delete this stream?')) {
+    confirmAction({
+      title: 'Delete Stream',
+      message: `Are you sure you want to delete stream "${streamName || 'selected stream'}"?`,
+      confirmText: 'Delete Stream',
+      variant: 'danger',
+      onConfirm: () => {
         const nextGrades = grades.map(g => g.id === gradeId ? { ...g, streams: g.streams.filter(s => s.id !== streamId) } : g);
         triggerSave(nextGrades);
-    }
+      }
+    });
   };
 
   return (
@@ -221,7 +246,16 @@ export default function GradesAndStreams() {
                 <div className="flex gap-2">
                   <button onClick={() => openEditGrade(grade)} className="p-3 text-amber-600 bg-amber-50 rounded-xl hover:bg-amber-100 hover:scale-105 transition-all"><Edit2 className="w-5 h-5 pointer-events-none" /></button>
                   {canDelete() && (
-                    <button onClick={() => deleteGrade(grade.id)} className="p-3 text-red-600 bg-red-50 rounded-xl hover:bg-red-100 hover:scale-105 transition-all"><Trash2 className="w-5 h-5 pointer-events-none" /></button>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteGrade(grade.id, grade.name);
+                      }} 
+                      className="p-3 text-red-600 bg-red-50 rounded-xl hover:bg-red-100 hover:text-red-700 active:scale-95 transition-all cursor-pointer"
+                      title="Delete Grade"
+                    >
+                      <Trash2 className="w-5 h-5 pointer-events-none" />
+                    </button>
                   )}
                 </div>
               </div>
@@ -234,7 +268,16 @@ export default function GradesAndStreams() {
                         <button className="p-1 hover:bg-blue-100 rounded text-blue-600"><BarChart className="w-4 h-4" /></button>
                         <button onClick={() => openEditStream(grade.id, stream)} className="p-1 hover:bg-blue-100 rounded"><Edit2 className="w-3 h-3 pointer-events-none" /></button>
                         {canDelete() && (
-                            <button onClick={() => deleteStream(grade.id, stream.id)} className="p-1 hover:bg-red-100 rounded text-red-500"><Trash2 className="w-3 h-3 pointer-events-none" /></button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteStream(grade.id, stream.id, stream.name);
+                              }} 
+                              className="p-1 hover:bg-red-100 rounded text-red-500 hover:text-red-700 active:scale-90 transition-all cursor-pointer"
+                              title="Delete Stream"
+                            >
+                              <Trash2 className="w-3 h-3 pointer-events-none" />
+                            </button>
                         )}
                     </div>
                   </div>

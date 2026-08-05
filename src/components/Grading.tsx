@@ -3,6 +3,7 @@ import {
   Plus, Trash2, Calculator, Award, HelpCircle, Save, Check, RefreshCw, AlertCircle
 } from 'lucide-react';
 import { getGradingRules, saveGradingRules, GradingRule, secureRemove } from '../utils/db';
+import { confirmAction } from './ConfirmDialog';
 
 export default function Grading() {
   const [rules, setRules] = useState<GradingRule[]>(() => getGradingRules());
@@ -123,16 +124,28 @@ export default function Grading() {
 
   const handleRemoveRule = (id: string, code: string) => {
     if (rules.length <= 1) {
-      alert('⚠️ Keep at least one grading rule!');
+      confirmAction({
+        title: 'Rule Required',
+        message: 'You must keep at least one grading rule in the system.',
+        confirmText: 'OK',
+        variant: 'warning',
+        onConfirm: () => {}
+      });
       return;
     }
-    if (confirm(`🗑️ Delete grading rule "${code}"?`)) {
-      const nextRules = rules.filter(r => r.id !== id);
-      setRules(nextRules);
-      saveGradingRules(nextRules);
-      triggerToast(`Removed rule ${code}`);
-      setCalculatorResult(null);
-    }
+    confirmAction({
+      title: 'Delete Grading Rule',
+      message: `Are you sure you want to delete grading rule "${code}"?`,
+      confirmText: 'Delete Rule',
+      variant: 'danger',
+      onConfirm: () => {
+        const nextRules = rules.filter(r => r.id !== id);
+        setRules(nextRules);
+        saveGradingRules(nextRules);
+        triggerToast(`Removed rule ${code}`);
+        setCalculatorResult(null);
+      }
+    });
   };
 
   const updateRuleField = (id: string, field: keyof GradingRule, value: any) => {
@@ -359,12 +372,15 @@ export default function Grading() {
                   {/* Actions (Delete button) */}
                   <div className="col-span-1 sm:col-span-1 flex items-center justify-end w-full sm:w-auto">
                     <button 
-                      onClick={() => handleRemoveRule(rule.id, rule.code)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveRule(rule.id, rule.code);
+                      }}
                       className="w-full sm:w-12 h-12 rounded-xl bg-rose-100 text-rose-600 hover:bg-rose-200 hover:text-rose-700 font-bold transition flex items-center justify-center gap-2 cursor-pointer border border-rose-200/50 active:scale-95"
                       title={`Remove grade rule ${rule.code}`}
                     >
-                      <Trash2 className="w-5 h-5 flex-shrink-0" />
-                      <span className="sm:hidden text-sm font-extrabold">Delete Rule</span>
+                      <Trash2 className="w-5 h-5 flex-shrink-0 pointer-events-none" />
+                      <span className="sm:hidden text-sm font-extrabold pointer-events-none">Delete Rule</span>
                     </button>
                   </div>
                 </div>

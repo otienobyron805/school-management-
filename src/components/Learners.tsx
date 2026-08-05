@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { getLearners, saveLearners, Learner, getCurrentUser, logActivity, getAttendanceSheets } from '../utils/db';
 import { canDelete } from '../utils/permissions';
+import { confirmAction } from './ConfirmDialog';
 
 const GRADE_OPTIONS = [
   'PP1', 'PP2', 
@@ -225,12 +226,22 @@ export default function Learners() {
   };
 
   const handleDelete = (id: string, name: string) => {
-    if (confirm(`⚠️ Delete learner "${name}"? This operation is permanent and clears their record.`)) {
-      const updated = learners.filter(l => l.id !== id);
-      setLearners(updated);
-      saveLearners(updated);
-      triggerToast(`Removed student record`);
+    if (!canDelete()) {
+      triggerToast('Permission restricted: Only Super Admin can delete learner records');
+      return;
     }
+    confirmAction({
+      title: 'Delete Student Record',
+      message: `Are you sure you want to delete student "${name}"? This operation is permanent and will remove their record across the system.`,
+      confirmText: 'Delete Student',
+      variant: 'danger',
+      onConfirm: () => {
+        const updated = learners.filter(l => l.id !== id);
+        setLearners(updated);
+        saveLearners(updated);
+        triggerToast(`Removed student record for ${name}`);
+      }
+    });
   };
 
   const openHistory = (learner: Learner) => {
@@ -737,11 +748,14 @@ export default function Learners() {
                           </button>
                           {canDelete() && (
                             <button 
-                              onClick={() => handleDelete(learner.id, learner.name)}
-                              className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(learner.id, learner.name);
+                              }}
+                              className="p-2 text-red-600 bg-red-50 hover:bg-red-100 hover:text-red-700 rounded-xl transition cursor-pointer active:scale-90"
                               title="Delete Student Record"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-4 h-4 pointer-events-none" />
                             </button>
                           )}
                         </div>

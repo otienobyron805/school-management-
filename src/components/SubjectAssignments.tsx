@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getUsers, getSubjects, getGrades, getSubjectAssignments, saveSubjectAssignments, getClassTeacherAssignments, saveClassTeacherAssignments, getCurrentUser } from '../utils/db';
 import { canDelete } from '../utils/permissions';
+import { confirmAction } from './ConfirmDialog';
 import { CheckCircle2, BookOpen } from 'lucide-react';
 
 export default function SubjectAssignments() {
@@ -118,26 +119,52 @@ export default function SubjectAssignments() {
 
   const deleteAssignment = (index: number) => {
     if (!canDelete()) {
-      alert('⚠️ Access denied: You have a restriction ("cannot delete") preventing you from deleting items in this software.');
+      confirmAction({
+        title: 'Permission Restricted',
+        message: 'Only Super Admin can remove subject teacher assignments.',
+        confirmText: 'OK',
+        variant: 'warning',
+        onConfirm: () => {}
+      });
       return;
     }
-    if(confirm('⚠️ Remove this assignment?')) {
+    const target = assignments[index];
+    confirmAction({
+      title: 'Remove Assignment',
+      message: `Are you sure you want to remove assignment for ${target?.teacher || 'this teacher'} (${target?.subject || ''})?`,
+      confirmText: 'Remove Assignment',
+      variant: 'danger',
+      onConfirm: () => {
         const nextAssignments = assignments.filter((_, i) => i !== index);
         setAssignments(nextAssignments);
         saveSubjectAssignments(nextAssignments);
-    }
+      }
+    });
   }
 
   const deleteClassTeacher = (index: number) => {
     if (!canDelete()) {
-      alert('⚠️ Access denied: You have a restriction ("cannot delete") preventing you from deleting items in this software.');
+      confirmAction({
+        title: 'Permission Restricted',
+        message: 'Only Super Admin can remove class teacher assignments.',
+        confirmText: 'OK',
+        variant: 'warning',
+        onConfirm: () => {}
+      });
       return;
     }
-    if(confirm('⚠️ Remove this assignment?')) {
+    const target = classTeachers[index];
+    confirmAction({
+      title: 'Remove Class Teacher',
+      message: `Are you sure you want to remove ${target?.teacher || 'this teacher'} as class teacher of ${target?.grade || ''} ${target?.stream || ''}?`,
+      confirmText: 'Remove Class Teacher',
+      variant: 'danger',
+      onConfirm: () => {
         const nextClassTeachers = classTeachers.filter((_, i) => i !== index);
         setClassTeachers(nextClassTeachers);
         saveClassTeacherAssignments(nextClassTeachers);
-    }
+      }
+    });
   }
 
   const Hint = ({text}: {text: string}) => <p className="text-xs text-slate-400 italic mb-4 flex items-center gap-1">ℹ️ {text}</p>;
@@ -303,7 +330,16 @@ export default function SubjectAssignments() {
                   <td className="p-3 text-sm text-slate-600">{a.stream}</td>
                   <td className="p-3 text-right">
                     {canDelete() && (
-                      <button onClick={() => deleteAssignment(i)} className="w-7 h-7 bg-red-50 text-red-600 rounded-lg flex items-center justify-center hover:bg-red-100 font-bold transition-all cursor-pointer">×</button>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteAssignment(i);
+                        }} 
+                        className="w-7 h-7 bg-red-50 text-red-600 rounded-lg flex items-center justify-center hover:bg-red-100 hover:text-red-700 font-bold transition-all cursor-pointer active:scale-90"
+                        title="Remove Assignment"
+                      >
+                        ×
+                      </button>
                     )}
                   </td>
                 </tr>
@@ -336,7 +372,16 @@ export default function SubjectAssignments() {
                       <td className="p-3 text-sm text-slate-600">{a.stream}</td>
                       <td className="p-3 text-right">
                         {canDelete() && (
-                          <button onClick={() => deleteClassTeacher(i)} className="w-7 h-7 bg-red-50 text-red-600 rounded-lg flex items-center justify-center hover:bg-red-100 font-bold transition-all cursor-pointer">×</button>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteClassTeacher(i);
+                            }} 
+                            className="w-7 h-7 bg-red-50 text-red-600 rounded-lg flex items-center justify-center hover:bg-red-100 hover:text-red-700 font-bold transition-all cursor-pointer active:scale-90"
+                            title="Remove Class Teacher"
+                          >
+                            ×
+                          </button>
                         )}
                       </td>
                   </tr>

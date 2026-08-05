@@ -17,6 +17,7 @@ import {
   logActivity
 } from '../utils/db';
 import { canDelete } from '../utils/permissions';
+import { confirmAction } from './ConfirmDialog';
 
 export default function Subjects() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -207,15 +208,27 @@ export default function Subjects() {
 
   const deleteSubject = (id: string, name: string) => {
     if (!canDelete()) {
-      alert('⚠️ Access denied: You have a restriction ("cannot delete") preventing you from deleting items in this software.');
+      confirmAction({
+        title: 'Permission Restricted',
+        message: 'You have a restriction preventing you from deleting items in this software. Only Super Admin can delete subjects.',
+        confirmText: 'OK',
+        variant: 'warning',
+        onConfirm: () => {}
+      });
       return;
     }
-    if (confirm(`⚠️ Are you sure you want to delete "${name}"?`)) {
-      const updated = subjects.filter(s => s.id !== id);
-      setSubjects(updated);
-      saveSubjects(updated);
-      triggerToast(`Deleted "${name}"`);
-    }
+    confirmAction({
+      title: 'Delete Learning Area / Subject',
+      message: `Are you sure you want to delete "${name}"? This will remove the subject from curriculum lists.`,
+      confirmText: 'Delete Subject',
+      variant: 'danger',
+      onConfirm: () => {
+        const updated = subjects.filter(s => s.id !== id);
+        setSubjects(updated);
+        saveSubjects(updated);
+        triggerToast(`Deleted subject "${name}"`);
+      }
+    });
   };
 
   const changeGradeAssignment = (subject: Subject) => {
@@ -965,7 +978,16 @@ export default function Subjects() {
                     <div className="flex gap-1">
                       <button onClick={() => handleEditSubject(subject)} className="p-2 text-amber-600 hover:bg-amber-50 rounded-xl transition-all" title="Edit Subject"><Edit2 className="w-4 h-4" /></button>
                       {canDelete() && (
-                          <button onClick={() => deleteSubject(subject.id, subject.name)} className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all" title="Delete Subject"><Trash2 className="w-4 h-4" /></button>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteSubject(subject.id, subject.name);
+                            }} 
+                            className="p-2 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-xl transition-all cursor-pointer active:scale-90" 
+                            title="Delete Subject"
+                          >
+                            <Trash2 className="w-4 h-4 pointer-events-none" />
+                          </button>
                       )}
                     </div>
                   </div>

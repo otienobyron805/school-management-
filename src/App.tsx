@@ -86,6 +86,7 @@ import CloudDataExplorer from './components/CloudDataExplorer';
 import Finances from './components/Finances';
 import Subscriptions from './components/Subscriptions';
 import UpdateNotificationModal from './components/UpdateNotificationModal';
+import ConfirmDialog from './components/ConfirmDialog';
 import SchemeOfWorkRepository from './components/SchemeOfWork';
 import ThemeToggle from './components/ThemeToggle';
 import { initTheme } from './utils/theme';
@@ -831,6 +832,9 @@ export default function App() {
         onClose={handleDismissUpdateModal}
         onRefresh={handleRefreshUpdateModal}
       />
+      
+      {/* Global Responsive Confirmation Dialog for Deletions */}
+      <ConfirmDialog />
     </div>
   );
 }

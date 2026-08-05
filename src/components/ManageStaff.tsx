@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getUsers, saveUsers, UserAccount, getSchoolProfile, secureGet } from '../utils/db';
 import { canDelete } from '../utils/permissions';
+import { confirmAction } from './ConfirmDialog';
 import { useAccessControl } from '../hooks/useAccessControl';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { 
@@ -451,20 +452,39 @@ Here are your official credentials to access the platform:
   const handleDeleteUser = (id: string, name: string) => {
     checkAccess('perm_del_staff', async () => {
       if (name === 'admin' || name === 'otienobyron805@gmail.com') {
-        alert('⚠️ Your Super Admin account is the owner account and cannot be deleted.');
+        confirmAction({
+          title: 'Protected Account',
+          message: 'Your Super Admin account is the owner account and cannot be deleted.',
+          confirmText: 'OK',
+          variant: 'warning',
+          onConfirm: () => {}
+        });
         return;
       }
       const target = users.find(u => u.id === id);
       if (target?.role === 'Super Admin') {
-        alert('⚠️ Super Admin accounts cannot be deleted.');
+        confirmAction({
+          title: 'Protected Account',
+          message: 'Super Admin accounts cannot be deleted.',
+          confirmText: 'OK',
+          variant: 'warning',
+          onConfirm: () => {}
+        });
         return;
       }
 
-      if (window.confirm(`🗑️ Are you sure you want to permanently delete user "${name}"?`)) {
-        const nextUsers = users.filter(u => u.id !== id);
-        setUsers(nextUsers);
-        await saveUsers(nextUsers);
-      }
+      confirmAction({
+        title: 'Delete Staff Account',
+        message: `Are you sure you want to permanently delete user "${name}"? This will revoke their access to the system.`,
+        confirmText: 'Delete Account',
+        variant: 'danger',
+        onConfirm: async () => {
+          const nextUsers = users.filter(u => u.id !== id);
+          setUsers(nextUsers);
+          await saveUsers(nextUsers);
+          setToast({ message: `Staff member "${name}" deleted.`, type: 'success' });
+        }
+      });
     });
   };
 
@@ -948,16 +968,19 @@ Here are your official credentials to access the platform:
                               </button>
                               {canDelete() && (
                                 <button
-                                  onClick={() => handleDeleteUser(user.id, user.username)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteUser(user.id, user.username);
+                                  }}
                                   disabled={user.username === 'admin' || user.username === 'otienobyron805@gmail.com' || user.role === 'Super Admin'}
                                   className={`p-2 rounded-lg transition ${
                                     (user.username === 'admin' || user.username === 'otienobyron805@gmail.com' || user.role === 'Super Admin')
                                       ? 'text-slate-200 cursor-not-allowed opacity-40'
-                                      : 'text-rose-500 hover:text-rose-700 hover:bg-rose-50 cursor-pointer'
+                                      : 'text-rose-500 hover:text-rose-700 hover:bg-rose-50 cursor-pointer active:scale-90'
                                   }`}
                                   title="Delete account"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <Trash2 className="w-3.5 h-3.5 pointer-events-none" />
                                 </button>
                               )}
                             </div>

@@ -1890,6 +1890,11 @@ export function logActivity(type: ActivityEvent['type'], message: string, user: 
   secureSet('school_activity_logs', JSON.stringify([newLog, ...logs].slice(0, 50)));
 }
 
+// Log major code updates
+try {
+  logActivity('general_change', 'Enhanced all deletion buttons across Exams, Reports, System, Attendance, Staff, Grades, Schemes, and WhatsApp modules with tactile click response and custom confirmation dialogs', 'Super Admin');
+} catch (e) {}
+
 // --- FINANCE & FEE MANAGEMENT TYPES AND STORAGE ---
 export interface FeeStructure {
   id: string;

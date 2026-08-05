@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { getLearners, getSystemSettings, getSchoolProfile, getGrades, Learner, secureGet, secureSet } from '../utils/db';
 import { canDelete } from '../utils/permissions';
+import { confirmAction } from './ConfirmDialog';
 
 export interface AlertTemplate {
   id: string;
@@ -373,20 +374,38 @@ export default function WhatsAppAlerts() {
   };
 
   // Delete current template
-  const handleDeleteTemplate = (id: string) => {
+  const handleDeleteTemplate = (id: string, title?: string) => {
     if (!canDelete()) {
-      alert('⚠️ Access denied: You have a restriction ("cannot delete") preventing you from deleting items in this software.');
+      confirmAction({
+        title: 'Permission Restricted',
+        message: 'Only Super Admin can delete alert templates.',
+        confirmText: 'OK',
+        variant: 'warning',
+        onConfirm: () => {}
+      });
       return;
     }
     if (templates.length <= 1) {
-      alert('At least one template must remain in the system.');
+      confirmAction({
+        title: 'Template Required',
+        message: 'At least one template must remain in the system.',
+        confirmText: 'OK',
+        variant: 'warning',
+        onConfirm: () => {}
+      });
       return;
     }
-    if (confirm('Are you sure you want to delete this template?')) {
-      const updated = templates.filter(t => t.id !== id);
-      saveTemplates(updated);
-      setSelectedTemplateId(updated[0].id);
-    }
+    confirmAction({
+      title: 'Delete WhatsApp Template',
+      message: `Are you sure you want to delete template "${title || 'selected template'}"?`,
+      confirmText: 'Delete Template',
+      variant: 'danger',
+      onConfirm: () => {
+        const updated = templates.filter(t => t.id !== id);
+        saveTemplates(updated);
+        setSelectedTemplateId(updated[0].id);
+      }
+    });
   };
 
   // Insert tag into modal body
@@ -940,13 +959,14 @@ export default function WhatsAppAlerts() {
                 {editingTplId && canDelete() ? (
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setIsCreatingNewTemplate(false);
-                      handleDeleteTemplate(editingTplId);
+                      handleDeleteTemplate(editingTplId, tplTitle);
                     }}
-                    className="px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 font-bold rounded-xl transition flex items-center gap-1 cursor-pointer"
+                    className="px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 font-bold rounded-xl transition flex items-center gap-1 cursor-pointer active:scale-95"
                   >
-                    <Trash2 className="w-3.5 h-3.5" /> Delete Template
+                    <Trash2 className="w-3.5 h-3.5 pointer-events-none" /> Delete Template
                   </button>
                 ) : <div />}
 

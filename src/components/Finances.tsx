@@ -47,6 +47,7 @@ import {
   FeePayment 
 } from '../utils/db';
 import { canDelete } from '../utils/permissions';
+import { confirmAction } from './ConfirmDialog';
 
 export default function Finances() {
   const [activeTab, setActiveTab] = useState<'balances' | 'record' | 'structures' | 'transactions'>('balances');
@@ -293,29 +294,53 @@ export default function Finances() {
   };
 
   // Delete Individual Fee Structure
-  const handleDeleteStructure = (id: string) => {
+  const handleDeleteStructure = (id: string, name?: string) => {
     if (!canDelete()) {
-      alert('⚠️ Access denied: You have a restriction ("cannot delete") preventing you from deleting items in this software.');
+      confirmAction({
+        title: 'Permission Restricted',
+        message: 'Only Super Admin can delete fee structures.',
+        confirmText: 'OK',
+        variant: 'warning',
+        onConfirm: () => {}
+      });
       return;
     }
-    if (window.confirm('Are you sure you want to delete this fee structure?')) {
-      const updated = structures.filter(s => s.id !== id);
-      setStructures(updated);
-      saveFeeStructures(updated);
-    }
+    confirmAction({
+      title: 'Delete Fee Structure',
+      message: `Are you sure you want to delete fee structure "${name || 'selected structure'}"?`,
+      confirmText: 'Delete Structure',
+      variant: 'danger',
+      onConfirm: () => {
+        const updated = structures.filter(s => s.id !== id);
+        setStructures(updated);
+        saveFeeStructures(updated);
+      }
+    });
   };
 
   // Delete Individual Payment
-  const handleDeletePayment = (id: string) => {
+  const handleDeletePayment = (id: string, receiptNo?: string) => {
     if (!canDelete()) {
-      alert('⚠️ Access denied: You have a restriction ("cannot delete") preventing you from deleting items in this software.');
+      confirmAction({
+        title: 'Permission Restricted',
+        message: 'Only Super Admin can delete payment records.',
+        confirmText: 'OK',
+        variant: 'warning',
+        onConfirm: () => {}
+      });
       return;
     }
-    if (window.confirm('Are you sure you want to delete this payment record?')) {
-      const updated = payments.filter(p => p.id !== id);
-      setPayments(updated);
-      saveFeePayments(updated);
-    }
+    confirmAction({
+      title: 'Delete Fee Payment Record',
+      message: `Are you sure you want to delete payment record ${receiptNo || 'selected payment'}?`,
+      confirmText: 'Delete Payment',
+      variant: 'danger',
+      onConfirm: () => {
+        const updated = payments.filter(p => p.id !== id);
+        setPayments(updated);
+        saveFeePayments(updated);
+      }
+    });
   };
 
   return (
@@ -813,11 +838,14 @@ export default function Finances() {
                         </button>
                         {canDelete() && (
                           <button
-                            onClick={() => handleDeleteStructure(struct.id)}
-                            className="p-1.5 bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-400 rounded-lg text-xs transition cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteStructure(struct.id, `${struct.grade} - ${struct.term}`);
+                            }}
+                            className="p-1.5 bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-400 rounded-lg text-xs transition cursor-pointer active:scale-90"
                             title="Delete Structure"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3.5 h-3.5 pointer-events-none" />
                           </button>
                         )}
                       </div>
@@ -882,11 +910,14 @@ export default function Finances() {
                             </button>
                             {canDelete() && (
                               <button
-                                onClick={() => handleDeletePayment(p.id)}
-                                className="p-1.5 bg-slate-100 hover:bg-rose-100 hover:text-rose-700 text-slate-400 rounded-lg text-[11px] transition cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeletePayment(p.id, p.id);
+                                }}
+                                className="p-1.5 bg-slate-100 hover:bg-rose-100 hover:text-rose-700 text-slate-400 rounded-lg text-[11px] transition cursor-pointer active:scale-90"
                                 title="Delete Record"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Trash2 className="w-3.5 h-3.5 pointer-events-none" />
                               </button>
                             )}
                           </div>

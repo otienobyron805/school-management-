@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Trash2, Pencil, Award, ClipboardList } from 'lucide-react';
 import { secureGet, secureSet, deleteRecord, saveToBackend } from '../utils/db';
 import { canDelete } from '../utils/permissions';
+import { confirmAction } from './ConfirmDialog';
 import KJSEAClassificationComponent from './KJSEAClassificationComponent';
 
 interface Exam {
@@ -65,13 +66,28 @@ const Exams: React.FC<ExamsProps> = ({ setActiveView, initialTab = 'all' }) => {
     setIsModalOpen(false);
   };
 
-  const deleteExam = (id: string) => {
+  const deleteExam = (id: string, name?: string) => {
     if (!canDelete()) {
-      alert('⚠️ Access denied: You have a restriction ("cannot delete") preventing you from deleting items in this software.');
+      confirmAction({
+        title: 'Permission Restricted',
+        message: 'You have a restriction preventing you from deleting items in this software. Only Super Admin can delete examinations.',
+        confirmText: 'OK',
+        variant: 'warning',
+        onConfirm: () => {}
+      });
       return;
     }
-    const updated = deleteRecord<Exam>('exams', id, 'Exam');
-    setExams(updated);
+
+    confirmAction({
+      title: 'Delete Examination',
+      message: `Are you sure you want to delete examination "${name || 'selected exam'}"?`,
+      confirmText: 'Delete Exam',
+      variant: 'danger',
+      onConfirm: () => {
+        const updated = deleteRecord<Exam>('exams', id, 'Exam', { skipConfirm: true });
+        setExams(updated);
+      }
+    });
   };
 
   const navigateToTrash = () => {
@@ -164,8 +180,15 @@ const Exams: React.FC<ExamsProps> = ({ setActiveView, initialTab = 'all' }) => {
                         <Pencil size={14} />
                      </button>
                      {canDelete() && (
-                       <button onClick={() => deleteExam(exam.id)} className="text-xs bg-red-50 p-2 rounded-lg text-red-600 hover:bg-red-100 active:scale-90 transition">
-                          <Trash2 size={14} />
+                       <button 
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           deleteExam(exam.id, exam.examName || exam.name);
+                         }} 
+                         className="text-xs bg-red-50 p-2 rounded-lg text-red-600 hover:bg-red-100 hover:text-red-700 active:scale-90 transition cursor-pointer"
+                         title="Delete Examination"
+                       >
+                          <Trash2 size={14} className="pointer-events-none" />
                        </button>
                      )}
                   </div>

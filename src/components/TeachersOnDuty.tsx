@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getUsers, UserAccount, getCurrentUser, secureGet, secureSet } from '../utils/db';
+import { canDelete } from '../utils/permissions';
+import { confirmAction } from './ConfirmDialog';
 import { 
   ShieldCheck, 
   Calendar, 
@@ -226,9 +228,27 @@ const TeachersOnDuty: React.FC<TeachersOnDutyProps> = ({ onNavigate }) => {
     setFormEndDate('');
   };
 
-  const handleDeleteAssignment = (id: string) => {
-    const updated = roster.filter(r => r.id !== id);
-    saveRoster(updated);
+  const handleDeleteAssignment = (id: string, teacherName?: string) => {
+    if (!canDelete()) {
+      confirmAction({
+        title: 'Permission Restricted',
+        message: 'Only Super Admin can delete duty assignments.',
+        confirmText: 'OK',
+        variant: 'warning',
+        onConfirm: () => {}
+      });
+      return;
+    }
+    confirmAction({
+      title: 'Delete Duty Assignment',
+      message: `Are you sure you want to remove the duty assignment for ${teacherName || 'this teacher'}?`,
+      confirmText: 'Delete Assignment',
+      variant: 'danger',
+      onConfirm: () => {
+        const updated = roster.filter(r => r.id !== id);
+        saveRoster(updated);
+      }
+    });
   };
 
   const handleToggleStatus = (id: string) => {
@@ -264,8 +284,26 @@ const TeachersOnDuty: React.FC<TeachersOnDutyProps> = ({ onNavigate }) => {
   };
 
   const handleDeleteLog = (id: string) => {
-    const updated = dutyLogs.filter(l => l.id !== id);
-    saveLogs(updated);
+    if (!canDelete()) {
+      confirmAction({
+        title: 'Permission Restricted',
+        message: 'Only Super Admin can delete shift notes.',
+        confirmText: 'OK',
+        variant: 'warning',
+        onConfirm: () => {}
+      });
+      return;
+    }
+    confirmAction({
+      title: 'Delete Shift Note',
+      message: 'Are you sure you want to delete this shift note?',
+      confirmText: 'Delete Note',
+      variant: 'danger',
+      onConfirm: () => {
+        const updated = dutyLogs.filter(l => l.id !== id);
+        saveLogs(updated);
+      }
+    });
   };
 
   const daysList = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -614,11 +652,14 @@ const TeachersOnDuty: React.FC<TeachersOnDutyProps> = ({ onNavigate }) => {
                             <span className="sm:hidden">Notify</span>
                           </a>
                           <button
-                            onClick={() => handleDeleteAssignment(assignment.id)}
-                            className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteAssignment(assignment.id, assignment.teacherName);
+                            }}
+                            className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition cursor-pointer active:scale-90"
                             title="Delete Assignment"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-4 h-4 pointer-events-none" />
                           </button>
                         </div>
                       </td>
@@ -665,10 +706,14 @@ const TeachersOnDuty: React.FC<TeachersOnDutyProps> = ({ onNavigate }) => {
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] text-slate-400 font-mono">{log.date} at {log.timestamp}</span>
                       <button 
-                        onClick={() => handleDeleteLog(log.id)}
-                        className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600 transition cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteLog(log.id);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600 transition cursor-pointer active:scale-90"
+                        title="Delete Shift Note"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5 pointer-events-none" />
                       </button>
                     </div>
                   </div>
