@@ -82,22 +82,29 @@ export default function ParentPortal({ user, activeTab, onTabChange }: ParentPor
 
   // Filter children linked to parent's logged-in phone number (or show all learners if logged in as Admin/Teacher for previewing!)
   useEffect(() => {
+    console.log('DEBUG: ParentPortal useEffect learners.length', learners.length);
     if (learners.length === 0) return;
 
     const parentPhoneClean = user.username.trim().replace(/\D/g, '').slice(-9);
+    console.log('DEBUG: ParentPortal user.username', user.username, 'parentPhoneClean', parentPhoneClean);
 
     const matched = learners.filter(l => {
       if (!l.parentPhone) return false;
       const childPhoneClean = l.parentPhone.trim().replace(/\D/g, '').slice(-9);
+      console.log('DEBUG: ParentPortal l.name', l.name, 'l.parentPhone', l.parentPhone, 'childPhoneClean', childPhoneClean);
       return childPhoneClean === parentPhoneClean || l.parentPhone.trim() === user.username.trim();
     });
 
+    console.log('DEBUG: ParentPortal matched children', matched);
     setMyChildren(matched);
     if (matched.length > 0) {
       // Restore selected child preference or pick first
       const storedPref = secureGet(`parent_active_child_${user.id}`);
       const foundPref = matched.find(c => c.id === storedPref);
+      console.log('DEBUG: ParentPortal selectedChild', foundPref || matched[0]);
       setSelectedChild(foundPref || matched[0]);
+    } else {
+      setSelectedChild(null);
     }
   }, [learners, user]);
 
@@ -214,6 +221,9 @@ export default function ParentPortal({ user, activeTab, onTabChange }: ParentPor
     return (
       <div className="max-w-4xl mx-auto p-6 space-y-6 text-slate-800 animate-fadeIn">
         <div className="bg-white p-12 rounded-3xl shadow-xl border border-slate-150 text-center space-y-4">
+          <h2 className="text-xl font-extrabold text-slate-900">DEBUG INFO</h2>
+          <p className="text-xs text-slate-500">Learners Loaded: {learners.length}</p>
+          <p className="text-xs text-slate-500">User Username: {user.username}</p>
           <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto border border-rose-100">
             <Users className="w-10 h-10" />
           </div>
@@ -221,15 +231,6 @@ export default function ParentPortal({ user, activeTab, onTabChange }: ParentPor
           <p className="text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
             There are currently no active student records registered under your phone number: <strong className="text-slate-800">"{user.username}"</strong>.
           </p>
-          <div className="p-4 bg-slate-50 rounded-2xl text-xs text-left max-w-lg mx-auto border border-slate-200 text-slate-600 leading-relaxed">
-            <h4 className="font-bold text-slate-800 mb-1 flex items-center gap-1">
-              <Info className="w-3.5 h-3.5 text-blue-500" />
-              How to register your parent portal access:
-            </h4>
-            1. Ask the School Admin or Class Teacher to update your child's student card.<br />
-            2. Enforce that the <strong className="text-slate-800">"Parent Phone Number"</strong> field matches exactly your sign-in phone format (e.g. <code>{user.username}</code>).<br />
-            3. Once saved by the admin, refresh this page to access full child analytics.
-          </div>
         </div>
       </div>
     );

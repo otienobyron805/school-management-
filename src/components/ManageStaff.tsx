@@ -403,6 +403,11 @@ Here are your official credentials to access the platform:
       else if (designatedRole === 'class_teacher') dbRole = 'Class Teacher';
     }
 
+    if (dbRole === 'Parent') {
+      setErrors({ systemRole: 'Cannot assign Parent role within the staff management module.' });
+      return;
+    }
+
     const rawUsername = username.trim() || staffNo.trim() || email.trim() || phone.trim() || fullName.trim().replace(/\s+/g, '_');
     const cleanUsername = rawUsername.toLowerCase().replace(/[^\x20-\x7E]/g, '');
     const finalStaffNo = staffNo.trim() || `ST-${Math.floor(100 + Math.random() * 900)}`;
