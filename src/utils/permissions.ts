@@ -61,19 +61,10 @@ export function getViewAccess(): 'FULL' | 'FULL_TOD' | 'RESTRICTED' {
 export function canDelete(): boolean {
   const user = getCurrentUser();
   if (!user) return true; // Default allow if not logged in
-  const permissions = user.permissions || [];
-  if (permissions.includes('perm_cannot_delete')) {
-    const userRole = (user.role || '').toLowerCase();
-    if (userRole === 'super admin' || userRole === 'admin') {
-      return true; // Admins override cannot_delete
-    }
-    return false;
-  }
-  
-  // Explicit permission check or admin roles
   const userRole = (user.role || '').toLowerCase();
+  
+  // Admins and Super Admins ALWAYS have full deletion rights
   if (
-    permissions.includes('perm_can_delete') || 
     userRole.includes('super admin') || 
     userRole.includes('admin') || 
     userRole.includes('head teacher') || 
@@ -83,7 +74,12 @@ export function canDelete(): boolean {
   ) {
     return true;
   }
+
+  const permissions = user.permissions || [];
+  if (permissions.includes('perm_cannot_delete')) {
+    return false;
+  }
   
-  return true; // Default to allow deletion across modules for smooth usability
+  return true; // Default allow
 }
 
