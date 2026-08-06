@@ -80,20 +80,35 @@ export default function ParentPortal({ user, activeTab, onTabChange }: ParentPor
     setSavedMarks(storedMarks ? JSON.parse(storedMarks) : []);
   }, []);
 
+  const normalizePhone = (phone: string) => {
+    let clean = phone.trim().replace(/\D/g, '');
+    // If it starts with 254 and has 12 digits, remove 254
+    if (clean.startsWith('254') && clean.length === 12) {
+      clean = clean.slice(3);
+    }
+    // If it starts with 0 and has 10 digits, remove 0
+    if (clean.startsWith('0') && clean.length === 10) {
+      clean = clean.slice(1);
+    }
+    return clean;
+  };
+
   // Filter children linked to parent's logged-in phone number (or show all learners if logged in as Admin/Teacher for previewing!)
   useEffect(() => {
     if (learners.length === 0) return;
 
     const loginIdentifier = user.phone || user.username;
-    const parentPhoneRaw = loginIdentifier.trim().replace(/\D/g, '');
-    const parentPhoneSuffix = parentPhoneRaw.slice(-9);
-
+    const parentPhone = normalizePhone(loginIdentifier);
+    
     const matched = learners.filter(l => {
-      if (!l.parentPhone) return false;
-      const childPhoneRaw = l.parentPhone.trim().replace(/\D/g, '');
-      const childPhoneSuffix = childPhoneRaw.slice(-9);
+      if (!l.parentPhone) {
+        console.log('DEBUG: ParentPortal - learner has no parentPhone:', l.name);
+        return false;
+      }
+      const childPhone = normalizePhone(l.parentPhone);
+      console.log('DEBUG: ParentPortal - checking:', l.name, 'l.parentPhone (raw):', l.parentPhone, 'childPhone (normalized):', childPhone, 'userPhone (normalized):', parentPhone);
       
-      return childPhoneSuffix === parentPhoneSuffix || parentPhoneRaw === childPhoneRaw;
+      return childPhone === parentPhone;
     });
 
     setMyChildren(matched);
@@ -216,9 +231,20 @@ export default function ParentPortal({ user, activeTab, onTabChange }: ParentPor
   }));
 
   if (myChildren.length === 0) {
+    const loginIdentifier = user.phone || user.username;
+    const normalizedUserPhone = normalizePhone(loginIdentifier);
     return (
       <div className="max-w-4xl mx-auto p-6 space-y-6 text-slate-800 animate-fadeIn">
         <div className="bg-white p-12 rounded-3xl shadow-xl border border-slate-150 text-center space-y-4">
+          <div className="p-4 bg-slate-50 rounded-2xl text-xs text-left max-w-lg mx-auto border border-slate-200 text-slate-600 leading-relaxed">
+            <h4 className="font-bold text-slate-800 mb-1 flex items-center gap-1">
+              <Info className="w-3.5 h-3.5 text-blue-500" />
+              DEBUG: No matches found
+            </h4>
+            <p>Logged in as: {loginIdentifier}</p>
+            <p>Normalized phone: {normalizedUserPhone}</p>
+            <p>Total learners loaded: {learners.length}</p>
+          </div>
           <div className="p-4 bg-slate-50 rounded-2xl text-xs text-left max-w-lg mx-auto border border-slate-200 text-slate-600 leading-relaxed">
             <h4 className="font-bold text-slate-800 mb-1 flex items-center gap-1">
               <Info className="w-3.5 h-3.5 text-blue-500" />
