@@ -6,5 +6,18 @@ export interface ActivityEvent {
   user: string;
 }
 
+export interface HandoverRequest {
+  id: string;
+  assignmentId: string;
+  senderId: string;
+  senderName: string;
+  receiverId: string;
+  receiverName: string;
+  status: 'Pending' | 'Approved' | 'Declined';
+  timestamp: string;
+  assignmentDay: string;
+  assignmentShift: string;
+}
+
 export { COLORS } from './constants/colors';
 

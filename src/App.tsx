@@ -74,7 +74,7 @@ import AttendanceRoll from './components/AttendanceRoll';
 import MyProfile from './components/MyProfile';
 import ResetPassword from './components/ResetPassword';
 import NotificationBell from './components/NotificationBell';
-import { getCurrentUser, setCurrentUser, getSchoolProfile, UserAccount, getUsers, getLearners, synchronizeWithMongoDB, startRealtimeCloudSync, getMessages, secureGet, secureSet } from './utils/db';
+import { getCurrentUser, setCurrentUser, getSchoolProfile, UserAccount, getUsers, getLearners, synchronizeWithMongoDB, startRealtimeCloudSync, getMessages, secureGet, secureSet, logActivity } from './utils/db';
 import CloudAutoSyncHeaderBar from './components/CloudAutoSyncHeaderBar';
 import CloudSyncHealth from './components/CloudSyncHealth';
 import ParentPortal from './components/ParentPortal';
@@ -185,6 +185,7 @@ export default function App() {
   }, [viewHistory, activeView, user]);
   const [schoolProfile, setSchoolProfile] = useState(() => getSchoolProfile());
   const [parentTab, setParentTab] = useState<'academics' | 'attendance' | 'messages' | 'profile'>('academics');
+  const [todShiftFilter, setTodShiftFilter] = useState<'All' | 'Morning' | 'Afternoon'>('All');
 
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [tick, setTick] = useState(0);
@@ -350,6 +351,36 @@ export default function App() {
     document.title = titleText;
   }, [schoolProfile.name]);
 
+  useEffect(() => {
+    if (user) {
+      try {
+        logActivity('general_change', 'Updated Teachers On Duty navigation item with upcoming weekly duty notification badge', user.fullName || 'System');
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, [user]);
+
+  const getUserUpcomingDutiesCount = () => {
+    if (!user) return 0;
+    try {
+      const raw = secureGet('tod_duty_roster_v1');
+      if (!raw) return 0;
+      const roster: any[] = JSON.parse(raw);
+      const userName = (user.fullName || '').toLowerCase();
+      const userId = user.id;
+      return roster.filter(r => {
+        const isMatch = (r.teacherName && r.teacherName.toLowerCase() === userName) || r.teacherId === userId;
+        const isUpcoming = r.status === 'Scheduled' || r.status === 'On Duty';
+        return isMatch && isUpcoming;
+      }).length;
+    } catch (e) {
+      return 0;
+    }
+  };
+
+  const userDutyCount = getUserUpcomingDutiesCount();
+
   const handleLoginSuccess = (loggedInUser: UserAccount) => {
     setUser(loggedInUser);
     if (typeof window !== 'undefined') {
@@ -502,7 +533,7 @@ export default function App() {
       case 'Subscriptions': return <Subscriptions />;
       case 'Check-in/out Settings': return isSuperAdmin ? <AttendanceSettingsPanel /> : <div className="p-6 text-slate-500 font-bold">Access Denied.</div>;
       case 'School Profile': return <SchoolProfileForm />;
-      case 'Teachers On Duty (TOD)': return <TeachersOnDuty onNavigate={(v) => setActiveView(v)} />;
+      case 'Teachers On Duty (TOD)': return <TeachersOnDuty onNavigate={(v) => setActiveView(v)} shiftFilter={todShiftFilter} />;
       case 'Manage Staff': return <ManageStaff />;
       case 'Performance Report': return isAdminOrHead ? <PerformanceReport /> : <div className="p-6 text-slate-500 font-bold">Access Denied. Reports are restricted to administrative staff.</div>;
       case 'Gate Check-in': return <GateCheckin currentUser={user} />;
@@ -553,7 +584,7 @@ export default function App() {
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
             style={{ backgroundColor: COLORS.sidebarBg, color: COLORS.sidebarText, borderColor: COLORS.sidebarBorder }}
-            className="sidebar flex-shrink-0 flex flex-col z-30 shadow-2xl border-r"
+            className="sidebar flex-shrink-0 flex flex-col h-full z-30 shadow-2xl border-r"
           >
             <div className="p-4 border-b border-slate-800/60 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -627,24 +658,59 @@ export default function App() {
                         <p className="px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
                           {group.title}
                         </p>
-                        {visibleItems.map((item) => (
-                          <button
-                            key={item.name}
-                            onClick={() => selectView(item.name)}
-                            className={`w-full py-2.5 px-3 rounded-xl flex items-center gap-3 text-xs font-bold transition ${
-                              activeView === item.name
-                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
-                                : 'hover:bg-slate-800 text-slate-400 hover:text-white'
-                            }`}
-                          >
-                            {typeof item.icon === 'string' ? (
-                              <span className="text-lg">{item.icon}</span>
-                            ) : (
-                              item.icon
-                            )}
-                            <span>{item.name}</span>
-                          </button>
-                        ))}
+                        {visibleItems.map((item) => {
+                          const isTod = item.name === 'Teachers On Duty (TOD)';
+                          return (
+                            <div key={item.name} className="space-y-1">
+                              <button
+                                onClick={() => selectView(item.name)}
+                                className={`w-full py-2.5 px-3 rounded-xl flex items-center gap-3 text-xs font-bold transition ${
+                                  activeView === item.name
+                                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
+                                    : 'hover:bg-slate-800 text-slate-400 hover:text-white'
+                                }`}
+                              >
+                                {typeof item.icon === 'string' ? (
+                                  <span className="text-lg">{item.icon}</span>
+                                ) : (
+                                  item.icon
+                                )}
+                                <span>{item.name}</span>
+                                {isTod && userDutyCount > 0 && (
+                                  <span className="ml-auto bg-emerald-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full min-w-[20px] text-center shadow-xs">
+                                    {userDutyCount}
+                                  </span>
+                                )}
+                              </button>
+
+                              {isTod && (
+                                <div className="pl-3 pr-2 py-1.5 space-y-1 bg-slate-900/80 rounded-xl border border-slate-800 my-1">
+                                  <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 px-1">
+                                    <span>Shift Filter</span>
+                                  </div>
+                                  <div className="grid grid-cols-3 gap-1">
+                                    {(['All', 'Morning', 'Afternoon'] as const).map((shift) => (
+                                      <button
+                                        key={shift}
+                                        onClick={() => {
+                                          selectView('Teachers On Duty (TOD)');
+                                          setTodShiftFilter(shift);
+                                        }}
+                                        className={`py-1 px-1 rounded-lg text-[10px] font-bold transition text-center cursor-pointer ${
+                                          todShiftFilter === shift
+                                            ? 'bg-emerald-600 text-white shadow-xs'
+                                            : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'
+                                        }`}
+                                      >
+                                        {shift}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     );
                   })}

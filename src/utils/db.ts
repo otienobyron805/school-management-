@@ -1454,6 +1454,22 @@ export function saveAttendanceSheets(sheets: AttendanceSheet[]): void {
   }
 }
 
+import { HandoverRequest } from '../types';
+
+export function getHandoverRequests(): HandoverRequest[] {
+  const data = secureGet('handover_requests');
+  return data ? JSON.parse(data) : [];
+}
+
+export function saveHandoverRequests(requests: HandoverRequest[]): void {
+  const serialized = JSON.stringify(requests);
+  secureSet('handover_requests', serialized);
+  saveToBackend('handover_requests', requests);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('db_updated'));
+  }
+}
+
 // Offline-ready persistence helpers
 export async function saveToBackend(table: string, data: any) {
   const primaryKey = getStorageKeyForTable(table) || table;
@@ -2269,7 +2285,7 @@ export async function restoreCloudSnapshot(snapshot: CloudSnapshotMeta): Promise
   } catch (e) {}
 
   try {
-    logActivity('general_change', 'Enhanced App component useEffect hooks with robust debouncing for storage and sync handlers, preventing race conditions and protecting school profile during rapid navigation', 'Super Admin');
+    logActivity('general_change', 'Created automated daily cloud backup feature and secure encrypted JSON database export for Super Admins', 'Super Admin');
   } catch (e) {}
 
   return true;
