@@ -11,6 +11,8 @@ export const createPool = () => {
     password: process.env.SQL_ADMIN_PASSWORD,
     database: process.env.SQL_DB_NAME,
     connectionTimeoutMillis: 15000,
+    idleTimeoutMillis: 30000,
+    max: 20,
   });
 };
 

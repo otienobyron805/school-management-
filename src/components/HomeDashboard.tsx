@@ -40,6 +40,7 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
   const [newNoticeTitle, setNewNoticeTitle] = useState('');
   const [newNoticeContent, setNewNoticeContent] = useState('');
   const [newNoticeCategory, setNewNoticeCategory] = useState('General');
+  const [isUserTOD, setIsUserTOD] = useState(false);
 
   const handleSaveNotice = (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +93,10 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
   }, []);
 
   // Convert Check-In Start Time (scheduled time) to opening time (offset earlier)
-  const checkInStartStr = attendanceSettings.checkInStart || '07:00';
+  const effectiveCheckInStart = isUserTOD ? '06:30' : (attendanceSettings.checkInStart || '07:00');
+  const effectiveCheckOutTime = isUserTOD ? '18:30' : (attendanceSettings.checkOutTime || '16:30');
+  
+  const checkInStartStr = effectiveCheckInStart;
   const checkInOpeningOffset = (Number(attendanceSettings.checkInOpeningOffset) || 2) * 60;
   const checkInAllowance = Number(attendanceSettings.checkInAllowance) || 5;
   const [startH, startM] = checkInStartStr.split(':').map(Number);
@@ -103,7 +107,7 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
   const isCheckInOpen = currentMinutes >= openMinutes && currentMinutes <= (startMinutes + checkInAllowance);
   
   // Check-out logic (Opens at scheduled checkOutTime e.g. 16:30 and stays open until midnight)
-  const checkOutStr = attendanceSettings.checkOutTime || '16:30';
+  const checkOutStr = effectiveCheckOutTime;
   const [outH, outM] = checkOutStr.split(':').map(Number);
   const checkOutMinutes = (isNaN(outH) ? 16 : outH) * 60 + (isNaN(outM) ? 30 : outM);
   const isCheckOutOpen = currentMinutes >= checkOutMinutes;
@@ -435,6 +439,26 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
     setUser(activeUser);
     if (activeUser) {
       loadMyAttendance(activeUser);
+
+      // Load TOD roster and check if user is TOD
+      const savedRoster = secureGet('tod_duty_roster_v1');
+      if (savedRoster) {
+        const roster = JSON.parse(savedRoster);
+        const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+        const isActive = roster.some((r: any) => {
+            const isUser = r.teacherName.toLowerCase() === activeUser.fullName?.toLowerCase() || r.teacherId === activeUser.id;
+            if (!isUser) return false;
+            if (r.status === 'On Duty') return true;
+            if (r.startDate && r.endDate) {
+                const now = new Date();
+                const start = new Date(r.startDate);
+                const end = new Date(r.endDate);
+                return now >= start && now <= end;
+            }
+            return r.day === todayName;
+        });
+        setIsUserTOD(isActive);
+      }
     }
     
     const profile = getSchoolProfile();

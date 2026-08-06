@@ -403,7 +403,7 @@ Here are your official credentials to access the platform:
       else if (designatedRole === 'class_teacher') dbRole = 'Class Teacher';
     }
 
-    if (dbRole === 'Parent') {
+    if ((dbRole as any) === 'Parent') {
       setErrors({ systemRole: 'Cannot assign Parent role within the staff management module.' });
       return;
     }

@@ -77,6 +77,7 @@ import NotificationBell from './components/NotificationBell';
 import { getCurrentUser, setCurrentUser, getSchoolProfile, UserAccount, getUsers, getLearners, synchronizeWithMongoDB, startRealtimeCloudSync, getMessages, secureGet, secureSet, logActivity } from './utils/db';
 import CloudAutoSyncHeaderBar from './components/CloudAutoSyncHeaderBar';
 import CloudSyncHealth from './components/CloudSyncHealth';
+import Remedial from './components/Remedial';
 import ParentPortal from './components/ParentPortal';
 import ParentAccountManager from './components/ParentAccountManager';
 import GateCheckin from './components/GateCheckin';
@@ -463,6 +464,7 @@ export default function App() {
         { name: 'Attendance Dashboard', icon: <BarChart3 className="w-4 h-4 text-emerald-500" />, visible: !isParent },
         { name: 'Attendance Analytics', icon: <BarChart3 className="w-4 h-4 text-blue-500" />, visible: isSuperAdmin || (secureGet('allow_attendance_analytics') === 'true' && isAuthorizedRole) },
         { name: 'Staff Attendance', icon: <Users className="w-4 h-4 text-slate-300" />, visible: isSuperAdmin || isAuthorizedRole },
+        { name: 'Remedial', icon: <BookOpen className="w-4 h-4 text-orange-400" />, visible: !isParent },
         { name: 'WhatsApp Alerts', icon: <MessageSquare className="w-4 h-4 text-emerald-500" />, visible: !isParent },
       ],
     },
@@ -543,6 +545,7 @@ export default function App() {
       case 'Attendance Roll': return <AttendanceRoll />;
       case 'Attendance Dashboard': return <AttendanceDashboard />;
       case 'Attendance Analytics': return (isSuperAdmin || (secureGet('allow_attendance_analytics') === 'true' && isAuthorizedRole)) ? <AttendanceAnalytics /> : <div className="p-6 text-slate-500 font-bold">Access Denied. Please contact the Super Admin for access.</div>;
+      case 'Remedial': return <Remedial />;
       case 'Staff Attendance': return <StaffAttendance />;
       case 'Subject Assignments': return <SubjectAssignments />;
       case 'Marks Submissions': return <MarkSubmissions />;
