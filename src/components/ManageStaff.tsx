@@ -450,41 +450,43 @@ Here are your official credentials to access the platform:
   };
 
   const handleDeleteUser = (id: string, name: string) => {
-    checkAccess('perm_del_staff', async () => {
-      if (name === 'admin' || name === 'otienobyron805@gmail.com') {
-        confirmAction({
-          title: 'Protected Account',
-          message: 'Your Super Admin account is the owner account and cannot be deleted.',
-          confirmText: 'OK',
-          variant: 'warning',
-          onConfirm: () => {}
-        });
-        return;
-      }
-      const target = users.find(u => u.id === id);
-      if (target?.role === 'Super Admin') {
-        confirmAction({
-          title: 'Protected Account',
-          message: 'Super Admin accounts cannot be deleted.',
-          confirmText: 'OK',
-          variant: 'warning',
-          onConfirm: () => {}
-        });
-        return;
-      }
-
+    if (!canDelete()) {
+      setToast({ message: 'Access denied: You have a restriction ("cannot delete") preventing you from deleting staff.', type: 'error' });
+      return;
+    }
+    if (name === 'admin' || name === 'otienobyron805@gmail.com') {
       confirmAction({
-        title: 'Delete Staff Account',
-        message: `Are you sure you want to permanently delete user "${name}"? This will revoke their access to the system.`,
-        confirmText: 'Delete Account',
-        variant: 'danger',
-        onConfirm: async () => {
-          const nextUsers = users.filter(u => u.id !== id);
-          setUsers(nextUsers);
-          await saveUsers(nextUsers);
-          setToast({ message: `Staff member "${name}" deleted.`, type: 'success' });
-        }
+        title: 'Protected Account',
+        message: 'Your Super Admin account is the owner account and cannot be deleted.',
+        confirmText: 'OK',
+        variant: 'warning',
+        onConfirm: () => {}
       });
+      return;
+    }
+    const target = users.find(u => u.id === id);
+    if (target?.role === 'Super Admin') {
+      confirmAction({
+        title: 'Protected Account',
+        message: 'Super Admin accounts cannot be deleted.',
+        confirmText: 'OK',
+        variant: 'warning',
+        onConfirm: () => {}
+      });
+      return;
+    }
+
+    confirmAction({
+      title: 'Delete Staff Account',
+      message: `Are you sure you want to permanently delete user "${name}"? This will revoke their access to the system.`,
+      confirmText: 'Delete Account',
+      variant: 'danger',
+      onConfirm: async () => {
+        const nextUsers = users.filter(u => u.id !== id);
+        setUsers(nextUsers);
+        await saveUsers(nextUsers);
+        setToast({ message: `Staff member "${name}" deleted.`, type: 'success' });
+      }
     });
   };
 

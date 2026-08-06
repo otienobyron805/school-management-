@@ -1770,11 +1770,30 @@ export async function synchronizeWithMongoDB(force: boolean = false): Promise<bo
     const cloudData = await fetchAllFromCloud();
     console.log("[DEBUG] Cloud data fetched:", cloudData ? Object.keys(cloudData) : "null");
     if (cloudData && typeof cloudData === 'object' && Object.keys(cloudData).length > 0) {
-      for (const [table, val] of Object.entries(cloudData)) {
+      for (const [table, rawVal] of Object.entries(cloudData)) {
         if (table === 'current_user' || table === 'school_current_user' || table === 'school_last_sync_time' || table === 'system_update_acknowledged_version') {
           continue;
         }
+        let val = rawVal;
         if (val !== undefined && val !== null) {
+          if (table === 'school_profile') {
+            const existingLocal = secureGet('school_profile');
+            if (existingLocal) {
+              try {
+                const parsedLocal = typeof existingLocal === 'string' ? JSON.parse(existingLocal) : existingLocal;
+                const parsedCloud = typeof val === 'string' ? JSON.parse(val) : val;
+                if (parsedLocal && typeof parsedLocal === 'object' && parsedCloud && typeof parsedCloud === 'object') {
+                  const merged = { ...parsedLocal, ...parsedCloud };
+                  for (const [k, locVal] of Object.entries(parsedLocal)) {
+                    if (locVal && (!parsedCloud[k] || parsedCloud[k] === '')) {
+                      (merged as any)[k] = locVal;
+                    }
+                  }
+                  val = merged;
+                }
+              } catch (e) {}
+            }
+          }
           writeToLocalStorageWithAliases(table, val);
         }
       }
@@ -2250,7 +2269,7 @@ export async function restoreCloudSnapshot(snapshot: CloudSnapshotMeta): Promise
   } catch (e) {}
 
   try {
-    logActivity('general_change', 'Updated permission rules and deletion helpers to allow admin and super admin roles to perform record deletions smoothly', 'Super Admin');
+    logActivity('general_change', 'Enhanced App component useEffect hooks with robust debouncing for storage and sync handlers, preventing race conditions and protecting school profile during rapid navigation', 'Super Admin');
   } catch (e) {}
 
   return true;

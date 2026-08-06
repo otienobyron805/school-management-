@@ -255,14 +255,18 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Keep React state in sync with stored data across devices
+    // Keep React state in sync with stored data across devices with robust debouncing
+    let timeoutId: any = null;
     const handleDataSync = () => {
-      // Refresh user session
-      const current = getCurrentUser();
-      setUser(current);
-      
-      // Force re-render to fetch latest data from secure storage
-      setTick(t => t + 1);
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        // Refresh user session safely
+        const current = getCurrentUser();
+        setUser(current);
+        
+        // Force re-render to fetch latest data from secure storage
+        setTick(t => t + 1);
+      }, 150);
     };
 
     window.addEventListener('currentUserUpdated', handleDataSync);
@@ -270,6 +274,7 @@ export default function App() {
     window.addEventListener('storage', handleDataSync);
 
     return () => {
+      if (timeoutId) clearTimeout(timeoutId);
       window.removeEventListener('currentUserUpdated', handleDataSync);
       window.removeEventListener('db_updated', handleDataSync);
       window.removeEventListener('storage', handleDataSync);
@@ -310,23 +315,32 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Sync school profile updates
+    // Sync school profile updates with robust debouncing to prevent race conditions during rapid navigation or sync
+    let timeoutId: any = null;
     const handleStorageChange = () => {
-      const newProfile = getSchoolProfile();
-      setSchoolProfile(prev => JSON.stringify(prev) === JSON.stringify(newProfile) ? prev : newProfile);
-      
-      const current = getCurrentUser();
-      setUser(prev => {
-        if (!current) return null;
-        if (!prev) return current;
-        if (JSON.stringify(prev) !== JSON.stringify(current)) {
-          return current;
-        }
-        return prev;
-      });
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        const newProfile = getSchoolProfile();
+        setSchoolProfile(prev => JSON.stringify(prev) === JSON.stringify(newProfile) ? prev : newProfile);
+        
+        const current = getCurrentUser();
+        setUser(prev => {
+          if (!current) return null;
+          if (!prev) return current;
+          if (JSON.stringify(prev) !== JSON.stringify(current)) {
+            return current;
+          }
+          return prev;
+        });
+      }, 150);
     };
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('db_updated', handleStorageChange);
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('db_updated', handleStorageChange);
+    };
   }, []);
 
   useEffect(() => {
