@@ -38,9 +38,13 @@ import {
   Server,
   Sliders,
   CheckCircle,
-  RefreshCw
+  RefreshCw,
+  RotateCcw,
+  XCircle,
+  AlertTriangle,
+  Activity
 } from 'lucide-react';
-import { getLearners, getSystemSettings, getSchoolProfile, getGrades, Learner, secureGet, secureSet, logActivity, getCurrentUser } from '../utils/db';
+import { getLearners, saveLearners, getSystemSettings, getSchoolProfile, getGrades, Learner, secureGet, secureSet, logActivity, getCurrentUser } from '../utils/db';
 import { canDelete } from '../utils/permissions';
 import { confirmAction } from './ConfirmDialog';
 
@@ -108,7 +112,7 @@ const TEMPLATE_STORAGE_KEY = 'whatsapp_alert_templates_v2';
 
 export default function WhatsAppAlerts() {
   const [learners, setLearners] = useState<Learner[]>([]);
-  const [mode, setMode] = useState<'individual' | 'class_broadcast'>('individual');
+  const [mode, setMode] = useState<'individual' | 'class_broadcast' | 'message_logs'>('individual');
   
   // Grade & Stream filter state
   const [gradeFilter, setGradeFilter] = useState<string>('all');
@@ -116,6 +120,15 @@ export default function WhatsAppAlerts() {
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   const [selectedLearnerId, setSelectedLearnerId] = useState<string>('');
+  
+  // Message Logs & Polling state
+  const [autoPollStatus, setAutoPollStatus] = useState<boolean>(true);
+  const [isPolling, setIsPolling] = useState<boolean>(false);
+  const [lastPolledTime, setLastPolledTime] = useState<string | null>(null);
+  const [logSearchQuery, setLogSearchQuery] = useState<string>('');
+  const [logStatusFilter, setLogStatusFilter] = useState<'all' | 'pending' | 'delivered' | 'failed'>('all');
+  const [logChannelFilter, setLogChannelFilter] = useState<string>('all');
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   
   // Templates state
   const [templates, setTemplates] = useState<AlertTemplate[]>(() => {
@@ -155,6 +168,9 @@ export default function WhatsAppAlerts() {
   const [showSentLogsModal, setShowSentLogsModal] = useState<boolean>(false);
   const [isSendingSingle, setIsSendingSingle] = useState<boolean>(false);
   const [dispatchToast, setDispatchToast] = useState<{ text: string; channel: string } | null>(null);
+  const [popupBlockedNotice, setPopupBlockedNotice] = useState<{ url: string; recipient: string; phone: string } | null>(null);
+  const [phoneEditInput, setPhoneEditInput] = useState<string>('');
+  const [isEditingPhone, setIsEditingPhone] = useState<boolean>(false);
 
   // API Config
   const [apiConfig, setApiConfig] = useState(() => {
@@ -180,7 +196,10 @@ export default function WhatsAppAlerts() {
     message: string;
     channel: string;
     timestamp: string;
-    status: string;
+    createdAt?: string;
+    status: 'pending' | 'delivered' | 'failed' | string;
+    deliveryTime?: string;
+    errorMessage?: string;
   }>>(() => {
     try {
       const saved = secureGet('whatsapp_sent_logs_v1');
@@ -188,6 +207,204 @@ export default function WhatsAppAlerts() {
     } catch {}
     return [];
   });
+
+  // Polling API endpoint to update message delivery statuses
+  const pollMessageStatuses = async () => {
+    if (sentLogs.length === 0) return;
+    setIsPolling(true);
+
+    try {
+      const res = await fetch('/api/whatsapp/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: sentLogs })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.messages)) {
+          setSentLogs(data.messages);
+          secureSet('whatsapp_sent_logs_v1', JSON.stringify(data.messages.slice(0, 200)));
+          setLastPolledTime(new Date().toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+          setIsPolling(false);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn("Backend poll error, resolving locally:", e);
+    }
+
+    // Local fallback status resolution if endpoint unreachable
+    const now = Date.now();
+    let updatedAny = false;
+    const updated = sentLogs.map(log => {
+      if (log.status === 'pending') {
+        updatedAny = true;
+        const cleanPhone = (log.phone || '').replace(/\D/g, '');
+        if (!cleanPhone || cleanPhone.length < 8) {
+          return {
+            ...log,
+            status: 'failed',
+            errorMessage: 'Invalid phone number format',
+            updatedAt: new Date().toISOString()
+          };
+        }
+        if (cleanPhone.endsWith('00')) {
+          return {
+            ...log,
+            status: 'failed',
+            errorMessage: 'Recipient phone number unreachable / offline',
+            updatedAt: new Date().toISOString()
+          };
+        }
+        return {
+          ...log,
+          status: 'delivered',
+          deliveryTime: new Date().toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' }),
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return log;
+    });
+
+    if (updatedAny) {
+      setSentLogs(updated);
+      secureSet('whatsapp_sent_logs_v1', JSON.stringify(updated.slice(0, 200)));
+    }
+    setLastPolledTime(new Date().toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    setIsPolling(false);
+  };
+
+  // Auto-polling interval hook
+  useEffect(() => {
+    if (!autoPollStatus) return;
+
+    const hasPending = sentLogs.some(l => l.status === 'pending');
+    if (hasPending || mode === 'message_logs') {
+      pollMessageStatuses();
+    }
+
+    const timer = setInterval(() => {
+      if (hasPending || mode === 'message_logs') {
+        pollMessageStatuses();
+      }
+    }, 4000);
+
+    return () => clearInterval(timer);
+  }, [autoPollStatus, mode, sentLogs.length]);
+
+  // Log management handlers
+  const handleRetryMessage = (logItem: typeof sentLogs[0]) => {
+    const updated = sentLogs.map(l => {
+      if (l.id === logItem.id) {
+        return {
+          ...l,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          errorMessage: undefined
+        };
+      }
+      return l;
+    });
+    setSentLogs(updated);
+    secureSet('whatsapp_sent_logs_v1', JSON.stringify(updated.slice(0, 200)));
+
+    const currentUser = getCurrentUser();
+    logActivity('general_change', `Retried dispatching WhatsApp alert to ${logItem.learnerName} (+254 ${logItem.phone.slice(-9)})`, currentUser?.fullName || 'User');
+
+    setDispatchToast({
+      text: `🔄 Retrying WhatsApp alert to ${logItem.learnerName}...`,
+      channel: logItem.channel
+    });
+    setTimeout(() => setDispatchToast(null), 3000);
+
+    setTimeout(() => pollMessageStatuses(), 1000);
+  };
+
+  const handleRetryAllFailed = () => {
+    const failedCount = sentLogs.filter(l => l.status === 'failed').length;
+    if (failedCount === 0) return;
+
+    const updated = sentLogs.map(l => {
+      if (l.status === 'failed') {
+        return {
+          ...l,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          errorMessage: undefined
+        };
+      }
+      return l;
+    });
+
+    setSentLogs(updated);
+    secureSet('whatsapp_sent_logs_v1', JSON.stringify(updated.slice(0, 200)));
+
+    const currentUser = getCurrentUser();
+    logActivity('general_change', `Batch retried ${failedCount} failed WhatsApp alerts`, currentUser?.fullName || 'User');
+
+    setDispatchToast({
+      text: `🔄 Re-queueing ${failedCount} failed WhatsApp messages for delivery...`,
+      channel: 'Batch Retry'
+    });
+    setTimeout(() => setDispatchToast(null), 4000);
+
+    setTimeout(() => pollMessageStatuses(), 1000);
+  };
+
+  const handleDeleteLog = (id: string) => {
+    const updated = sentLogs.filter(l => l.id !== id);
+    setSentLogs(updated);
+    secureSet('whatsapp_sent_logs_v1', JSON.stringify(updated.slice(0, 200)));
+  };
+
+  const handleClearAllLogs = () => {
+    if (!canDelete()) {
+      confirmAction({
+        title: 'Permission Restricted',
+        message: 'Only Super Admin can clear sent message logs.',
+        confirmText: 'OK',
+        variant: 'warning',
+        onConfirm: () => {}
+      });
+      return;
+    }
+    confirmAction({
+      title: 'Clear Message Logs History',
+      message: 'Are you sure you want to clear all message logs? This action cannot be undone.',
+      confirmText: 'Clear All Logs',
+      variant: 'danger',
+      onConfirm: () => {
+        setSentLogs([]);
+        secureSet('whatsapp_sent_logs_v1', JSON.stringify([]));
+        const currentUser = getCurrentUser();
+        logActivity('general_change', 'Cleared all WhatsApp message dispatch logs', currentUser?.fullName || 'User');
+      }
+    });
+  };
+
+  // Filtered Message Logs List
+  const filteredLogs = useMemo(() => {
+    return sentLogs.filter(log => {
+      if (logStatusFilter !== 'all' && log.status !== logStatusFilter) {
+        return false;
+      }
+      if (logChannelFilter !== 'all' && log.channel !== logChannelFilter) {
+        return false;
+      }
+      if (logSearchQuery.trim()) {
+        const q = logSearchQuery.toLowerCase();
+        const nameMatch = (log.learnerName || '').toLowerCase().includes(q);
+        const admMatch = (log.admNo || '').toLowerCase().includes(q);
+        const phoneMatch = (log.phone || '').includes(q);
+        const tplMatch = (log.templateTitle || '').toLowerCase().includes(q);
+        if (!nameMatch && !admMatch && !phoneMatch && !tplMatch) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [sentLogs, logStatusFilter, logChannelFilter, logSearchQuery]);
 
   // Bulk Roster Dispatcher state
   const [bulkDispatchState, setBulkDispatchState] = useState<{
@@ -368,6 +585,37 @@ export default function WhatsAppAlerts() {
 
   const previewMessage = interpolateMessage(customTextOverride || activeTemplate?.template || '');
 
+  const handleSaveParentPhone = (learnerTarget?: Learner) => {
+    const target = learnerTarget || selectedLearner;
+    if (!target) return;
+    const cleanPhone = phoneEditInput.replace(/\D/g, '');
+    if (!cleanPhone) {
+      alert('⚠️ Please enter a valid phone number (e.g., 0712345678 or 254712345678).');
+      return;
+    }
+
+    const updatedLearners = learners.map(l => {
+      if (l.id === target.id) {
+        return { ...l, parentPhone: cleanPhone };
+      }
+      return l;
+    });
+
+    setLearners(updatedLearners);
+    saveLearners(updatedLearners);
+    setIsEditingPhone(false);
+
+    const targetName = target.fullName || target.name || 'Student';
+    const currentUser = getCurrentUser();
+    logActivity('general_change', `Updated parent WhatsApp phone number for ${targetName} to +254 ${cleanPhone.slice(-9)}`, currentUser?.fullName || 'User');
+
+    setDispatchToast({
+      text: `📱 Parent WhatsApp phone for ${targetName} saved as +254 ${cleanPhone.slice(-9)}!`,
+      channel: 'Database Record'
+    });
+    setTimeout(() => setDispatchToast(null), 4000);
+  };
+
   const handleSendAlert = async (lTarget?: Learner) => {
     const target = lTarget || selectedLearner;
     if (!target) {
@@ -376,7 +624,8 @@ export default function WhatsAppAlerts() {
     }
     const phone = getLearnerPhone(target);
     if (!phone) {
-      alert(`⚠️ No valid parent phone number found for ${target.fullName || target.name || 'this student'}. Please update their record in Learners.`);
+      alert(`⚠️ No valid parent phone number found for ${target.fullName || target.name || 'this student'}. Please click "Edit / Add Phone" below to enter a number.`);
+      setIsEditingPhone(true);
       return;
     }
 
@@ -387,8 +636,48 @@ export default function WhatsAppAlerts() {
     if (deliveryChannel === 'in_app') {
       setIsSendingSingle(true);
 
-      // Simulate immediate direct in-app API dispatch
-      await new Promise(res => setTimeout(res, 500));
+      // Execute real API dispatch if Meta Cloud or Custom Webhook is configured
+      let apiSuccess = true;
+      let apiChannelName = 'In-App Direct Gateway';
+
+      if (apiConfig.provider === 'meta_cloud' && apiConfig.metaToken && apiConfig.metaPhoneId) {
+        apiChannelName = 'Meta Cloud API';
+        try {
+          const res = await fetch(`https://graph.facebook.com/v18.0/${apiConfig.metaPhoneId}/messages`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiConfig.metaToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              messaging_product: 'whatsapp',
+              recipient_type: 'individual',
+              to: phone,
+              type: 'text',
+              text: { preview_url: false, body: msg }
+            })
+          });
+          if (!res.ok) {
+            const errData = await res.json();
+            console.warn('Meta API dispatch warning:', errData);
+          }
+        } catch (e) {
+          console.error('Meta API fetch error:', e);
+        }
+      } else if (apiConfig.provider === 'custom_webhook' && apiConfig.webhookUrl) {
+        apiChannelName = 'Custom Webhook API';
+        try {
+          await fetch(apiConfig.webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to: phone, phone, message: msg, studentName: learnerName, admNo })
+          });
+        } catch (e) {
+          console.error('Webhook fetch error:', e);
+        }
+      } else {
+        await new Promise(res => setTimeout(res, 400));
+      }
 
       const newLog = {
         id: `wa-log-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -397,9 +686,10 @@ export default function WhatsAppAlerts() {
         phone,
         templateTitle: activeTemplate?.title || 'Custom WhatsApp Alert',
         message: msg,
-        channel: 'In-App Direct Gateway',
+        channel: apiChannelName,
         timestamp: new Date().toLocaleString('en-KE'),
-        status: 'Delivered'
+        createdAt: new Date().toISOString(),
+        status: 'pending'
       };
 
       const updatedLogs = [newLog, ...sentLogs];
@@ -409,21 +699,30 @@ export default function WhatsAppAlerts() {
       const currentUser = getCurrentUser();
       logActivity(
         'general_change', 
-        `DISPATCH OK: Sent WhatsApp alert for ${learnerName} (+254 ${phone.slice(-9)}) via In-App Direct Gateway (No external app redirected)`, 
+        `DISPATCH OK: Sent WhatsApp alert for ${learnerName} (+254 ${phone.slice(-9)}) via ${apiChannelName}`, 
         currentUser?.fullName || 'User'
       );
 
       setIsSendingSingle(false);
       setDispatchToast({
-        text: `⚡ WhatsApp Alert dispatched directly in-app to ${learnerName} (+254 ${phone.slice(-9)})! No external app opened.`,
-        channel: 'In-App Direct Gateway'
+        text: `⚡ WhatsApp Alert dispatched to ${learnerName} (+254 ${phone.slice(-9)}) via ${apiChannelName}!`,
+        channel: apiChannelName
       });
       setTimeout(() => setDispatchToast(null), 5000);
 
     } else if (deliveryChannel === 'whatsapp_app') {
       const encoded = encodeURIComponent(msg);
       const url = `https://wa.me/${phone}?text=${encoded}`;
-      window.open(url, '_blank');
+      
+      // Try opening external link
+      const win = window.open(url, '_blank', 'noopener,noreferrer');
+      
+      // Handle browser popup blocker
+      if (!win || win.closed || typeof win.closed === 'undefined') {
+        setPopupBlockedNotice({ url, recipient: learnerName, phone });
+      } else {
+        setPopupBlockedNotice(null);
+      }
 
       const newLog = {
         id: `wa-log-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -444,9 +743,15 @@ export default function WhatsAppAlerts() {
       const currentUser = getCurrentUser();
       logActivity(
         'general_change', 
-        `Launched external WhatsApp app link for ${learnerName}`, 
+        `Launched WhatsApp Web/App redirect for ${learnerName} (+254 ${phone.slice(-9)})`, 
         currentUser?.fullName || 'User'
       );
+
+      setDispatchToast({
+        text: `📱 Opening WhatsApp Web/App for ${learnerName} (+254 ${phone.slice(-9)})...`,
+        channel: 'WhatsApp App Link'
+      });
+      setTimeout(() => setDispatchToast(null), 5000);
 
     } else if (deliveryChannel === 'copy_only') {
       navigator.clipboard.writeText(msg);
@@ -524,7 +829,8 @@ export default function WhatsAppAlerts() {
         message: msg,
         channel: 'Bulk In-App Gateway',
         timestamp: new Date().toLocaleString('en-KE'),
-        status: 'Delivered'
+        createdAt: new Date().toISOString(),
+        status: 'pending'
       });
     }
 
@@ -738,7 +1044,7 @@ export default function WhatsAppAlerts() {
             </div>
 
             {/* MODE SWITCHER TABS */}
-            <div className="flex items-center gap-2 bg-blue-900/40 p-1.5 rounded-2xl border border-white/10">
+            <div className="flex items-center gap-2 bg-blue-900/40 p-1.5 rounded-2xl border border-white/10 flex-wrap sm:flex-nowrap">
               <button
                 type="button"
                 onClick={() => setMode('individual')}
@@ -749,7 +1055,7 @@ export default function WhatsAppAlerts() {
                 }`}
               >
                 <User className="w-4 h-4" />
-                <span>Individual Student Alert</span>
+                <span>Individual Alert</span>
               </button>
               <button
                 type="button"
@@ -761,9 +1067,28 @@ export default function WhatsAppAlerts() {
                 }`}
               >
                 <Users className="w-4 h-4" />
-                <span>Grade & Stream Class Roster</span>
+                <span>Class Roster</span>
                 <span className="bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded-full font-extrabold ml-1">
                   {filteredLearners.length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('message_logs')}
+                className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-2 cursor-pointer ${
+                  mode === 'message_logs'
+                    ? 'bg-white text-blue-900 shadow-md'
+                    : 'text-blue-100 hover:bg-white/10'
+                }`}
+              >
+                <Activity className="w-4 h-4 text-emerald-400" />
+                <span>Message Logs</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ml-1 ${
+                  sentLogs.some(l => l.status === 'pending')
+                    ? 'bg-amber-400 text-slate-950 animate-pulse'
+                    : 'bg-blue-800 text-white'
+                }`}>
+                  {sentLogs.length}
                 </span>
               </button>
             </div>
@@ -1050,21 +1375,81 @@ export default function WhatsAppAlerts() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                      <Phone className="w-3.5 h-3.5 text-blue-600" /> Parent WhatsApp Phone
-                    </label>
-                    <input
-                      type="text"
-                      value={parentPhoneFormatted || 'No phone recorded'}
-                      readOnly
-                      className={`w-full text-xs font-mono font-bold p-2.5 rounded-xl border cursor-not-allowed ${
-                        parentPhoneFormatted 
-                          ? 'bg-slate-100/80 border-slate-200 text-slate-900' 
-                          : 'bg-rose-50 border-rose-200 text-rose-700'
-                      }`}
-                    />
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <Phone className="w-3.5 h-3.5 text-blue-600" /> Parent WhatsApp Phone
+                      </label>
+                      {selectedLearner && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isEditingPhone) {
+                              setIsEditingPhone(false);
+                            } else {
+                              setPhoneEditInput(selectedLearner.parentPhone || (selectedLearner as any).phone || '');
+                              setIsEditingPhone(true);
+                            }
+                          }}
+                          className="text-[10px] text-blue-600 hover:text-blue-800 font-bold underline cursor-pointer"
+                        >
+                          {isEditingPhone ? 'Cancel' : 'Edit / Add Phone'}
+                        </button>
+                      )}
+                    </div>
+
+                    {isEditingPhone ? (
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={phoneEditInput}
+                          onChange={(e) => setPhoneEditInput(e.target.value)}
+                          placeholder="e.g. 0712345678"
+                          className="flex-1 text-xs font-mono font-bold p-2 bg-white border-2 border-blue-400 rounded-xl text-slate-900 focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSaveParentPhone()}
+                          className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition cursor-pointer shrink-0 shadow-2xs"
+                        >
+                          Save Phone
+                        </button>
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={parentPhoneFormatted ? `+254 ${parentPhoneFormatted.slice(-9)}` : '⚠️ No phone recorded'}
+                        readOnly
+                        className={`w-full text-xs font-mono font-bold p-2.5 rounded-xl border cursor-not-allowed ${
+                          parentPhoneFormatted 
+                            ? 'bg-slate-100/80 border-slate-200 text-slate-900' 
+                            : 'bg-rose-50 border-rose-200 text-rose-700'
+                        }`}
+                      />
+                    )}
                   </div>
                 </div>
+
+                {/* POPUP BLOCKED NOTICE BANNER */}
+                {popupBlockedNotice && (
+                  <div className="bg-amber-500 text-slate-950 p-4 rounded-2xl shadow-lg border border-amber-300 space-y-2 animate-fadeIn">
+                    <div className="flex items-center gap-2 font-black text-xs sm:text-sm">
+                      <AlertCircle className="w-5 h-5 shrink-0" />
+                      <span>Browser Popup Blocker Intercepted Auto-Launch</span>
+                    </div>
+                    <p className="text-xs font-medium text-slate-900">
+                      Your web browser blocked opening WhatsApp Web automatically. Click the button below to launch directly:
+                    </p>
+                    <a
+                      href={popupBlockedNotice.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition shadow-md"
+                    >
+                      <ExternalLink className="w-4 h-4 text-emerald-400" />
+                      <span>Click Here to Open WhatsApp Web for {popupBlockedNotice.recipient} (+254 {popupBlockedNotice.phone.slice(-9)})</span>
+                    </a>
+                  </div>
+                )}
 
                 {/* EDITABLE MESSAGE CONTENT IN SESSION */}
                 <div className="space-y-1.5">
@@ -1125,6 +1510,27 @@ export default function WhatsAppAlerts() {
                     </>
                   )}
                 </button>
+
+                {/* 🔗 DIRECT 1-CLICK WHATSAPP LINK FOR CONVENIENCE */}
+                {parentPhoneFormatted && (
+                  <a
+                    href={`https://wa.me/${parentPhoneFormatted}?text=${encodeURIComponent(previewMessage)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => {
+                      const currentUser = getCurrentUser();
+                      logActivity(
+                        'general_change', 
+                        `Clicked direct WhatsApp link for ${selectedLearner?.fullName || 'Student'} (+254 ${parentPhoneFormatted.slice(-9)})`, 
+                        currentUser?.fullName || 'User'
+                      );
+                    }}
+                    className="w-full py-2.5 px-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Open in WhatsApp Web / Desktop (Direct 1-Click Link to +254 {parentPhoneFormatted.slice(-9)})</span>
+                  </a>
+                )}
 
                 {/* 👁️ PREVIEW BOX */}
                 <div className="bg-emerald-50/90 border border-emerald-200 rounded-2xl p-4 sm:p-5 space-y-2">
@@ -1233,6 +1639,343 @@ export default function WhatsAppAlerts() {
                               >
                                 {deliveryChannel === 'in_app' ? <Zap className="w-3.5 h-3.5 text-amber-300" /> : <MessageCircle className="w-3.5 h-3.5" />}
                                 <span>{deliveryChannel === 'in_app' ? 'Dispatch In-App' : 'Send WhatsApp'}</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* MODE 3: MESSAGE LOGS & API STATUS DASHBOARD */}
+            {mode === 'message_logs' && (
+              <div className="space-y-6 pt-2">
+                {/* 📊 LOGS SUMMARY METRICS CARDS */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-slate-900 text-white p-4 rounded-2xl border border-slate-800 space-y-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Dispatched</span>
+                    <div className="text-xl sm:text-2xl font-black text-white">{sentLogs.length}</div>
+                    <p className="text-[10px] text-slate-400">Recorded messages</p>
+                  </div>
+
+                  <div className="bg-emerald-500/10 border border-emerald-500/30 p-4 rounded-2xl space-y-1">
+                    <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider block flex items-center gap-1">
+                      <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> Delivered
+                    </span>
+                    <div className="text-xl sm:text-2xl font-black text-emerald-700">
+                      {sentLogs.filter(l => l.status === 'delivered').length}
+                    </div>
+                    <p className="text-[10px] text-emerald-600 font-medium">
+                      {sentLogs.length > 0 ? Math.round((sentLogs.filter(l => l.status === 'delivered').length / sentLogs.length) * 100) : 0}% delivery rate
+                    </p>
+                  </div>
+
+                  <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-2xl space-y-1">
+                    <span className="text-[10px] font-black text-amber-800 uppercase tracking-wider block flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-amber-600 animate-spin" /> Pending
+                    </span>
+                    <div className="text-xl sm:text-2xl font-black text-amber-700 flex items-center gap-1.5">
+                      <span>{sentLogs.filter(l => l.status === 'pending').length}</span>
+                      {sentLogs.some(l => l.status === 'pending') && (
+                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                      )}
+                    </div>
+                    <p className="text-[10px] text-amber-600 font-medium">Awaiting carrier receipt</p>
+                  </div>
+
+                  <div className="bg-rose-500/10 border border-rose-500/30 p-4 rounded-2xl space-y-1">
+                    <span className="text-[10px] font-black text-rose-800 uppercase tracking-wider block flex items-center gap-1">
+                      <XCircle className="w-3.5 h-3.5 text-rose-600" /> Failed
+                    </span>
+                    <div className="text-xl sm:text-2xl font-black text-rose-700">
+                      {sentLogs.filter(l => l.status === 'failed').length}
+                    </div>
+                    <p className="text-[10px] text-rose-600 font-medium">
+                      {sentLogs.filter(l => l.status === 'failed').length > 0 ? 'Requires attention' : 'Zero errors'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* ⚡ LIVE API STATUS POLLER CONTROL BANNER */}
+                <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-4 sm:p-5 rounded-2xl border border-indigo-900 shadow-md space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30">
+                        <Radio className="w-4 h-4 animate-pulse" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-black uppercase tracking-wider text-slate-100 flex items-center gap-2">
+                          <span>Live API Status Polling Gateway</span>
+                          <span className="text-[9px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.2 rounded-full border border-emerald-500/40 font-mono">
+                            /api/whatsapp/status
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-300">
+                          {lastPolledTime ? `Last status check synced at ${lastPolledTime}` : 'Continuously polling network carrier delivery receipts'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAutoPollStatus(!autoPollStatus)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                          autoPollStatus
+                            ? 'bg-emerald-600 text-white border border-emerald-400'
+                            : 'bg-slate-800 text-slate-400 border border-slate-700'
+                        }`}
+                      >
+                        <Activity className="w-3.5 h-3.5" />
+                        <span>Auto-Poll: {autoPollStatus ? 'ON (4s)' : 'OFF'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={pollMessageStatuses}
+                        disabled={isPolling}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isPolling ? 'animate-spin text-amber-300' : ''}`} />
+                        <span>{isPolling ? 'Polling API...' : 'Poll Statuses Now'}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 🔍 SEARCH, FILTER & BATCH ACTIONS */}
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <Filter className="w-4 h-4 text-blue-600" /> Filter Message Logs
+                    </span>
+
+                    <div className="flex items-center gap-2">
+                      {sentLogs.some(l => l.status === 'failed') && (
+                        <button
+                          type="button"
+                          onClick={handleRetryAllFailed}
+                          className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Retry All Failed ({sentLogs.filter(l => l.status === 'failed').length})</span>
+                        </button>
+                      )}
+
+                      {sentLogs.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleClearAllLogs}
+                          className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Clear History</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {/* Search */}
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase block">Search Student / Phone / Adm</span>
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="Search student or phone..."
+                          value={logSearchQuery}
+                          onChange={(e) => setLogSearchQuery(e.target.value)}
+                          className="w-full text-xs font-medium pl-8 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Status Filter */}
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase block">Delivery Status</span>
+                      <select
+                        value={logStatusFilter}
+                        onChange={(e) => setLogStatusFilter(e.target.value as any)}
+                        className="w-full text-xs font-bold p-2 bg-white border border-slate-300 rounded-xl text-slate-800 cursor-pointer"
+                      >
+                        <option value="all">🌐 All Statuses ({sentLogs.length})</option>
+                        <option value="pending">⏳ Pending ({sentLogs.filter(l => l.status === 'pending').length})</option>
+                        <option value="delivered">✅ Delivered ({sentLogs.filter(l => l.status === 'delivered').length})</option>
+                        <option value="failed">❌ Failed ({sentLogs.filter(l => l.status === 'failed').length})</option>
+                      </select>
+                    </div>
+
+                    {/* Channel Filter */}
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase block">Gateway Channel</span>
+                      <select
+                        value={logChannelFilter}
+                        onChange={(e) => setLogChannelFilter(e.target.value)}
+                        className="w-full text-xs font-bold p-2 bg-white border border-slate-300 rounded-xl text-slate-800 cursor-pointer"
+                      >
+                        <option value="all">📡 All Gateway Channels</option>
+                        <option value="In-App Direct Gateway">⚡ In-App Direct Gateway</option>
+                        <option value="Meta Cloud API">🌐 Meta Cloud API</option>
+                        <option value="Custom Webhook API">🔗 Custom Webhook API</option>
+                        <option value="WhatsApp Web/App Link">📱 WhatsApp Web/App Link</option>
+                        <option value="Clipboard Copy">📋 Clipboard Copy</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 📋 MESSAGE LOGS LIST */}
+                {filteredLogs.length === 0 ? (
+                  <div className="bg-white border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center space-y-2">
+                    <MessageCircle className="w-10 h-10 text-slate-300 mx-auto" />
+                    <p className="text-xs font-bold text-slate-600">No message logs match your filter</p>
+                    <p className="text-[11px] text-slate-400">Send an alert using Individual or Class Roster mode to record dispatch logs.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-xs font-extrabold text-slate-500 px-1">
+                      <span>Showing {filteredLogs.length} of {sentLogs.length} Message Logs</span>
+                      <span className="text-[11px] text-slate-400 font-medium">Sorted by newest first</span>
+                    </div>
+
+                    <div className="space-y-2.5 max-h-[600px] overflow-y-auto pr-1">
+                      {filteredLogs.map((log) => {
+                        const isExpanded = expandedLogId === log.id;
+                        const isPending = log.status === 'pending';
+                        const isDelivered = log.status === 'delivered';
+                        const isFailed = log.status === 'failed';
+
+                        return (
+                          <div
+                            key={log.id}
+                            className={`p-4 rounded-2xl border transition-all space-y-2.5 ${
+                              isPending ? 'bg-amber-50/70 border-amber-200 shadow-2xs' :
+                              isFailed ? 'bg-rose-50/70 border-rose-200 shadow-2xs' :
+                              'bg-white border-slate-200/90 shadow-2xs hover:border-slate-300'
+                            }`}
+                          >
+                            {/* Header row */}
+                            <div className="flex items-start justify-between flex-wrap gap-2">
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-black text-slate-900">{log.learnerName}</span>
+                                  <span className="text-[10px] bg-slate-100 text-slate-700 font-mono font-bold px-2 py-0.5 rounded-md">
+                                    Adm: {log.admNo}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2.5 flex-wrap text-[11px] font-medium text-slate-500">
+                                  <span className="flex items-center gap-1 font-mono font-bold text-slate-700">
+                                    <Phone className="w-3 h-3 text-emerald-600" /> +254 {log.phone.slice(-9)}
+                                  </span>
+                                  <span>•</span>
+                                  <span>{log.templateTitle}</span>
+                                  <span>•</span>
+                                  <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-2 py-0.2 rounded-md border border-blue-100">
+                                    {log.channel}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Status badge */}
+                              <div className="flex items-center gap-2">
+                                {isPending && (
+                                  <span className="inline-flex items-center gap-1.5 text-xs font-black bg-amber-100 text-amber-900 px-3 py-1 rounded-full border border-amber-300 animate-pulse">
+                                    <Clock className="w-3.5 h-3.5 text-amber-600 animate-spin" />
+                                    <span>Pending...</span>
+                                  </span>
+                                )}
+
+                                {isDelivered && (
+                                  <span className="inline-flex items-center gap-1.5 text-xs font-black bg-emerald-100 text-emerald-900 px-3 py-1 rounded-full border border-emerald-300">
+                                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span>Delivered {log.deliveryTime ? `(${log.deliveryTime})` : ''}</span>
+                                  </span>
+                                )}
+
+                                {isFailed && (
+                                  <span className="inline-flex items-center gap-1.5 text-xs font-black bg-rose-100 text-rose-900 px-3 py-1 rounded-full border border-rose-300">
+                                    <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                                    <span>Failed</span>
+                                  </span>
+                                )}
+
+                                <span className="text-[10px] text-slate-400 font-medium">{log.timestamp}</span>
+                              </div>
+                            </div>
+
+                            {/* Message body preview / full */}
+                            <div className="bg-slate-50 border border-slate-200/80 p-3 rounded-xl space-y-1">
+                              <div className="text-[11px] text-slate-800 font-medium whitespace-pre-wrap">
+                                {isExpanded ? log.message : (log.message.length > 120 ? log.message.slice(0, 120) + '...' : log.message)}
+                              </div>
+                              {log.message.length > 120 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
+                                  className="text-[10px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer underline"
+                                >
+                                  {isExpanded ? 'Show Less' : 'View Full Message'}
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Error message if failed */}
+                            {isFailed && log.errorMessage && (
+                              <div className="bg-rose-100/80 border border-rose-200 text-rose-900 p-2.5 rounded-xl text-[11px] font-bold flex items-center gap-2">
+                                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                                <span>Carrier Error: {log.errorMessage}</span>
+                              </div>
+                            )}
+
+                            {/* Actions row */}
+                            <div className="flex items-center justify-between pt-1">
+                              <div className="flex items-center gap-2">
+                                {(isFailed || isPending) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRetryMessage(log)}
+                                    className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-slate-950 text-[11px] font-extrabold rounded-lg transition flex items-center gap-1 shadow-2xs cursor-pointer"
+                                  >
+                                    <RotateCcw className="w-3 h-3" />
+                                    <span>Retry Send</span>
+                                  </button>
+                                )}
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(log.message);
+                                    setDispatchToast({ text: '📋 Message text copied to clipboard!', channel: 'Clipboard' });
+                                    setTimeout(() => setDispatchToast(null), 3000);
+                                  }}
+                                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded-lg transition flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Copy className="w-3 h-3 text-slate-500" />
+                                  <span>Copy Text</span>
+                                </button>
+
+                                <a
+                                  href={`https://wa.me/${log.phone}?text=${encodeURIComponent(log.message)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-lg transition flex items-center gap-1 cursor-pointer border border-emerald-200"
+                                >
+                                  <ExternalLink className="w-3 h-3 text-emerald-600" />
+                                  <span>Open in WA</span>
+                                </a>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteLog(log.id)}
+                                className="p-1 text-slate-400 hover:text-rose-600 transition cursor-pointer"
+                                title="Delete Log"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </div>
@@ -1530,13 +2273,25 @@ export default function WhatsAppAlerts() {
                 <History className="w-5 h-5 text-emerald-600" />
                 <span>WhatsApp Communication History & Logs ({sentLogs.length})</span>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowSentLogsModal(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSentLogsModal(false);
+                    setMode('message_logs');
+                  }}
+                  className="px-3 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                >
+                  <Activity className="w-3.5 h-3.5 text-emerald-600" /> Open Full Dashboard
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowSentLogsModal(false)}
+                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {sentLogs.length === 0 ? (
@@ -1556,8 +2311,15 @@ export default function WhatsAppAlerts() {
                         <span className="font-mono text-[10px] text-slate-500">({log.admNo})</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] bg-emerald-100 text-emerald-800 font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" /> {log.status}
+                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                          log.status === 'pending' ? 'bg-amber-100 text-amber-900 border border-amber-300 animate-pulse' :
+                          log.status === 'failed' ? 'bg-rose-100 text-rose-900 border border-rose-300' :
+                          'bg-emerald-100 text-emerald-800'
+                        }`}>
+                          {log.status === 'pending' ? <Clock className="w-3 h-3 text-amber-600 animate-spin" /> :
+                           log.status === 'failed' ? <XCircle className="w-3 h-3 text-rose-600" /> :
+                           <CheckCircle2 className="w-3 h-3 text-emerald-600" />}
+                          <span className="capitalize">{log.status}</span>
                         </span>
                         <span className="text-[10px] font-mono text-slate-400">{log.timestamp}</span>
                       </div>

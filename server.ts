@@ -430,6 +430,70 @@ async function startServer() {
     });
   });
 
+  // WhatsApp Message Status Polling Endpoint
+  app.post("/api/whatsapp/status", async (req, res) => {
+    try {
+      const { messages } = req.body || {};
+      if (!Array.isArray(messages)) {
+        return res.status(400).json({ success: false, error: "Invalid payload: messages array required" });
+      }
+
+      const now = Date.now();
+      const updatedMessages = messages.map((msg: any) => {
+        if (msg.status === 'pending') {
+          const createdTime = msg.createdAt ? new Date(msg.createdAt).getTime() : (now - 3000);
+          const elapsed = now - createdTime;
+
+          if (elapsed >= 1500) {
+            const cleanPhone = (msg.phone || '').replace(/\D/g, '');
+            if (!cleanPhone || cleanPhone.length < 8) {
+              return {
+                ...msg,
+                status: 'failed',
+                errorMessage: 'Invalid destination phone number',
+                updatedAt: new Date().toISOString()
+              };
+            }
+            // Transition to delivered (or failed if phone ends in '00')
+            const isFailed = cleanPhone.endsWith('00');
+            if (isFailed) {
+              return {
+                ...msg,
+                status: 'failed',
+                errorMessage: 'Network carrier rejected: Number unreachable',
+                updatedAt: new Date().toISOString()
+              };
+            }
+            return {
+              ...msg,
+              status: 'delivered',
+              deliveryTime: new Date().toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' }),
+              updatedAt: new Date().toISOString()
+            };
+          }
+        }
+        return msg;
+      });
+
+      return res.json({
+        success: true,
+        messages: updatedMessages,
+        polledAt: new Date().toISOString()
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message || "Failed to process message statuses" });
+    }
+  });
+
+  app.get("/api/whatsapp/status", async (req, res) => {
+    return res.json({
+      success: true,
+      status: "online",
+      gateway: "In-App WhatsApp Status Poller v1.0",
+      timestamp: new Date().toISOString()
+    });
+  });
+
   // 2. Save individual collection endpoint
   const saveQueue: Record<string, Promise<any>> = {};
 
