@@ -811,17 +811,19 @@ export default function App() {
 
             <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>
             
-            <button
-              onClick={() => setIsSearchOpen(true)}
-              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-2xs"
-              title="Search Learners, Staff, Subjects or Modules (Ctrl + F / ⌘K)"
-            >
-              <Search className="w-4 h-4 text-slate-600" />
-              <span className="hidden md:inline">Search...</span>
-              <kbd className="hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono font-bold bg-white text-slate-500 rounded border border-slate-200">
-                Ctrl+F
-              </kbd>
-            </button>
+            {(isSuperAdmin || user.role === 'Admin' || user.role === 'Headteacher' || user.role === 'Deputy Headteacher' || user.role === 'Senior Teacher') && (
+              <button
+                onClick={() => setIsSearchOpen(true)}
+                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-2xs"
+                title="Search Learners, Staff, Subjects or Modules (Ctrl + F / ⌘K)"
+              >
+                <Search className="w-4 h-4 text-slate-600" />
+                <span className="hidden md:inline">Search...</span>
+                <kbd className="hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono font-bold bg-white text-slate-500 rounded border border-slate-200">
+                  Ctrl+F
+                </kbd>
+              </button>
+            )}
 
             <button
               onClick={() => setShowUpdateModal(true)}

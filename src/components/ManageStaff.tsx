@@ -528,6 +528,7 @@ Here are your official credentials to access the platform:
   };
 
   const filteredUsers = users
+    .filter(u => u.role !== 'Parent')
     .filter(u => 
       u.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
