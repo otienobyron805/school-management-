@@ -408,6 +408,7 @@ export default function App() {
   const handleLogout = () => {
     setCurrentUser(null);
     setUser(null);
+    window.location.reload();
   };
 
   // If session is still initializing on page refresh, show clean cloud connection screen
