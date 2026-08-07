@@ -156,6 +156,7 @@ html.dark .sidebar {
     min-height: 0 !important;
     page-break-after: auto !important;
     orphans: 4 !important;
+    overflow: visible !important;
   }
   
   .printable-report-modal section, .printable-report-modal .report-section {
