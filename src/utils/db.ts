@@ -925,6 +925,204 @@ export function saveSubjects(subjects: Subject[]): void {
   saveToBackend('subjects', cleanSubjects);
 }
 
+/**
+ * Deduplicates learners by Admission Number, ID, Assessment Number, or Full Name + Grade.
+ * RETAINS the FIRST entered occurrence and removes subsequent duplicate entries.
+ */
+export function deduplicateLearners(learners: Learner[]): Learner[] {
+  if (!Array.isArray(learners)) return [];
+  const seenIds = new Set<string>();
+  const seenAdmNos = new Set<string>();
+  const seenAssessNos = new Set<string>();
+  const seenNameGrades = new Set<string>();
+
+  const cleanList: Learner[] = [];
+
+  for (const l of learners) {
+    if (!l) continue;
+
+    // Check ID
+    const id = l.id ? String(l.id).trim() : '';
+    if (id && seenIds.has(id)) {
+      continue; // Duplicate ID -> retain first entered
+    }
+
+    // Check Admission Number
+    const adm = (l.admNo || '').toString().trim().toLowerCase();
+    if (adm && adm !== '—' && adm !== '-') {
+      if (seenAdmNos.has(adm)) {
+        continue; // Duplicate AdmNo -> retain first entered
+      }
+    }
+
+    // Check Assessment Number
+    const assess = (l.assessNo || '').toString().trim().toLowerCase();
+    if (assess && assess !== '—' && assess !== '-') {
+      if (seenAssessNos.has(assess)) {
+        continue; // Duplicate AssessNo -> retain first entered
+      }
+    }
+
+    // Check Full Name + Grade Combination
+    const namePart = (l.name || `${l.firstName || ''} ${l.secondName || ''} ${l.otherName || ''}`)
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ');
+    const gradePart = (l.gradeLabel || l.grade || '').toString().trim().toLowerCase();
+    const nameGradeKey = `${namePart}__${gradePart}`;
+
+    if (namePart && namePart.length > 2) {
+      if (seenNameGrades.has(nameGradeKey)) {
+        continue; // Duplicate Name + Grade -> retain first entered
+      }
+    }
+
+    // Register seen markers for this first instance
+    if (id) seenIds.add(id);
+    if (adm && adm !== '—' && adm !== '-') seenAdmNos.add(adm);
+    if (assess && assess !== '—' && assess !== '-') seenAssessNos.add(assess);
+    if (namePart && namePart.length > 2) seenNameGrades.add(nameGradeKey);
+
+    cleanList.push(l);
+  }
+
+  return cleanList;
+}
+
+/**
+ * Deduplicates staff / user accounts by ID, Username, Email, ID Number, TSC Number, or Full Name + Role.
+ * RETAINS the FIRST entered occurrence and removes subsequent duplicate entries.
+ */
+export function deduplicateUsers(users: UserAccount[]): UserAccount[] {
+  if (!Array.isArray(users)) return [];
+  const seenIds = new Set<string>();
+  const seenUsernames = new Set<string>();
+  const seenEmails = new Set<string>();
+  const seenIdNumbers = new Set<string>();
+  const seenTscNumbers = new Set<string>();
+  const seenNameRoles = new Set<string>();
+
+  const cleanList: UserAccount[] = [];
+
+  for (const u of users) {
+    if (!u) continue;
+
+    // Check ID
+    const id = u.id ? String(u.id).trim() : '';
+    if (id && seenIds.has(id)) {
+      continue; // Duplicate ID -> retain first entered
+    }
+
+    // Check Username
+    const username = (u.username || '').toString().trim().toLowerCase();
+    if (username) {
+      if (seenUsernames.has(username)) {
+        continue; // Duplicate Username -> retain first entered
+      }
+    }
+
+    // Check Email
+    const email = (u.email || '').toString().trim().toLowerCase();
+    if (email && email !== '—' && email !== '-') {
+      if (seenEmails.has(email)) {
+        continue; // Duplicate Email -> retain first entered
+      }
+    }
+
+    // Check ID Number
+    const idNum = (u.idNumber || '').toString().trim().toLowerCase();
+    if (idNum && idNum !== '—' && idNum !== '-') {
+      if (seenIdNumbers.has(idNum)) {
+        continue; // Duplicate ID Number -> retain first entered
+      }
+    }
+
+    // Check TSC Number
+    const tsc = (u.tscNumber || '').toString().trim().toLowerCase();
+    if (tsc && tsc !== '—' && tsc !== '-') {
+      if (seenTscNumbers.has(tsc)) {
+        continue; // Duplicate TSC Number -> retain first entered
+      }
+    }
+
+    // Check Full Name + Role
+    const fullName = (u.fullName || '').toString().trim().toLowerCase().replace(/\s+/g, ' ');
+    const role = (u.role || '').toString().trim().toLowerCase();
+    const nameRoleKey = `${fullName}__${role}`;
+
+    if (fullName && fullName.length > 2) {
+      if (seenNameRoles.has(nameRoleKey)) {
+        continue; // Duplicate Name + Role -> retain first entered
+      }
+    }
+
+    // Register seen markers for this first instance
+    if (id) seenIds.add(id);
+    if (username) seenUsernames.add(username);
+    if (email && email !== '—' && email !== '-') seenEmails.add(email);
+    if (idNum && idNum !== '—' && idNum !== '-') seenIdNumbers.add(idNum);
+    if (tsc && tsc !== '—' && tsc !== '-') seenTscNumbers.add(tsc);
+    if (fullName && fullName.length > 2) seenNameRoles.add(nameRoleKey);
+
+    cleanList.push(u);
+  }
+
+  return cleanList;
+}
+
+/**
+ * Deduplicates any generic array of items based on intelligent field inspection.
+ * RETAINS the FIRST entered occurrence and removes subsequent duplicate entries.
+ */
+export function deduplicateAnyList<T>(list: T[]): T[] {
+  if (!Array.isArray(list) || list.length === 0) return [];
+  const firstSample = list.find(item => item && typeof item === 'object');
+  if (!firstSample) return list;
+
+  if ('admNo' in (firstSample as object) || ('grade' in (firstSample as object) && 'firstName' in (firstSample as object))) {
+    return deduplicateLearners(list as unknown as Learner[]) as unknown as T[];
+  }
+
+  if ('username' in (firstSample as object) || ('fullName' in (firstSample as object) && 'role' in (firstSample as object))) {
+    return deduplicateUsers(list as unknown as UserAccount[]) as unknown as T[];
+  }
+
+  const seenKeys = new Set<string>();
+  const cleanList: T[] = [];
+
+  for (const item of list) {
+    if (!item) continue;
+    if (typeof item !== 'object') {
+      const key = String(item).trim().toLowerCase();
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        cleanList.push(item);
+      }
+      continue;
+    }
+
+    const obj = item as Record<string, any>;
+    const key = (
+      obj.id ||
+      obj.admNo ||
+      obj.username ||
+      obj.email ||
+      obj.code ||
+      obj.key ||
+      obj.name ||
+      obj.fullName ||
+      JSON.stringify(obj)
+    ).toString().trim().toLowerCase();
+
+    if (!seenKeys.has(key)) {
+      seenKeys.add(key);
+      cleanList.push(item);
+    }
+  }
+
+  return cleanList;
+}
+
 export function getLearners(): Learner[] {
   const data = secureGet('school_learners');
   if (!data) {
@@ -935,12 +1133,17 @@ export function getLearners(): Learner[] {
     return [];
   }
 
-  parsed = parsed.filter((l: Learner) => l && l.admNo && l.name);
-  return sortList(parsed, 'gradeStream');
+  parsed = parsed.filter((l: Learner) => l && (l.admNo || l.name));
+  const cleanLearners = deduplicateLearners(parsed);
+  if (cleanLearners.length !== parsed.length) {
+    secureSet('school_learners', JSON.stringify(cleanLearners), { skipCloud: true });
+  }
+  return sortList(cleanLearners, 'gradeStream');
 }
 
 export function saveLearners(learners: Learner[]): void {
-  const sorted = sortList(learners, 'gradeStream');
+  const cleanLearners = deduplicateLearners(learners);
+  const sorted = sortList(cleanLearners, 'gradeStream');
   secureSet('school_learners', JSON.stringify(sorted));
   saveToBackend('learners', sorted);
   if (typeof window !== 'undefined') {
@@ -1149,24 +1352,32 @@ export function getUsers(): UserAccount[] {
     try {
       const parsed = JSON.parse(data);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        const cleanUsers = deduplicateUsers(parsed);
+        if (cleanUsers.length !== parsed.length) {
+          const serialized = JSON.stringify(cleanUsers);
+          secureSet('school_users', serialized, { skipCloud: true });
+          secureSet('users', serialized, { skipCloud: true });
+        }
+        return cleanUsers;
       }
     } catch (e) {
       console.error("Error parsing users:", e);
     }
   }
-  secureSet('school_users', JSON.stringify(DEFAULT_USERS), { skipCloud: true });
-  return DEFAULT_USERS;
+  const cleanDefault = deduplicateUsers(DEFAULT_USERS);
+  secureSet('school_users', JSON.stringify(cleanDefault), { skipCloud: true });
+  return cleanDefault;
 }
 
 export async function saveUsers(users: UserAccount[]): Promise<void> {
-  console.log("[DEBUG] Saving users to backend...", users);
-  const serialized = JSON.stringify(users);
+  const cleanUsers = deduplicateUsers(users);
+  console.log("[DEBUG] Saving users to backend...", cleanUsers);
+  const serialized = JSON.stringify(cleanUsers);
   secureSet('school_users', serialized);
   secureSet('users', serialized);
   secureSet('teachers', serialized);
   secureSet('staff', serialized);
-  await saveToBackend('users', users);
+  await saveToBackend('users', cleanUsers);
   console.log("[DEBUG] Users saved.");
 
   try {
@@ -1738,6 +1949,8 @@ export function writeToLocalStorageWithAliases(rawTable: string, data: any): voi
     }
     if (Array.isArray(existingLocal)) {
       finalData = mergeArrays(existingLocal, data);
+    } else {
+      finalData = deduplicateAnyList(data);
     }
   }
 
@@ -1794,8 +2007,8 @@ const mergeArrays = (localArr: any[], cloudArr: any[]): any[] => {
   const localList = Array.isArray(localArr) ? localArr : [];
   const cloudList = Array.isArray(cloudArr) ? cloudArr : [];
 
-  if (cloudList.length === 0) return localList;
-  if (localList.length === 0) return cloudList;
+  if (cloudList.length === 0) return deduplicateAnyList(localList);
+  if (localList.length === 0) return deduplicateAnyList(cloudList);
 
   const map = new Map<string, any>();
 
@@ -1835,7 +2048,7 @@ const mergeArrays = (localArr: any[], cloudArr: any[]): any[] => {
     }
   }
 
-  return Array.from(map.values());
+  return deduplicateAnyList(Array.from(map.values()));
 };
 
 /**
