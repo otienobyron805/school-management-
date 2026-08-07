@@ -137,8 +137,8 @@ html.dark .sidebar {
 
 @media print {
   /* 1️⃣ HIDE BUTTONS & NAV — KEEP EVERYTHING ELSE */
-  .modal-header, .print-btn, .close-btn, .top-bar, .sidebar, 
-  button, select, input, textarea, .no-print, .print\:hidden {
+  .modal-header, .print-btn, .close-btn, .top-bar, .sidebar, nav, 
+  button, select, input, textarea, .no-print, .print\:hidden, .status-bar, .menu-toggle {
     display: none !important;
   }
 
@@ -151,7 +151,7 @@ html.dark .sidebar {
   }
 
   /* 3️⃣ REMOVE WIDTH LIMITS — FILL FULL PAGE */
-  .report-modal, .report-card, table, .max-w-5xl, .max-w-4xl, .max-w-6xl {
+  .report-modal, .report-card, table, .max-w-5xl, .max-w-4xl, .max-w-6xl, .printable-area {
     width: 100% !important;
     max-width: 100% !important;
     box-shadow: none !important;
@@ -167,8 +167,36 @@ html.dark .sidebar {
     background: white !important;
   }
 
-  /* 5️⃣ PREVENT CUTTING TEXT IN HALF */
-  table, tr, td, th {
+  /* 🖼️ LARGE TEXT WATERMARK FOR OFFICIAL PRINT DOCUMENTS */
+  body::after {
+    content: 'ST AUGUSTINE CATHOLIC SCHOOL';
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-30deg);
+    font-size: 7vw;
+    font-weight: 900;
+    color: #475569;
+    opacity: 0.10;
+    z-index: -1;
+    pointer-events: none;
+    letter-spacing: 4px;
+    text-align: center;
+    line-height: 1.2;
+    width: 100%;
+  }
+
+  /* 5️⃣ PREVENT CUTTING TEXT IN HALF & TABLE STYLING */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: avoid !important;
+  }
+  th {
+    background-color: #1e40af !important;
+    color: white !important;
+  }
+  tr, td {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
