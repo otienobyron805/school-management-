@@ -4,7 +4,7 @@ import {
   GraduationCap, BookOpen, Scale, Plus, Settings, ListChecks, 
   Edit3, X, Trash2, Save
 } from 'lucide-react';
-import { getGrades, getSubjects, Grade, Subject, getSubjectPapers, saveSubjectPapers, SubjectPaper, secureGet, secureSet } from '../utils/db';
+import { getGrades, getSubjects, Grade, Subject, getSubjectPapers, saveSubjectPapers, SubjectPaper, secureGet, secureSet, logActivity, getCurrentUser } from '../utils/db';
 import { canDelete } from '../utils/permissions';
 
 export default function ExamSetup() {
@@ -120,6 +120,9 @@ export default function ExamSetup() {
     const otherSubjectsPapers = allPapers.filter(p => p.subjectId !== subject.id && (p as any).subjectName !== subject.name);
     saveSubjectPapers([...otherSubjectsPapers, ...updatedPapers]);
 
+    const currentUser = getCurrentUser();
+    logActivity('general_change', `Saved paper configuration for ${subject.name}`, currentUser?.fullName || 'User');
+
     setEditingPaperId(null);
     setPaperName('');
     setPaperWeight(0);
@@ -139,12 +142,13 @@ export default function ExamSetup() {
     const updatedPapers = papers.filter(p => p.id !== id);
     setPapers(updatedPapers);
 
-    const subject = subjects.find(s => s.name === selectedSubject);
-    if (subject) {
-      const allPapers = getSubjectPapers();
-      const otherSubjectsPapers = allPapers.filter(p => p.subjectId !== subject.id);
-      saveSubjectPapers([...otherSubjectsPapers, ...updatedPapers]);
-    }
+    // Remove from global storage reliably by filtering by paper ID
+    const allPapers = getSubjectPapers();
+    const remainingPapers = allPapers.filter(p => p.id !== id);
+    saveSubjectPapers(remainingPapers);
+
+    const currentUser = getCurrentUser();
+    logActivity('general_change', 'Deleted a subject paper in Exam Setup', currentUser?.fullName || 'User');
 
     if (editingPaperId === id) {
       setEditingPaperId(null);
