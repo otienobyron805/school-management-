@@ -137,20 +137,22 @@ html.dark .sidebar {
 
 @media print {
   /* 1️⃣ HIDE BUTTONS & NAV — KEEP EVERYTHING ELSE */
-  .modal-header, .print-btn, .close-btn, .top-bar, .sidebar, nav, 
-  button, select, input, textarea, .no-print, .print\:hidden, .status-bar, .menu-toggle {
+  /* 1️⃣ HIDE EVERYTHING EXCEPT THE REPORT MODAL */
+  body > *:not(.printable-report-modal) {
     display: none !important;
   }
-
-  /* 2️⃣ FORCE VISIBILITY — NO MORE BLANK PAGES */
-  * {
-    visibility: visible !important;
+  .printable-report-modal {
+    display: block !important;
+    position: static !important;
     overflow: visible !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+    max-height: none !important;
+    width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: white !important;
   }
 
-  /* 3️⃣ REMOVE WIDTH LIMITS — FILL FULL PAGE */
+  /* 2️⃣ REMOVE WIDTH LIMITS — FILL FULL PAGE */
   .report-modal, .report-card, table, .max-w-5xl, .max-w-4xl, .max-w-6xl, .printable-area {
     width: 100% !important;
     max-width: 100% !important;
@@ -162,12 +164,7 @@ html.dark .sidebar {
     border: none !important;
   }
 
-  /* 4️⃣ FIX BACKGROUND WATERMARK & LOGO */
-  .report-card {
-    background: white !important;
-  }
-
-  /* 🖼️ LARGE TEXT WATERMARK FOR OFFICIAL PRINT DOCUMENTS */
+  /* 3️⃣ LARGE TEXT WATERMARK FOR OFFICIAL PRINT DOCUMENTS */
   body::after {
     content: 'ST AUGUSTINE CATHOLIC SCHOOL';
     position: fixed;
@@ -186,11 +183,11 @@ html.dark .sidebar {
     width: 100%;
   }
 
-  /* 5️⃣ PREVENT CUTTING TEXT IN HALF & TABLE STYLING */
+  /* 4️⃣ PREVENT CUTTING TEXT IN HALF & TABLE STYLING */
   table {
     width: 100% !important;
     border-collapse: collapse !important;
-    page-break-inside: avoid !important;
+    page-break-inside: auto !important;
   }
   th {
     background-color: #1e40af !important;
@@ -206,11 +203,7 @@ html.dark .sidebar {
     padding-left: 8px !important;
   }
 
-  /* 6️⃣ REMOVE EXTRA BLANK PAGES */
-  #root {
-    display: block !important;
-  }
-
+  /* 5️⃣ REMOVE EXTRA BLANK PAGES */
   html, body {
     height: auto !important;
     margin: 0 !important;

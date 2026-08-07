@@ -2315,6 +2315,8 @@ try {
   logActivity('general_change', 'Updated global A4 print stylesheet with large watermarking for ST AUGUSTINE CATHOLIC SCHOOL, table formatting, candidate name text wrapping, and exact-color rules', 'Super Admin');
   logActivity('general_change', 'Cleaned up rank formatting across report views to display plain numeric values without medal icons or ordinal suffixes', 'Super Admin');
   logActivity('general_change', 'Adjusted print CSS: fixed candidate name line wrapping to nowrap, and reduced page margins to minimize blank top-page space', 'Super Admin');
+  logActivity('general_change', 'Refined print CSS: removed large watermark from all printed pages to ensure second pages contain only relevant report data', 'Super Admin');
+  logActivity('general_change', 'Fixed print CSS: isolated printable modal to prevent extra pages and fixed table page breaking', 'Super Admin');
 } catch (e) {}
 
 // --- FINANCE & FEE MANAGEMENT TYPES AND STORAGE ---

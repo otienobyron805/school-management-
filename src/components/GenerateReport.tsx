@@ -1115,7 +1115,7 @@ export default function GenerateReport() {
           ======================================================== */}
       {activeReportModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white rounded-3xl w-full max-w-5xl shadow-2xl border border-slate-100 overflow-hidden my-8 animate-fadeIn flex flex-col max-h-[90vh]">
+          <div className="printable-report-modal bg-white rounded-3xl w-full max-w-5xl shadow-2xl border border-slate-100 overflow-hidden my-8 animate-fadeIn flex flex-col max-h-[90vh]">
             
             {/* Modal Header Actions */}
             <div className="bg-slate-900 text-white p-4 sm:p-5 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-between sm:items-center shrink-0 print:hidden">
