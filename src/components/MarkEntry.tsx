@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { secureGet, secureSet, getSubjectPapers, getSubjects, SubjectPaper, Subject } from '../utils/db';
+import { secureGet, secureSet, getSubjectPapers, getSubjects, logActivity, getCurrentUser, SubjectPaper, Subject } from '../utils/db';
 
 // ===== DATA TYPES =====
 interface Learner {
@@ -24,6 +24,8 @@ const MarkEntry: React.FC = () => {
   const [learners, setLearners] = useState<Learner[]>([]);
   const [registeredLearners, setRegisteredLearners] = useState<Learner[]>([]);
   const [selectedSubject, setSelectedSubject] = useState<string>('ENGLISH');
+  const [exams, setExams] = useState<any[]>([]);
+  const [selectedExamId, setSelectedExamId] = useState<string>('all');
   const [marks, setMarks] = useState<Record<string, MarkEntryRecord>>({});
   const [subjectPapers, setSubjectPapers] = useState<SubjectPaper[]>([]);
   const [dbSubjects, setDbSubjects] = useState<Subject[]>([]);
@@ -63,7 +65,7 @@ const MarkEntry: React.FC = () => {
   // Load baseline DB values
   useEffect(() => {
     loadFromCloud();
-  }, [selectedSubject]);
+  }, [selectedSubject, selectedExamId]);
 
   const loadFromCloud = async () => {
     setLoading(true);
@@ -71,6 +73,14 @@ const MarkEntry: React.FC = () => {
     try {
       const rawLearners = secureGet('learners');
       const allLearners: Learner[] = rawLearners ? JSON.parse(rawLearners) : [];
+
+      const rawExams = secureGet('exams');
+      const loadedExams = rawExams ? JSON.parse(rawExams) : [];
+      setExams(loadedExams);
+
+      if (loadedExams.length > 0 && selectedExamId === 'all') {
+        setSelectedExamId(loadedExams[0].id);
+      }
 
       const rawMarks = secureGet('marks');
       const savedMarksData: Record<string, MarkEntryRecord> = rawMarks ? JSON.parse(rawMarks) : {};
@@ -106,25 +116,45 @@ const MarkEntry: React.FC = () => {
 
   // Find subject papers matching the currently selected subject
   const activeSubjectPapers = useMemo(() => {
+    const selectedSubLower = selectedSubject.trim().toLowerCase();
+    
     const matchedSubjectObj = dbSubjects.find(s => 
-      s.code?.toUpperCase() === selectedSubject.toUpperCase() || 
-      s.name?.toLowerCase() === selectedSubject.toLowerCase() ||
-      (s as any).id === selectedSubject
-    );
+      s.code?.toLowerCase() === selectedSubLower || 
+      s.name?.toLowerCase() === selectedSubLower ||
+      (s as any).id?.toLowerCase() === selectedSubLower
+    ) || SUBJECTS.find(s => s.code.toLowerCase() === selectedSubLower || s.name.toLowerCase() === selectedSubLower);
 
     return subjectPapers.filter(paper => {
       const pSubId = (paper.subjectId || '').toLowerCase();
-      const pSubName = (paper as any).subjectName?.toLowerCase();
+      const pSubName = ((paper as any).subjectName || '').toLowerCase();
+      const pSubCode = ((paper as any).subjectCode || '').toLowerCase();
+
+      if (pSubId === selectedSubLower || pSubName === selectedSubLower || pSubCode === selectedSubLower) {
+        return true;
+      }
 
       if (matchedSubjectObj) {
-        if (pSubId === matchedSubjectObj.id.toLowerCase()) return true;
-        if (pSubId === matchedSubjectObj.name.toLowerCase()) return true;
-        if (pSubId === matchedSubjectObj.code?.toLowerCase()) return true;
+        const mId = (matchedSubjectObj.id || '').toLowerCase();
+        const mName = (matchedSubjectObj.name || '').toLowerCase();
+        const mCode = ((matchedSubjectObj as any).code || '').toLowerCase();
+
+        if (mId && pSubId === mId) return true;
+        if (mName && (pSubId === mName || pSubName === mName)) return true;
+        if (mCode && (pSubId === mCode || pSubCode === mCode)) return true;
       }
-      return pSubId === selectedSubject.toLowerCase() || 
-             (pSubName && pSubName === selectedSubject.toLowerCase());
+
+      if ((selectedSubLower.includes('eng') || selectedSubLower.includes('english')) &&
+          (pSubId.includes('eng') || pSubName.includes('english') || paper.name.toLowerCase().includes('english'))) {
+        return true;
+      }
+      if ((selectedSubLower.includes('kis') || selectedSubLower.includes('kiswahili')) &&
+          (pSubId.includes('kis') || pSubName.includes('kiswahili') || paper.name.toLowerCase().includes('kiswahili'))) {
+        return true;
+      }
+
+      return false;
     });
-  }, [subjectPapers, selectedSubject, dbSubjects]);
+  }, [subjectPapers, selectedSubject, dbSubjects, SUBJECTS]);
 
   // Handle single paper mark change and re-calculate subject total automatically
   const handlePaperMarkChange = (learnerId: string, paperId: string, inputValue: string) => {
@@ -146,8 +176,7 @@ const MarkEntry: React.FC = () => {
         }
       };
 
-      // Auto-compute total score from all active papers for this subject
-      const totalWeight = activeSubjectPapers.reduce((acc, p) => acc + (p.weight || 0), 0) || 100;
+      // Auto-compute total score from direct sum of all active papers for this subject
       let computedTotal = 0;
       let hasAnyPaperMark = false;
 
@@ -156,8 +185,7 @@ const MarkEntry: React.FC = () => {
         const pRecord = updated[key];
         if (pRecord && pRecord.mark !== null && !isNaN(pRecord.mark)) {
           hasAnyPaperMark = true;
-          const weightFactor = (paper.weight || (100 / activeSubjectPapers.length)) / totalWeight;
-          computedTotal += pRecord.mark * weightFactor;
+          computedTotal += pRecord.mark;
         }
       });
 
@@ -198,6 +226,34 @@ const MarkEntry: React.FC = () => {
   const saveAllToCloud = async () => {
     try {
       secureSet('marks', JSON.stringify(marks));
+      
+      // Convert marks to school_exam_marks format for full-system integration
+      const activeExam = selectedExamId === 'all' ? (exams[0]?.id || 'exam_1') : selectedExamId;
+      const existingExamMarksStr = secureGet('school_exam_marks');
+      const existingExamMarks: any[] = existingExamMarksStr ? JSON.parse(existingExamMarksStr) : [];
+      
+      const otherExamMarks = existingExamMarks.filter(m => m.examId !== activeExam);
+      const convertedMarks: any[] = [];
+
+      Object.entries(marks).forEach(([key, record]) => {
+        if (record.mark !== null && !isNaN(record.mark)) {
+          const subCode = selectedSubjectObj?.code || selectedSubject;
+          convertedMarks.push({
+            examId: activeExam,
+            learnerId: record.learnerId,
+            subjectCode: subCode,
+            paperId: record.paperId,
+            score: record.mark
+          });
+        }
+      });
+
+      const updatedSchoolExamMarks = [...otherExamMarks, ...convertedMarks];
+      secureSet('school_exam_marks', JSON.stringify(updatedSchoolExamMarks));
+
+      const currentUser = getCurrentUser();
+      await logActivity('general_change', `Saved ${convertedMarks.length} subject/paper mark records`, currentUser?.fullName || 'Teacher');
+
       setSavedMsg('✅ All paper & subject marks saved to Cloud!');
       setTimeout(() => setSavedMsg(''), 3000);
     } catch (err) {
@@ -220,16 +276,36 @@ const MarkEntry: React.FC = () => {
     <div className="p-4 max-w-7xl mx-auto space-y-6">
       {/* ===== PAGE HEADER ===== */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-        <div>
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <span>📝</span> Enter Marks
-          </h2>
-          <p className="text-xs text-slate-500 font-medium mt-1">
-            Selected Learning Area / Subject:{' '}
-            <strong className="text-blue-600 font-bold">
-              {selectedSubjectObj?.name || selectedSubject}
-            </strong>
-          </p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <span>📝</span> Enter Marks
+            </h2>
+            <p className="text-xs text-slate-500 font-medium mt-1">
+              Selected Learning Area / Subject:{' '}
+              <strong className="text-blue-600 font-bold">
+                {selectedSubjectObj?.name || selectedSubject}
+              </strong>
+            </p>
+          </div>
+
+          {/* Exam Selector */}
+          {exams.length > 0 && (
+            <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
+              <span className="text-xs font-black text-slate-500 uppercase tracking-wider pl-2">Exam:</span>
+              <select 
+                value={selectedExamId}
+                onChange={(e) => setSelectedExamId(e.target.value)}
+                className="bg-white text-xs font-bold text-slate-800 p-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {exams.map(ex => (
+                  <option key={ex.id} value={ex.id}>
+                    {ex.examName || ex.name} ({ex.term || 'Term 1'} {ex.academicYear || ex.year || '2026'})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* ===== CHRONOLOGICAL SUBJECT SELECTOR TABS ===== */}
@@ -258,11 +334,11 @@ const MarkEntry: React.FC = () => {
                 {activeSubjectPapers.length} Papers Configured
               </span>
               <span>
-                {activeSubjectPapers.map(p => `${p.name} (${p.weight}%)`).join(' + ')}
+                {activeSubjectPapers.map(p => p.name).join(' + ')}
               </span>
             </div>
             <span className="text-[11px] text-blue-700 font-semibold italic">
-              ✨ Enter marks per paper — total subject mark auto-calculates weighted score.
+              ✨ Enter marks per paper — total subject mark auto-calculates as direct sum (Paper 1 + Paper 2).
             </span>
           </div>
         ) : (
@@ -306,7 +382,7 @@ const MarkEntry: React.FC = () => {
                     <>
                       {activeSubjectPapers.map(paper => (
                         <th key={paper.id} className="px-5 py-3.5 text-center bg-blue-950 text-blue-200 border-x border-blue-900/50">
-                          {paper.name} ({paper.weight}%)
+                          {paper.name}
                         </th>
                       ))}
                       <th className="px-5 py-3.5 text-center bg-indigo-950 text-amber-300 font-black">

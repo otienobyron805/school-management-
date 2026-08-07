@@ -405,13 +405,30 @@ export default function MarkSubmissions() {
   });
 
   const getPapersForSubject = (sub: Subject) => {
+    const subIdLower = (sub.id || '').toLowerCase();
+    const subNameLower = (sub.name || '').toLowerCase();
+    const subCodeLower = (sub.code || '').toLowerCase();
+
     return subjectPapers.filter(paper => {
       const pSubId = (paper.subjectId || '').toLowerCase();
-      const pSubName = (paper as any).subjectName?.toLowerCase();
-      return pSubId === sub.id.toLowerCase() ||
-             pSubId === sub.name.toLowerCase() ||
-             pSubId === sub.code.toLowerCase() ||
-             (pSubName && pSubName === sub.name.toLowerCase());
+      const pSubName = ((paper as any).subjectName || '').toLowerCase();
+      const pSubCode = ((paper as any).subjectCode || '').toLowerCase();
+      const paperName = (paper.name || '').toLowerCase();
+
+      if (pSubId === subIdLower || pSubId === subNameLower || pSubId === subCodeLower) return true;
+      if (pSubName && (pSubName === subNameLower || pSubName === subCodeLower)) return true;
+      if (pSubCode && (pSubCode === subCodeLower || pSubCode === subNameLower)) return true;
+
+      if ((subNameLower.includes('eng') || subNameLower.includes('english') || subCodeLower.includes('eng')) &&
+          (pSubId.includes('eng') || pSubName.includes('english') || paperName.includes('english'))) {
+        return true;
+      }
+      if ((subNameLower.includes('kis') || subNameLower.includes('kiswahili') || subCodeLower.includes('kis')) &&
+          (pSubId.includes('kis') || pSubName.includes('kiswahili') || paperName.includes('kiswahili'))) {
+        return true;
+      }
+
+      return false;
     });
   };
 
@@ -430,9 +447,8 @@ export default function MarkSubmissions() {
     setGridScores(prev => {
       const learnerScores = { ...(prev[learnerId] || {}), [key]: newScore };
 
-      // Auto-calculate subject total if paper score was changed
+      // Auto-calculate subject total if paper score was changed (direct sum of paper 1 + paper 2)
       if (paperId && subPapers.length > 0) {
-        const totalWeight = subPapers.reduce((acc, p) => acc + (p.weight || 0), 0) || 100;
         let computedTotal = 0;
         let hasAnyPaperMark = false;
 
@@ -441,8 +457,7 @@ export default function MarkSubmissions() {
           const pScore = learnerScores[pKey];
           if (pScore !== undefined && pScore !== '' && !isNaN(Number(pScore))) {
             hasAnyPaperMark = true;
-            const weightFactor = (p.weight || (100 / subPapers.length)) / totalWeight;
-            computedTotal += Number(pScore) * weightFactor;
+            computedTotal += Number(pScore);
           }
         });
 
@@ -887,7 +902,7 @@ export default function MarkSubmissions() {
                             <React.Fragment key={sub.id}>
                               {subPapers.map(paper => (
                                 <th key={paper.id} className="p-3 text-center bg-blue-900/10 text-blue-900 border-x border-slate-200 text-[11px] font-black">
-                                  {sub.name} - {paper.name} ({paper.weight}%)
+                                  {sub.name} - {paper.name}
                                 </th>
                               ))}
                               <th key={`${sub.id}_total`} className="p-3 text-center bg-indigo-900/10 text-indigo-900 text-[11px] font-black border-r border-slate-200">

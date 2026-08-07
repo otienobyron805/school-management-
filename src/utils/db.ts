@@ -336,6 +336,9 @@ export interface Learner {
 export interface SubjectPaper {
   id: string;
   subjectId: string;
+  subjectName?: string;
+  subjectCode?: string;
+  examId?: string;
   name: string;
   weight: number;
 }
@@ -1238,7 +1241,30 @@ export function saveGradingRules(rules: GradingRule[]): void {
 
 export function getSubjectPapers(): SubjectPaper[] {
   const data = secureGet('school_subject_papers') || secureGet('subject_papers');
-  return data ? JSON.parse(data) : [];
+  const defaultPapers: SubjectPaper[] = [
+    { id: 'p_eng_1', subjectId: 's_2', subjectName: 'English', subjectCode: 'ENG', name: 'English Paper 1', weight: 50 },
+    { id: 'p_eng_2', subjectId: 's_2', subjectName: 'English', subjectCode: 'ENG', name: 'English Paper 2', weight: 50 },
+    { id: 'p_kis_1', subjectId: 's_3', subjectName: 'Kiswahili', subjectCode: 'KIS', name: 'Kiswahili Insha', weight: 50 },
+    { id: 'p_kis_2', subjectId: 's_3', subjectName: 'Kiswahili', subjectCode: 'KIS', name: 'Kiswahili Lugha', weight: 50 },
+  ];
+
+  if (!data) {
+    secureSet('school_subject_papers', JSON.stringify(defaultPapers));
+    secureSet('subject_papers', JSON.stringify(defaultPapers));
+    return defaultPapers;
+  }
+
+  try {
+    const parsed = JSON.parse(data);
+    if (Array.isArray(parsed) && parsed.length === 0) {
+      secureSet('school_subject_papers', JSON.stringify(defaultPapers));
+      secureSet('subject_papers', JSON.stringify(defaultPapers));
+      return defaultPapers;
+    }
+    return parsed;
+  } catch (err) {
+    return defaultPapers;
+  }
 }
 
 export function saveSubjectPapers(papers: SubjectPaper[]): void {

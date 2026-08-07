@@ -42,12 +42,23 @@ export default function ExamSetup() {
     setShowPaperSetup(!showPaperSetup);
     
     if (subjectName && !showPaperSetup) {
-      const subject = subjects.find(s => s.name === subjectName);
-      if (subject) {
-        const allPapers = getSubjectPapers();
-        const subjectPapers = allPapers.filter(p => p.subjectId === subject.id);
-        setPapers(subjectPapers);
-      }
+      const subject = subjects.find(s => 
+        s.name.toLowerCase() === subjectName.toLowerCase() || 
+        s.code?.toLowerCase() === subjectName.toLowerCase() ||
+        s.id.toLowerCase() === subjectName.toLowerCase()
+      );
+      const allPapers = getSubjectPapers();
+      const subjectPapers = allPapers.filter(p => {
+        if (!subject) {
+          return (p as any).subjectName?.toLowerCase() === subjectName.toLowerCase() || 
+                 p.subjectId?.toLowerCase() === subjectName.toLowerCase();
+        }
+        return p.subjectId === subject.id ||
+               p.subjectId?.toLowerCase() === subject.name.toLowerCase() ||
+               p.subjectId?.toLowerCase() === subject.code?.toLowerCase() ||
+               (p as any).subjectName?.toLowerCase() === subject.name.toLowerCase();
+      });
+      setPapers(subjectPapers);
     } else if (!showPaperSetup) {
       setPapers([]);
     }
@@ -74,17 +85,29 @@ export default function ExamSetup() {
   const handleSavePaper = () => {
     if (!paperName || paperWeight <= 0 || !selectedSubject) return;
 
-    const subject = subjects.find(s => s.name === selectedSubject);
-    if (!subject) return;
+    const subject = subjects.find(s => 
+      s.name.toLowerCase() === selectedSubject.toLowerCase() || 
+      s.code?.toLowerCase() === selectedSubject.toLowerCase() ||
+      s.id.toLowerCase() === selectedSubject.toLowerCase()
+    ) || { id: selectedSubject.toLowerCase(), name: selectedSubject, code: selectedSubject };
 
     let updatedPapers: SubjectPaper[];
 
     if (editingPaperId) {
-      updatedPapers = papers.map(p => p.id === editingPaperId ? { ...p, name: paperName, weight: paperWeight } : p);
+      updatedPapers = papers.map(p => p.id === editingPaperId ? { 
+        ...p, 
+        name: paperName, 
+        weight: paperWeight,
+        subjectId: subject.id,
+        subjectName: subject.name,
+        subjectCode: (subject as any).code || subject.name.substring(0, 3).toUpperCase()
+      } : p);
     } else {
       updatedPapers = [...papers, { 
         id: Date.now().toString(), 
         subjectId: subject.id,
+        subjectName: subject.name,
+        subjectCode: (subject as any).code || subject.name.substring(0, 3).toUpperCase(),
         name: paperName, 
         weight: paperWeight 
       }];
@@ -94,7 +117,7 @@ export default function ExamSetup() {
 
     // Save to global storage
     const allPapers = getSubjectPapers();
-    const otherSubjectsPapers = allPapers.filter(p => p.subjectId !== subject.id);
+    const otherSubjectsPapers = allPapers.filter(p => p.subjectId !== subject.id && (p as any).subjectName !== subject.name);
     saveSubjectPapers([...otherSubjectsPapers, ...updatedPapers]);
 
     setEditingPaperId(null);
