@@ -1030,7 +1030,7 @@ export function deduplicateUsers(users: UserAccount[]): UserAccount[] {
     }
 
     // Check ID Number
-    const idNum = (u.idNumber || '').toString().trim().toLowerCase();
+    const idNum = (u.nationalId || '').toString().trim().toLowerCase();
     if (idNum && idNum !== '—' && idNum !== '-') {
       if (seenIdNumbers.has(idNum)) {
         continue; // Duplicate ID Number -> retain first entered
@@ -1038,7 +1038,7 @@ export function deduplicateUsers(users: UserAccount[]): UserAccount[] {
     }
 
     // Check TSC Number
-    const tsc = (u.tscNumber || '').toString().trim().toLowerCase();
+    const tsc = (u.staffNo || '').toString().trim().toLowerCase();
     if (tsc && tsc !== '—' && tsc !== '-') {
       if (seenTscNumbers.has(tsc)) {
         continue; // Duplicate TSC Number -> retain first entered
@@ -2314,6 +2314,7 @@ try {
   logActivity('general_change', 'Implemented one-time legacy localStorage migration utility that inspects, transfers data to MongoDB secure storage, and cleans up legacy keys', 'Super Admin');
   logActivity('general_change', 'Updated global A4 print stylesheet with large watermarking for ST AUGUSTINE CATHOLIC SCHOOL, table formatting, candidate name text wrapping, and exact-color rules', 'Super Admin');
   logActivity('general_change', 'Cleaned up rank formatting across report views to display plain numeric values without medal icons or ordinal suffixes', 'Super Admin');
+  logActivity('general_change', 'Adjusted print CSS: fixed candidate name line wrapping to nowrap, and reduced page margins to minimize blank top-page space', 'Super Admin');
 } catch (e) {}
 
 // --- FINANCE & FEE MANAGEMENT TYPES AND STORAGE ---

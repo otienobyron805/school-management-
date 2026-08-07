@@ -127,7 +127,7 @@ html.dark .sidebar {
 
 @page {
   size: A4 portrait;
-  margin: 12mm;
+  margin: 5mm;
 }
 
 @page landscape {
@@ -201,9 +201,7 @@ html.dark .sidebar {
     break-inside: avoid !important;
   }
   td.candidate-name, td:nth-child(3) {
-    white-space: normal !important;
-    word-wrap: break-word !important;
-    overflow-wrap: break-word !important;
+    white-space: nowrap !important;
     text-align: left !important;
     padding-left: 8px !important;
   }
