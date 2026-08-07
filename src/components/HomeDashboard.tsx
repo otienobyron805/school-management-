@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getCurrentUser, getSchoolProfile, UserAccount, SchoolProfile, saveUsers, getUsers, setCurrentUser, getLearners, getAttendanceSheets, getStaffAttendanceSheets, saveStaffAttendanceSheets, StaffAttendanceSheet, StaffAttendanceRecord, secureGet, secureSet } from '../utils/db';
+import { getCurrentUser, getSchoolProfile, UserAccount, SchoolProfile, saveUsers, getUsers, setCurrentUser, getLearners, getAttendanceSheets, getStaffAttendanceSheets, saveStaffAttendanceSheets, StaffAttendanceSheet, StaffAttendanceRecord, secureGet, secureSet, deleteRecord } from '../utils/db';
 import { getAttendanceSettings } from '../utils/attendance';
 import { Calendar, Clock, GraduationCap, ShieldCheck, User, Camera, Upload, X, Link, Check, AlertCircle, Trash2, ArrowRight, LogIn, LogOut, Lock, Pencil, Zap, UserPlus, FileText, Settings, BookOpen, TrendingUp, PieChart, Bell, Megaphone, CheckCircle2, ListTodo, Plus, Activity, ChevronRight, UserCheck } from 'lucide-react';
 import CurrentLocationDisplay from './CurrentLocationDisplay';
@@ -83,6 +83,29 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
       setExams(userExams);
     } else {
       setExams([]);
+    }
+  };
+
+  const userRole = (user?.role || '').toLowerCase();
+  const userSysRole = (user?.systemRole || '').toLowerCase();
+  const isAdmin = 
+    userRole.includes('super admin') || 
+    userRole.includes('admin') || 
+    userRole.includes('head teacher') || 
+    userRole.includes('deputy') || 
+    userRole.includes('principal') || 
+    userRole.includes('administrator') || 
+    userSysRole === 'super_admin' || 
+    userSysRole === 'admin';
+
+  const handleDeleteExam = (id: string, name?: string) => {
+    if (!isAdmin) {
+      alert("❌ Access Restricted: Only admins can delete examinations.");
+      return;
+    }
+    if (window.confirm(`Are you sure you want to delete examination "${name || 'selected exam'}"?`)) {
+      deleteRecord('exams', id, 'Exam', { skipConfirm: true });
+      refreshExams();
     }
   };
 
@@ -1200,15 +1223,26 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
                       <td className="py-2.5 px-2 text-slate-600">{exam.academicYear || exam.year}</td>
                       <td className="py-2.5 px-2 text-slate-600">{exam.term}</td>
                       <td className="py-2.5 px-2 text-center">
-                        <button
-                          onClick={() => {
-                            secureSet('selected_exam_id_for_marks', exam.id);
-                            setActiveView?.('Marks Submissions');
-                          }}
-                          className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md font-bold text-[11px] transition cursor-pointer inline-flex items-center gap-1"
-                        >
-                          <Pencil className="w-3 h-3" /> Enter
-                        </button>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => {
+                              secureSet('selected_exam_id_for_marks', exam.id);
+                              setActiveView?.('Marks Submissions');
+                            }}
+                            className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md font-bold text-[11px] transition cursor-pointer inline-flex items-center gap-1"
+                          >
+                            <Pencil className="w-3 h-3" /> Enter
+                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => handleDeleteExam(exam.id, exam.examName || exam.name)}
+                              className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-md transition cursor-pointer inline-flex items-center justify-center"
+                              title="Delete Exam"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
