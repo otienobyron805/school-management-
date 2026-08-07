@@ -1523,7 +1523,7 @@ export default function GenerateReport() {
                                 summaryStreamRankingsList.map(st => (
                                   <tr key={`${st.gradeName}-${st.streamName}`} className="hover:bg-slate-50/50 font-medium">
                                     <td className="p-3 font-black text-slate-900">
-                                      {st.rank === 1 ? '🥇 1st' : st.rank === 2 ? '🥈 2nd' : st.rank === 3 ? '🥉 3rd' : `${st.rank}th`}
+                                      {st.rank}
                                     </td>
                                     <td className="p-3 font-bold text-slate-700">{st.gradeName} - {st.streamName}</td>
                                     <td className="p-3 font-extrabold text-blue-600">{st.average}%</td>
@@ -2212,12 +2212,12 @@ export default function GenerateReport() {
                                 
                                 {gradeReportFormat !== 'grades' && (
                                   <td className="p-2.5 text-center font-black text-slate-900 border-r border-slate-100">
-                                    {cand.currentRank === 1 ? '🥇 1' : cand.currentRank === 2 ? '🥈 2' : cand.currentRank === 3 ? '🥉 3' : cand.currentRank}
+                                    {cand.currentRank}
                                   </td>
                                 )}
                                 
                                 <td className="p-2.5 font-mono font-bold text-slate-600 border-r border-slate-100">{cand.admNo}</td>
-                                <td className="p-2.5 font-black text-slate-800 border-r border-slate-100">{cand.name}</td>
+                                <td className="p-2.5 font-black text-slate-800 border-r border-slate-100 candidate-name">{cand.name}</td>
                                 <td className="p-2.5 font-semibold text-slate-500 border-r border-slate-100">{cand.stream}</td>
                                 
                                 {activeSubjects.map((sub: any) => {
@@ -2389,10 +2389,10 @@ export default function GenerateReport() {
                           {activeReportModal.data.candidates.map((cand: any) => (
                             <tr key={cand.id} className="hover:bg-slate-50/50">
                               <td className="p-2 text-center font-bold">
-                                {cand.position === 1 ? '🥇 1st' : cand.position === 2 ? '🥈 2nd' : cand.position === 3 ? '🥉 3rd' : `${cand.position}th`}
+                                {cand.position}
                               </td>
                               <td className="p-2 font-mono font-bold text-slate-600">{cand.admNo}</td>
-                              <td className="p-2 font-bold text-slate-900">{cand.name}</td>
+                              <td className="p-2 font-bold text-slate-900 candidate-name">{cand.name}</td>
                               {activeReportModal.data.subjects.map((sub: any) => (
                                 <td key={sub.id} className="p-2 text-center text-slate-600 font-semibold">
                                   {cand.subjectScores[sub.code] || '—'}
