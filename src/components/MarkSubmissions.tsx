@@ -404,6 +404,17 @@ export default function MarkSubmissions() {
     return a.name.localeCompare(b.name);
   });
 
+  const getPapersForSubject = (sub: Subject) => {
+    return subjectPapers.filter(paper => {
+      const pSubId = (paper.subjectId || '').toLowerCase();
+      const pSubName = (paper as any).subjectName?.toLowerCase();
+      return pSubId === sub.id.toLowerCase() ||
+             pSubId === sub.name.toLowerCase() ||
+             pSubId === sub.code.toLowerCase() ||
+             (pSubName && pSubName === sub.name.toLowerCase());
+    });
+  };
+
   const handleGridScoreChange = (learnerId: string, subjectCode: string, val: string, paperId?: string) => {
     const key = paperId ? `${subjectCode}_${paperId}` : subjectCode;
     let newScore: number | '' = '';
@@ -412,10 +423,35 @@ export default function MarkSubmissions() {
       if (isNaN(num) || num < 0 || num > 100) return;
       newScore = num;
     }
+
+    const subObj = activeGradeSubjects.find(s => s.code === subjectCode);
+    const subPapers = subObj ? getPapersForSubject(subObj) : [];
+
     setGridScores(prev => {
+      const learnerScores = { ...(prev[learnerId] || {}), [key]: newScore };
+
+      // Auto-calculate subject total if paper score was changed
+      if (paperId && subPapers.length > 0) {
+        const totalWeight = subPapers.reduce((acc, p) => acc + (p.weight || 0), 0) || 100;
+        let computedTotal = 0;
+        let hasAnyPaperMark = false;
+
+        subPapers.forEach(p => {
+          const pKey = `${subjectCode}_${p.id}`;
+          const pScore = learnerScores[pKey];
+          if (pScore !== undefined && pScore !== '' && !isNaN(Number(pScore))) {
+            hasAnyPaperMark = true;
+            const weightFactor = (p.weight || (100 / subPapers.length)) / totalWeight;
+            computedTotal += Number(pScore) * weightFactor;
+          }
+        });
+
+        learnerScores[subjectCode] = hasAnyPaperMark ? Math.round(computedTotal) : '';
+      }
+
       const next = {
         ...prev,
-        [learnerId]: { ...(prev[learnerId] || {}), [key]: newScore }
+        [learnerId]: learnerScores
       };
       persistDraft(next);
       return next;
@@ -844,11 +880,28 @@ export default function MarkSubmissions() {
                     <th className="p-4 text-left w-32">STREAM</th>
                     {activeGradeSubjects
                       .filter(sub => visibleSubjects.includes(sub.code))
-                      .map(sub => (
-                        <th key={sub.id} className="p-4 text-center w-32">
-                          {sub.name} / 100
-                        </th>
-                      ))}
+                      .map(sub => {
+                        const subPapers = getPapersForSubject(sub);
+                        if (subPapers.length > 0) {
+                          return (
+                            <React.Fragment key={sub.id}>
+                              {subPapers.map(paper => (
+                                <th key={paper.id} className="p-3 text-center bg-blue-900/10 text-blue-900 border-x border-slate-200 text-[11px] font-black">
+                                  {sub.name} - {paper.name} ({paper.weight}%)
+                                </th>
+                              ))}
+                              <th key={`${sub.id}_total`} className="p-3 text-center bg-indigo-900/10 text-indigo-900 text-[11px] font-black border-r border-slate-200">
+                                {sub.name} Total
+                              </th>
+                            </React.Fragment>
+                          );
+                        }
+                        return (
+                          <th key={sub.id} className="p-4 text-center w-32">
+                            {sub.name} / 100
+                          </th>
+                        );
+                      })}
                     <th className="p-4 text-center w-36">AVERAGE %</th>
                   </tr>
                 </thead>
@@ -872,6 +925,40 @@ export default function MarkSubmissions() {
                           </span>
                         </td>
                         {visibleActiveSubjects.map(sub => {
+                          const subPapers = getPapersForSubject(sub);
+                          if (subPapers.length > 0) {
+                            const subjectTotal = gridScores[learner.id]?.[sub.code] ?? '';
+                            return (
+                              <React.Fragment key={sub.id}>
+                                {subPapers.map(paper => {
+                                  const paperScore = gridScores[learner.id]?.[`${sub.code}_${paper.id}`] ?? '';
+                                  return (
+                                    <td key={paper.id} className="p-3 text-center border-x border-slate-100 bg-blue-50/20">
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        value={paperScore}
+                                        onChange={(e) => handleGridScoreChange(learner.id, sub.code, e.target.value, paper.id)}
+                                        placeholder="—"
+                                        className="w-16 p-2 border border-slate-200 rounded-xl text-center text-sm font-extrabold bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                      />
+                                    </td>
+                                  );
+                                })}
+                                <td className="p-3 text-center bg-indigo-50/40 border-r border-slate-200">
+                                  {subjectTotal !== '' ? (
+                                    <span className="px-2 py-1 bg-indigo-600 text-white rounded-lg text-xs font-black">
+                                      {subjectTotal}%
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400 font-medium text-xs">—</span>
+                                  )}
+                                </td>
+                              </React.Fragment>
+                            );
+                          }
+
                           const currentScore = gridScores[learner.id]?.[sub.code] ?? '';
                           return (
                             <td key={sub.id} className="p-4 text-center">
