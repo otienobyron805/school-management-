@@ -252,19 +252,32 @@ export default function ExamSetup() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {addedSubjects.map(s => (
-                    <tr key={s.id} className="hover:bg-slate-50/50 transition">
-                      <td className="p-5 font-black text-slate-700">{s.grade}</td>
-                      <td className="p-5 font-black text-slate-900">{s.subject}</td>
-                      <td className="p-5 font-bold text-slate-600">{s.maxMarks}</td>
-                      <td className="p-5">
-                        <button onClick={() => togglePaperSetup(s.subject)} className="text-blue-600 font-black text-sm hover:text-blue-800 transition underline decoration-2 underline-offset-4">Setup Papers</button>
-                      </td>
-                      <td className="p-5">
-                        <button onClick={() => removeSubject(s.id)} className="p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition"><Trash2 className="w-5 h-5" /></button>
-                      </td>
-                    </tr>
-                  ))}
+                  {addedSubjects.map(s => {
+                    const allPapers = getSubjectPapers();
+                    const count = allPapers.filter(p => 
+                      p.subjectId?.toLowerCase() === s.subject.toLowerCase() || 
+                      (p as any).subjectName?.toLowerCase() === s.subject.toLowerCase()
+                    ).length;
+
+                    return (
+                      <tr key={s.id} className="hover:bg-slate-50/50 transition">
+                        <td className="p-5 font-black text-slate-700">{s.grade}</td>
+                        <td className="p-5 font-black text-slate-900">{s.subject}</td>
+                        <td className="p-5 font-bold text-slate-600">{s.maxMarks}</td>
+                        <td className="p-5">
+                          <button onClick={() => togglePaperSetup(s.subject)} className="text-blue-600 font-black text-sm hover:text-blue-800 transition flex items-center gap-2">
+                            <span className="underline decoration-2 underline-offset-4">Setup Papers</span>
+                            <span className={`px-2 py-0.5 text-xs rounded-full font-bold ${count > 0 ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-500'}`}>
+                              {count > 0 ? `${count} paper${count > 1 ? 's' : ''}` : 'No papers'}
+                            </span>
+                          </button>
+                        </td>
+                        <td className="p-5">
+                          <button onClick={() => removeSubject(s.id)} className="p-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition"><Trash2 className="w-5 h-5" /></button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

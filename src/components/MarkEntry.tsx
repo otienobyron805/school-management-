@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { secureGet, secureSet, getSubjectPapers, getSubjects, logActivity, getCurrentUser, SubjectPaper, Subject } from '../utils/db';
+import { secureGet, secureSet, getSubjectPapers, getSubjects, logActivity, getCurrentUser, getGradingRules, SubjectPaper, Subject } from '../utils/db';
 
 // ===== DATA TYPES =====
 interface Learner {
@@ -31,6 +31,22 @@ const MarkEntry: React.FC = () => {
   const [dbSubjects, setDbSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
   const [savedMsg, setSavedMsg] = useState('');
+  
+  const gradingRules = useMemo(() => getGradingRules(), []);
+
+  const getScoreStyles = (score: number | null) => {
+    if (score === null) return 'border-slate-200 bg-white';
+    const rule = gradingRules.find(r => score >= r.min && score <= r.max);
+    if (!rule) return 'border-slate-200 bg-white';
+    
+    switch (rule.category) {
+      case 'ee': return 'border-emerald-500 bg-emerald-50 text-emerald-900';
+      case 'me': return 'border-blue-500 bg-blue-50 text-blue-900';
+      case 'ae': return 'border-amber-500 bg-amber-50 text-amber-900';
+      case 'be': return 'border-rose-500 bg-rose-50 text-rose-900';
+      default: return 'border-slate-500 bg-slate-50 text-slate-900';
+    }
+  };
 
   // Fallback default subject list
   const DEFAULT_SUBJECTS = [
@@ -141,15 +157,6 @@ const MarkEntry: React.FC = () => {
         if (mId && pSubId === mId) return true;
         if (mName && (pSubId === mName || pSubName === mName)) return true;
         if (mCode && (pSubId === mCode || pSubCode === mCode)) return true;
-      }
-
-      if ((selectedSubLower.includes('eng') || selectedSubLower.includes('english')) &&
-          (pSubId.includes('eng') || pSubName.includes('english') || paper.name.toLowerCase().includes('english'))) {
-        return true;
-      }
-      if ((selectedSubLower.includes('kis') || selectedSubLower.includes('kiswahili')) &&
-          (pSubId.includes('kis') || pSubName.includes('kiswahili') || paper.name.toLowerCase().includes('kiswahili'))) {
-        return true;
       }
 
       return false;
@@ -422,10 +429,10 @@ const MarkEntry: React.FC = () => {
                                   type="text"
                                   value={pRaw}
                                   onChange={(e) => handlePaperMarkChange(learner.id, paper.id, e.target.value)}
-                                  className={`w-24 px-3 py-1.5 border-2 rounded-xl text-center font-bold text-slate-900 focus:outline-none focus:ring-2 transition-all ${
+                                  className={`w-24 px-3 py-1.5 border-2 rounded-xl text-center font-bold transition-all ${
                                     isInvalid 
                                       ? 'border-red-500 bg-red-50 ring-2 ring-red-500/20' 
-                                      : 'border-slate-200 focus:border-blue-600 focus:ring-blue-500/20 bg-white'
+                                      : `${getScoreStyles(pNum)} focus:ring-2 focus:ring-blue-500/20`
                                   }`}
                                   placeholder="—"
                                 />
@@ -451,10 +458,10 @@ const MarkEntry: React.FC = () => {
                             type="text"
                             value={mainRecord?.rawInput ?? ''}
                             onChange={(e) => handleMarkChange(learner.id, e.target.value)}
-                            className={`w-24 px-3 py-1.5 border-2 rounded-xl text-center font-bold text-slate-900 focus:outline-none focus:ring-2 transition-all ${
+                            className={`w-24 px-3 py-1.5 border-2 rounded-xl text-center font-bold transition-all ${
                               mainRecord?.rawInput && (isNaN(Number(mainRecord.rawInput)) || Number(mainRecord.rawInput) < 0 || Number(mainRecord.rawInput) > 100)
                                 ? 'border-red-500 bg-red-50 ring-2 ring-red-500/20' 
-                                : 'border-slate-200 focus:border-blue-600 focus:ring-blue-500/20'
+                                : `${getScoreStyles(mainRecord?.mark ?? null)} focus:ring-2 focus:ring-blue-500/20`
                             }`}
                             placeholder="—"
                           />

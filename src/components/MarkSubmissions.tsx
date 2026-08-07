@@ -419,15 +419,6 @@ export default function MarkSubmissions() {
       if (pSubName && (pSubName === subNameLower || pSubName === subCodeLower)) return true;
       if (pSubCode && (pSubCode === subCodeLower || pSubCode === subNameLower)) return true;
 
-      if ((subNameLower.includes('eng') || subNameLower.includes('english') || subCodeLower.includes('eng')) &&
-          (pSubId.includes('eng') || pSubName.includes('english') || paperName.includes('english'))) {
-        return true;
-      }
-      if ((subNameLower.includes('kis') || subNameLower.includes('kiswahili') || subCodeLower.includes('kis')) &&
-          (pSubId.includes('kis') || pSubName.includes('kiswahili') || paperName.includes('kiswahili'))) {
-        return true;
-      }
-
       return false;
     });
   };
