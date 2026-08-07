@@ -24,13 +24,23 @@ export default function ExamSetup() {
   const [editingPaperId, setEditingPaperId] = useState<string | null>(null);
   const [selectedGradeForPapers, setSelectedGradeForPapers] = useState<string | null>(null);
 
-  useEffect(() => {
+  const refreshSetupData = () => {
     const savedSubjects = secureGet('exam_subjects');
     if (savedSubjects) {
       setAddedSubjects(JSON.parse(savedSubjects));
     }
     setGrades(getGrades());
     setSubjects(getSubjects());
+  };
+
+  useEffect(() => {
+    refreshSetupData();
+    window.addEventListener('db_updated', refreshSetupData);
+    window.addEventListener('storage', refreshSetupData);
+    return () => {
+      window.removeEventListener('db_updated', refreshSetupData);
+      window.removeEventListener('storage', refreshSetupData);
+    };
   }, []);
 
   const saveAddedSubjects = (subjects: typeof addedSubjects) => {

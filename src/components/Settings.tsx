@@ -89,7 +89,7 @@ export default function Settings() {
     secureSet('school_role_permissions_matrix_v1', JSON.stringify(nextMatrix));
   };
 
-  useEffect(() => {
+  const refreshSettingsData = () => {
     // Load counts
     const allUsers = getUsers();
     setUsersCount(allUsers.length);
@@ -97,13 +97,32 @@ export default function Settings() {
     setSubjectsCount(getSubjects().length);
     setSchoolName(getSchoolProfile().name || '');
     setParents(allUsers.filter(u => u.role === 'Parent'));
+    setAlertLogs(getAlertLogs());
 
-    // Refresh logs on custom event
+    try {
+      const saved = secureGet('school_role_permissions_matrix_v1');
+      if (saved) {
+        setRolePermissions(JSON.parse(saved));
+      }
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    refreshSettingsData();
+
     const handleAlertRefresh = () => {
       setAlertLogs(getAlertLogs());
     };
+
     window.addEventListener('security_alert_logged', handleAlertRefresh);
-    return () => window.removeEventListener('security_alert_logged', handleAlertRefresh);
+    window.addEventListener('db_updated', refreshSettingsData);
+    window.addEventListener('storage', refreshSettingsData);
+    
+    return () => {
+      window.removeEventListener('security_alert_logged', handleAlertRefresh);
+      window.removeEventListener('db_updated', refreshSettingsData);
+      window.removeEventListener('storage', refreshSettingsData);
+    };
   }, []);
 
   const handleConfigChange = (key: keyof AlertConfig, value: any) => {

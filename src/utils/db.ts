@@ -198,7 +198,7 @@ function subscribeToCloud(callback: (table: string, data: any[]) => void): () =>
         }
       }
     } catch (e) {}
-  }, 5000);
+  }, 2500); // Reduced polling interval to 2.5s for faster cross-device sync
   return () => clearInterval(interval);
 }
 
@@ -661,11 +661,29 @@ export function secureSet(key: string, value: string, options?: { skipCloud?: bo
     ...(TABLE_ALIASES[primaryKey] || [])
   ]));
 
+  // Ensure every item in an array has an updatedAt timestamp for robust merging
+  let valueWithTimestamps = value;
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      const now = new Date().toISOString();
+      const updated = parsed.map(item => {
+        if (item && typeof item === 'object') {
+          return { ...item, updatedAt: item.updatedAt || now };
+        }
+        return item;
+      });
+      valueWithTimestamps = JSON.stringify(updated);
+    }
+  } catch (e) {
+    // value is not JSON or not an array, keep as is
+  }
+
   for (const alias of aliases) {
-    memCache[alias] = value;
+    memCache[alias] = valueWithTimestamps;
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
-        window.localStorage.setItem(alias, value);
+        window.localStorage.setItem(alias, valueWithTimestamps);
       } catch (e) {
         // ignore quota errors
       }
@@ -676,10 +694,10 @@ export function secureSet(key: string, value: string, options?: { skipCloud?: bo
     const tableName = getTableNameFromKey(key);
     if (tableName) {
       try {
-        const parsed = JSON.parse(value);
+        const parsed = JSON.parse(valueWithTimestamps);
         saveToBackend(tableName, parsed);
       } catch (err) {
-        saveToBackend(tableName, value);
+        saveToBackend(tableName, valueWithTimestamps);
       }
     }
   }
@@ -1633,6 +1651,7 @@ export interface AttendanceSheet {
   reasons?: Record<string, string>; // learnerId -> reason for absence
   lastUpdatedBy?: string;
   lastUpdatedAt?: string;
+  updatedAt?: string;
 }
 
 export interface Message {
@@ -2052,14 +2071,14 @@ const mergeArrays = (localArr: any[], cloudArr: any[]): any[] => {
 
   const map = new Map<string, any>();
 
-  // Add local items first
+  // Add all local items
   for (const item of localList) {
     if (!item) continue;
     const k = getItemKey(item);
     map.set(k, item);
   }
 
-  // Cloud data is primary and authoritative: Cloud items overwrite local items
+  // Merge cloud items: Use timestamps (updatedAt) to determine which version is authoritative
   for (const item of cloudList) {
     if (!item) continue;
     const k = getItemKey(item);
@@ -2067,23 +2086,32 @@ const mergeArrays = (localArr: any[], cloudArr: any[]): any[] => {
       map.set(k, item);
     } else {
       const localItem = map.get(k);
-      if (typeof localItem === 'object' && typeof item === 'object') {
-        if (Array.isArray(localItem.streams) || Array.isArray(item.streams)) {
-          const locStreams = Array.isArray(localItem.streams) ? localItem.streams : [];
-          const cldStreams = Array.isArray(item.streams) ? item.streams : [];
-          const streamMap = new Map<string, any>();
-          for (const s of locStreams) {
-            if (s) streamMap.set(s.id || s.name, s);
+      const localTime = localItem?.updatedAt || localItem?.lastModified || 0;
+      const cloudTime = item?.updatedAt || item?.lastModified || 1; // Default cloud to slightly ahead if missing
+
+      // Only overwrite local with cloud if cloud is strictly newer OR if local has no timestamp
+      const isCloudNewer = new Date(cloudTime).getTime() > new Date(localTime).getTime();
+
+      if (isCloudNewer) {
+        if (typeof localItem === 'object' && typeof item === 'object') {
+          // Merge deep if it's a known complex object like grades with streams
+          if (Array.isArray(localItem.streams) || Array.isArray(item.streams)) {
+            const locStreams = Array.isArray(localItem.streams) ? localItem.streams : [];
+            const cldStreams = Array.isArray(item.streams) ? item.streams : [];
+            const streamMap = new Map<string, any>();
+            for (const s of locStreams) {
+              if (s) streamMap.set(s.id || s.name, s);
+            }
+            for (const s of cldStreams) {
+              if (s) streamMap.set(s.id || s.name, s);
+            }
+            map.set(k, { ...localItem, ...item, streams: Array.from(streamMap.values()) });
+          } else {
+            map.set(k, { ...localItem, ...item });
           }
-          for (const s of cldStreams) {
-            if (s) streamMap.set(s.id || s.name, s);
-          }
-          map.set(k, { ...localItem, ...item, streams: Array.from(streamMap.values()) });
         } else {
-          map.set(k, { ...localItem, ...item });
+          map.set(k, item);
         }
-      } else {
-        map.set(k, item);
       }
     }
   }
@@ -2352,6 +2380,7 @@ try {
   logActivity('general_change', 'Linked KJSEA classification to learner report card generation to automatically display learner placement', 'Super Admin');
   logActivity('general_change', 'Resolved blank screen rendering and build artifacts failure by adding null-safety checks and fixing all TypeScript compilation errors', 'Super Admin');
   logActivity('general_change', 'Added Stream Position and Grade Position columns to the Performance Report', 'Super Admin');
+  logActivity('general_change', 'Implemented non-destructive bi-directional MongoDB sync with updatedAt timestamps, document-level collection mapping for high-concurrency tables (exams, marks), and reduced polling interval for true real-time multi-device consistency.', 'Super Admin');
 } catch (e) {}
 
 // --- FINANCE & FEE MANAGEMENT TYPES AND STORAGE ---

@@ -1,16 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { secureGet, secureSet, getSubjectPapers, getSubjects, getGrades, logActivity, getCurrentUser, getGradingRules, SubjectPaper, Subject, Grade, GradingRule, isGradeMatch } from '../utils/db';
+import { secureGet, secureSet, getSubjectPapers, getSubjects, getGrades, getLearners, logActivity, getCurrentUser, getGradingRules, SubjectPaper, Subject, Grade, GradingRule, isGradeMatch, Learner } from '../utils/db';
 
 // ===== DATA TYPES =====
-interface Learner {
-  id: string;
-  name: string;
-  admNo: string;
-  grade: string;
-  stream: string;
-  linkedSubjects: string[]; // Must have subject code/name here to appear
-}
-
 interface MarkEntryRecord {
   learnerId: string;
   subject: string;
@@ -95,7 +86,7 @@ const MarkEntry: React.FC = () => {
   // Listen for real-time DB changes (e.g. paper setup changes in Exam Setup)
   useEffect(() => {
     const handleDbUpdated = () => {
-      setSubjectPapers(getSubjectPapers());
+      refreshData();
     };
     window.addEventListener('db_updated', handleDbUpdated);
     window.addEventListener('storage', handleDbUpdated);
@@ -103,29 +94,22 @@ const MarkEntry: React.FC = () => {
       window.removeEventListener('db_updated', handleDbUpdated);
       window.removeEventListener('storage', handleDbUpdated);
     };
-  }, []);
-
-  // Load baseline DB values
-  useEffect(() => {
-    loadFromCloud();
   }, [selectedSubject, selectedExamId]);
 
-  const loadFromCloud = async () => {
+  // Load baseline DB values
+  const refreshData = async () => {
     setLoading(true);
     setSavedMsg('');
     try {
-      const rawLearners = secureGet('learners');
-      const allLearners: Learner[] = rawLearners ? JSON.parse(rawLearners) : [];
-
-      const rawExams = secureGet('exams');
-      const loadedExams = rawExams ? JSON.parse(rawExams) : [];
+      const allLearners = getLearners();
+      const loadedExams = secureGet('exams') ? JSON.parse(secureGet('exams')!) : [];
       setExams(loadedExams);
 
       if (loadedExams.length > 0 && selectedExamId === 'all') {
         setSelectedExamId(loadedExams[0].id);
       }
 
-      const rawMarks = secureGet('marks');
+      const rawMarks = secureGet('marks') || secureGet('school_exam_marks');
       const savedMarksData: Record<string, MarkEntryRecord> = rawMarks ? JSON.parse(rawMarks) : {};
 
       const loadedPapers = getSubjectPapers();
@@ -158,6 +142,10 @@ const MarkEntry: React.FC = () => {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    refreshData();
+  }, [selectedSubject, selectedExamId]);
 
   // Filter displayed learners by selected Grade
   const displayedLearners = useMemo(() => {
@@ -208,7 +196,7 @@ const MarkEntry: React.FC = () => {
       }
 
       if (paper.grade && displayedLearners.length > 0) {
-        return displayedLearners.some(l => isGradeMatch(paper.grade, l.grade));
+        return displayedLearners.some(l => isGradeMatch(paper.grade, String(l.grade)));
       }
 
       return false;
@@ -302,7 +290,8 @@ const MarkEntry: React.FC = () => {
             learnerId: record.learnerId,
             subjectCode: subCode,
             paperId: record.paperId,
-            score: record.mark
+            score: record.mark,
+            updatedAt: new Date().toISOString()
           });
         }
       });
@@ -476,7 +465,7 @@ const MarkEntry: React.FC = () => {
                   const mainMarkKey = `${learner.id}-${selectedSubject}`;
                   const mainRecord = marks[mainMarkKey];
 
-                  const learnerPapers = activeSubjectPapers.filter(p => !p.grade || isGradeMatch(p.grade, learner.grade));
+                  const learnerPapers = activeSubjectPapers.filter(p => !p.grade || isGradeMatch(p.grade, String(learner.grade)));
                   const hasPapers = learnerPapers.length > 0;
 
                   return (
@@ -556,7 +545,7 @@ const MarkEntry: React.FC = () => {
               <span>💾</span> Save All Marks to Cloud
             </button>
             <button
-              onClick={loadFromCloud}
+              onClick={refreshData}
               className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 rounded-xl font-semibold transition cursor-pointer flex items-center gap-2"
             >
               <span>🔄</span> Refresh from Cloud

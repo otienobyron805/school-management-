@@ -244,8 +244,8 @@ async function startServer() {
       }));
       try {
         await collection.bulkWrite(operations, { ordered: false });
-        const validIds = docs.map(d => d._id);
-        await collection.deleteMany({ _id: { $nin: validIds } });
+        // We removed the deleteMany call to prevent destructive overrides from multiple devices.
+        // This ensures that if Device B hasn't synced Device A's new record yet, it won't accidentally delete it.
       } catch (e) {
         console.warn("BulkWrite warning (handled):", e);
       }
@@ -393,21 +393,21 @@ async function startServer() {
           { key: 'attendance_sheets', col: 'school_attendance_sheets', isArray: true },
           { key: 'messages', col: 'school_messages', isArray: true },
           { key: 'staff_attendance_sheets', col: 'school_staff_attendance_sheets', isArray: true },
-          { key: 'schemes_of_work', col: 'school_schemes_of_work', isArray: false },
+          { key: 'schemes_of_work', col: 'school_schemes_of_work', isArray: true },
           { key: 'school_profile', col: 'school_profile', isArray: false },
           { key: 'subject_enrollments', col: 'school_subject_enrollments', isArray: false },
-          { key: 'subject_assignments', col: 'school_subject_assignments_list', isArray: false },
-          { key: 'class_teacher_assignments', col: 'school_class_teacher_assignments_list', isArray: false },
-          { key: 'exams', col: 'school_exams', isArray: false },
-          { key: 'exam_marks', col: 'school_exam_marks', isArray: false },
-          { key: 'subject_papers', col: 'school_subject_papers', isArray: false },
+          { key: 'subject_assignments', col: 'school_subject_assignments_list', isArray: true },
+          { key: 'class_teacher_assignments', col: 'school_class_teacher_assignments_list', isArray: true },
+          { key: 'exams', col: 'school_exams', isArray: true },
+          { key: 'exam_marks', col: 'school_exam_marks', isArray: true },
+          { key: 'subject_papers', col: 'school_subject_papers', isArray: true },
           { key: 'system_settings', col: 'school_system_settings', isArray: false },
           { key: 'attendance_settings', col: 'school_attendance_settings', isArray: false },
-          { key: 'teachers_on_duty', col: 'school_teachers_on_duty', isArray: false },
+          { key: 'teachers_on_duty', col: 'school_teachers_on_duty', isArray: true },
           { key: 'gate_logs', col: 'school_gate_logs', isArray: true },
           { key: 'fee_structures', col: 'school_fee_structures', isArray: true },
           { key: 'fee_payments', col: 'school_fee_payments', isArray: true },
-          { key: 'term_reports', col: 'school_term_reports', isArray: false },
+          { key: 'term_reports', col: 'school_term_reports', isArray: true },
           { key: 'role_permissions', col: 'school_role_permissions_matrix_v1', isArray: false },
           { key: 'whatsapp_templates', col: 'school_whatsapp_templates', isArray: false },
           { key: 'exam_submission_statuses', col: 'school_exam_submission_statuses', isArray: false },

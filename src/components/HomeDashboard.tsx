@@ -462,78 +462,88 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
   };
 
   useEffect(() => {
-    const activeUser = getCurrentUser();
-    setUser(activeUser);
-    if (activeUser) {
-      loadMyAttendance(activeUser);
+    const loadDashboardData = () => {
+      const activeUser = getCurrentUser();
+      setUser(activeUser);
+      if (activeUser) {
+        loadMyAttendance(activeUser);
 
-      // Load TOD roster and check if user is TOD
-      const savedRoster = secureGet('tod_duty_roster_v1');
-      if (savedRoster) {
-        const roster = JSON.parse(savedRoster);
-        const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
-        const isActive = roster.some((r: any) => {
-            const isUser = (r.teacherName || '').toLowerCase() === (activeUser.fullName || '').toLowerCase() || r.teacherId === activeUser.id;
-            if (!isUser) return false;
-            if (r.status === 'On Duty') return true;
-            if (r.startDate && r.endDate) {
-                const now = new Date();
-                const start = new Date(r.startDate);
-                const end = new Date(r.endDate);
-                return now >= start && now <= end;
-            }
-            return r.day === todayName;
-        });
-        setIsUserTOD(isActive);
+        // Load TOD roster and check if user is TOD
+        const savedRoster = secureGet('tod_duty_roster_v1');
+        if (savedRoster) {
+          const roster = JSON.parse(savedRoster);
+          const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+          const isActive = roster.some((r: any) => {
+              const isUser = (r.teacherName || '').toLowerCase() === (activeUser.fullName || '').toLowerCase() || r.teacherId === activeUser.id;
+              if (!isUser) return false;
+              if (r.status === 'On Duty') return true;
+              if (r.startDate && r.endDate) {
+                  const now = new Date();
+                  const start = new Date(r.startDate);
+                  const end = new Date(r.endDate);
+                  return now >= start && now <= end;
+              }
+              return r.day === todayName;
+          });
+          setIsUserTOD(isActive);
+        }
       }
-    }
-    
-    const profile = getSchoolProfile();
-    setSchoolProfile(profile);
+      
+      const profile = getSchoolProfile();
+      setSchoolProfile(profile);
 
-    // Calculate live stats
-    const learners = getLearners();
-    const totalStudents = learners.length;
-    const maleStudents = learners.filter(l => l.gender?.toLowerCase() === 'male').length;
-    const femaleStudents = learners.filter(l => l.gender?.toLowerCase() === 'female').length;
+      // Calculate live stats
+      const learners = getLearners();
+      const totalStudents = learners.length;
+      const maleStudents = learners.filter(l => l.gender?.toLowerCase() === 'male').length;
+      const femaleStudents = learners.filter(l => l.gender?.toLowerCase() === 'female').length;
 
-    const staffUsers = getUsers().filter(u => u.role !== 'Parent');
-    const staffTotal = staffUsers.filter(u => u.status === 'Active').length;
+      const staffUsers = getUsers().filter(u => u.role !== 'Parent');
+      const staffTotal = staffUsers.filter(u => u.status === 'Active').length;
 
-    const staffSheets = getStaffAttendanceSheets();
-    const todayStr = new Date().toISOString().split('T')[0];
-    const todayStaffSheet = staffSheets.find(s => s.date === todayStr);
-    
-    let staffActive = 0;
-    let hasStaffSheet = false;
-    if (todayStaffSheet && todayStaffSheet.records && Object.keys(todayStaffSheet.records).length > 0) {
-      hasStaffSheet = true;
-      staffActive = Object.values(todayStaffSheet.records).filter(r => ['Present', 'Late', 'Half Day'].includes(r.status)).length;
-    }
+      const staffSheets = getStaffAttendanceSheets();
+      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStaffSheet = staffSheets.find(s => s.date === todayStr);
+      
+      let staffActive = 0;
+      let hasStaffSheet = false;
+      if (todayStaffSheet && todayStaffSheet.records && Object.keys(todayStaffSheet.records).length > 0) {
+        hasStaffSheet = true;
+        staffActive = Object.values(todayStaffSheet.records).filter(r => ['Present', 'Late', 'Half Day'].includes(r.status)).length;
+      }
 
-    const sheets = getAttendanceSheets();
-    let latestSheet = sheets.find(s => s.date === todayStr);
-    
-    let absentsCount = 0;
-    let presentStudentsCount = 0;
-    let isSheetMarked = false;
-    if (latestSheet && latestSheet.records && Object.keys(latestSheet.records).length > 0) {
-      isSheetMarked = true;
-      absentsCount = Object.values(latestSheet.records).filter(status => status === 'Absent').length;
-      presentStudentsCount = Object.values(latestSheet.records).filter(status => ['AM', 'PM', 'Full', 'Present'].includes(status)).length;
-    }
+      const sheets = getAttendanceSheets();
+      let latestSheet = sheets.find(s => s.date === todayStr);
+      
+      let absentsCount = 0;
+      let presentStudentsCount = 0;
+      let isSheetMarked = false;
+      if (latestSheet && latestSheet.records && Object.keys(latestSheet.records).length > 0) {
+        isSheetMarked = true;
+        absentsCount = Object.values(latestSheet.records).filter(status => status === 'Absent').length;
+        presentStudentsCount = Object.values(latestSheet.records).filter(status => ['AM', 'PM', 'Full', 'Present'].includes(status)).length;
+      }
 
-    setStats({
-      totalStudents,
-      maleStudents,
-      femaleStudents,
-      staffActive,
-      staffTotal,
-      absentsCount,
-      presentStudentsCount,
-      isSheetMarked,
-      hasStaffSheet
-    });
+      setStats({
+        totalStudents,
+        maleStudents,
+        femaleStudents,
+        staffActive,
+        staffTotal,
+        absentsCount,
+        presentStudentsCount,
+        isSheetMarked,
+        hasStaffSheet
+      });
+    };
+
+    loadDashboardData();
+    window.addEventListener('storage', loadDashboardData);
+    window.addEventListener('db_updated', loadDashboardData);
+    return () => {
+      window.removeEventListener('storage', loadDashboardData);
+      window.removeEventListener('db_updated', loadDashboardData);
+    };
   }, []);
 
   if (!user) {

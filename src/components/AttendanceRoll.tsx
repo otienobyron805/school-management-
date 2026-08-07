@@ -371,7 +371,8 @@ export default function AttendanceRoll() {
       records: currentRecords,
       reasons: currentReasons,
       lastUpdatedBy: currentUser?.fullName || currentUser?.username || 'Administrator',
-      lastUpdatedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      lastUpdatedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     if (sheetIdx >= 0) {
