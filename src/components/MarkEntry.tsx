@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { secureGet, secureSet, getSubjectPapers, getSubjects, logActivity, getCurrentUser, getGradingRules, SubjectPaper, Subject } from '../utils/db';
+import { secureGet, secureSet, getSubjectPapers, getSubjects, getGrades, logActivity, getCurrentUser, getGradingRules, SubjectPaper, Subject, Grade } from '../utils/db';
 
 // ===== DATA TYPES =====
 interface Learner {
@@ -29,6 +29,8 @@ const MarkEntry: React.FC = () => {
   const [marks, setMarks] = useState<Record<string, MarkEntryRecord>>({});
   const [subjectPapers, setSubjectPapers] = useState<SubjectPaper[]>([]);
   const [dbSubjects, setDbSubjects] = useState<Subject[]>([]);
+  const [grades, setGrades] = useState<Grade[]>([]);
+  const [selectedGrade, setSelectedGrade] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [savedMsg, setSavedMsg] = useState('');
   
@@ -103,11 +105,13 @@ const MarkEntry: React.FC = () => {
 
       const loadedPapers = getSubjectPapers();
       const loadedDbSubjects = getSubjects();
+      const loadedGrades = getGrades();
 
       setLearners(allLearners);
       setMarks(savedMarksData);
       setSubjectPapers(loadedPapers);
       setDbSubjects(loadedDbSubjects);
+      setGrades(loadedGrades);
 
       const currentSubjectObj = SUBJECTS.find(s => s.code === selectedSubject || s.name.toLowerCase() === selectedSubject.toLowerCase());
       const subjectNameLower = currentSubjectObj ? currentSubjectObj.name.toLowerCase() : selectedSubject.toLowerCase();
@@ -130,7 +134,20 @@ const MarkEntry: React.FC = () => {
     setLoading(false);
   };
 
-  // Find subject papers matching the currently selected subject
+  // Filter displayed learners by selected Grade
+  const displayedLearners = useMemo(() => {
+    if (selectedGrade === 'all') return registeredLearners;
+    const selLower = selectedGrade.toLowerCase();
+    return registeredLearners.filter(l => {
+      const lGradeStr = (l.grade || '').toString().toLowerCase();
+      return lGradeStr === selLower || 
+             `grade ${lGradeStr}` === selLower || 
+             selLower === `grade ${lGradeStr}` ||
+             selLower.includes(lGradeStr);
+    });
+  }, [registeredLearners, selectedGrade]);
+
+  // Find subject papers matching the currently selected subject and grade
   const activeSubjectPapers = useMemo(() => {
     const selectedSubLower = selectedSubject.trim().toLowerCase();
     
@@ -145,23 +162,34 @@ const MarkEntry: React.FC = () => {
       const pSubName = ((paper as any).subjectName || '').toLowerCase();
       const pSubCode = ((paper as any).subjectCode || '').toLowerCase();
 
+      let matchesSub = false;
       if (pSubId === selectedSubLower || pSubName === selectedSubLower || pSubCode === selectedSubLower) {
-        return true;
-      }
-
-      if (matchedSubjectObj) {
+        matchesSub = true;
+      } else if (matchedSubjectObj) {
         const mId = (matchedSubjectObj.id || '').toLowerCase();
         const mName = (matchedSubjectObj.name || '').toLowerCase();
         const mCode = ((matchedSubjectObj as any).code || '').toLowerCase();
 
-        if (mId && pSubId === mId) return true;
-        if (mName && (pSubId === mName || pSubName === mName)) return true;
-        if (mCode && (pSubId === mCode || pSubCode === mCode)) return true;
+        if (mId && pSubId === mId) matchesSub = true;
+        if (mName && (pSubId === mName || pSubName === mName)) matchesSub = true;
+        if (mCode && (pSubId === mCode || pSubCode === mCode)) matchesSub = true;
       }
 
-      return false;
+      if (!matchesSub) return false;
+
+      // Grade check
+      if (!paper.grade) return true;
+      if (selectedGrade === 'all') return true;
+
+      const pGradeLower = paper.grade.toLowerCase();
+      const selGradeLower = selectedGrade.toLowerCase();
+
+      return pGradeLower === selGradeLower || 
+             `grade ${pGradeLower}` === selGradeLower || 
+             selGradeLower === `grade ${pGradeLower}` ||
+             selGradeLower.includes(pGradeLower);
     });
-  }, [subjectPapers, selectedSubject, dbSubjects, SUBJECTS]);
+  }, [subjectPapers, selectedSubject, dbSubjects, SUBJECTS, selectedGrade]);
 
   // Handle single paper mark change and re-calculate subject total automatically
   const handlePaperMarkChange = (learnerId: string, paperId: string, inputValue: string) => {
@@ -296,23 +324,41 @@ const MarkEntry: React.FC = () => {
             </p>
           </div>
 
-          {/* Exam Selector */}
-          {exams.length > 0 && (
-            <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
-              <span className="text-xs font-black text-slate-500 uppercase tracking-wider pl-2">Exam:</span>
-              <select 
-                value={selectedExamId}
-                onChange={(e) => setSelectedExamId(e.target.value)}
-                className="bg-white text-xs font-bold text-slate-800 p-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {exams.map(ex => (
-                  <option key={ex.id} value={ex.id}>
-                    {ex.examName || ex.name} ({ex.term || 'Term 1'} {ex.academicYear || ex.year || '2026'})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          {/* Grade & Exam Selectors */}
+          <div className="flex flex-wrap items-center gap-3">
+            {grades.length > 0 && (
+              <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                <span className="text-xs font-black text-slate-500 uppercase tracking-wider pl-2">Grade / Class:</span>
+                <select 
+                  value={selectedGrade}
+                  onChange={(e) => setSelectedGrade(e.target.value)}
+                  className="bg-white text-xs font-bold text-slate-800 p-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Grades / Classes</option>
+                  {grades.map(g => (
+                    <option key={g.id} value={g.name}>{g.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {exams.length > 0 && (
+              <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                <span className="text-xs font-black text-slate-500 uppercase tracking-wider pl-2">Exam:</span>
+                <select 
+                  value={selectedExamId}
+                  onChange={(e) => setSelectedExamId(e.target.value)}
+                  className="bg-white text-xs font-bold text-slate-800 p-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {exams.map(ex => (
+                    <option key={ex.id} value={ex.id}>
+                      {ex.examName || ex.name} ({ex.term || 'Term 1'} {ex.academicYear || ex.year || '2026'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ===== CHRONOLOGICAL SUBJECT SELECTOR TABS ===== */}
@@ -341,7 +387,7 @@ const MarkEntry: React.FC = () => {
                 {activeSubjectPapers.length} Papers Configured
               </span>
               <span>
-                {activeSubjectPapers.map(p => p.name).join(' + ')}
+                {activeSubjectPapers.map(p => `${p.name}${p.grade ? ` (${p.grade})` : ''}`).join(' + ')}
               </span>
             </div>
             <span className="text-[11px] text-blue-700 font-semibold italic">
@@ -356,13 +402,13 @@ const MarkEntry: React.FC = () => {
 
         {/* ===== STATUS MESSAGE ===== */}
         <div className="text-xs font-semibold pt-1 flex items-center justify-between flex-wrap gap-2">
-          {registeredLearners.length > 0 ? (
+          {displayedLearners.length > 0 ? (
             <p className="text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
-              ✅ <strong>{registeredLearners.length}</strong> learner(s) registered for this subject — ready for mark entry
+              ✅ <strong>{displayedLearners.length}</strong> learner(s) registered for this subject — ready for mark entry
             </p>
           ) : (
             <p className="text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-100">
-              ⚠️ No registered learners found for this subject. Displaying default roster.
+              ⚠️ No registered learners found for this subject/grade selection.
             </p>
           )}
           {savedMsg && (
@@ -374,7 +420,7 @@ const MarkEntry: React.FC = () => {
       </div>
 
       {/* ===== MARK ENTRY TABLE ===== */}
-      {registeredLearners.length > 0 ? (
+      {displayedLearners.length > 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
@@ -402,7 +448,7 @@ const MarkEntry: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {registeredLearners.map((learner: Learner) => {
+                {displayedLearners.map((learner: Learner) => {
                   const mainMarkKey = `${learner.id}-${selectedSubject}`;
                   const mainRecord = marks[mainMarkKey];
 

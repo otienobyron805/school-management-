@@ -413,13 +413,22 @@ export default function MarkSubmissions() {
       const pSubId = (paper.subjectId || '').toLowerCase();
       const pSubName = ((paper as any).subjectName || '').toLowerCase();
       const pSubCode = ((paper as any).subjectCode || '').toLowerCase();
-      const paperName = (paper.name || '').toLowerCase();
 
-      if (pSubId === subIdLower || pSubId === subNameLower || pSubId === subCodeLower) return true;
-      if (pSubName && (pSubName === subNameLower || pSubName === subCodeLower)) return true;
-      if (pSubCode && (pSubCode === subCodeLower || pSubCode === subNameLower)) return true;
+      const matchesSubject = 
+        pSubId === subIdLower || pSubId === subNameLower || pSubId === subCodeLower ||
+        (pSubName && (pSubName === subNameLower || pSubName === subCodeLower)) ||
+        (pSubCode && (pSubCode === subCodeLower || pSubCode === subNameLower));
 
-      return false;
+      if (!matchesSubject) return false;
+
+      if (!paper.grade) return true;
+      const pGradeLower = paper.grade.toLowerCase();
+      const sGradeLower = (selectedGradeName || '').toLowerCase();
+
+      return pGradeLower === sGradeLower || 
+             `grade ${pGradeLower}` === sGradeLower || 
+             sGradeLower === `grade ${pGradeLower}` ||
+             sGradeLower.includes(pGradeLower);
     });
   };
 

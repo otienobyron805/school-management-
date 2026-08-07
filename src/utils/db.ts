@@ -339,6 +339,7 @@ export interface SubjectPaper {
   subjectName?: string;
   subjectCode?: string;
   examId?: string;
+  grade?: string;
   name: string;
   weight: number;
 }

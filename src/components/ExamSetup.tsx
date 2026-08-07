@@ -22,6 +22,7 @@ export default function ExamSetup() {
   const [paperName, setPaperName] = useState('');
   const [paperWeight, setPaperWeight] = useState<number>(0);
   const [editingPaperId, setEditingPaperId] = useState<string | null>(null);
+  const [selectedGradeForPapers, setSelectedGradeForPapers] = useState<string | null>(null);
 
   useEffect(() => {
     const savedSubjects = secureGet('exam_subjects');
@@ -37,8 +38,9 @@ export default function ExamSetup() {
     secureSet('exam_subjects', JSON.stringify(subjects));
   };
 
-  const togglePaperSetup = (subjectName?: string) => {
+  const togglePaperSetup = (subjectName?: string, gradeName?: string) => {
     setSelectedSubject(subjectName || null);
+    setSelectedGradeForPapers(gradeName || null);
     setShowPaperSetup(!showPaperSetup);
     
     if (subjectName && !showPaperSetup) {
@@ -49,14 +51,22 @@ export default function ExamSetup() {
       );
       const allPapers = getSubjectPapers();
       const subjectPapers = allPapers.filter(p => {
-        if (!subject) {
-          return (p as any).subjectName?.toLowerCase() === subjectName.toLowerCase() || 
-                 p.subjectId?.toLowerCase() === subjectName.toLowerCase();
-        }
-        return p.subjectId === subject.id ||
-               p.subjectId?.toLowerCase() === subject.name.toLowerCase() ||
-               p.subjectId?.toLowerCase() === subject.code?.toLowerCase() ||
-               (p as any).subjectName?.toLowerCase() === subject.name.toLowerCase();
+        const matchSubject = !subject ? (
+          (p as any).subjectName?.toLowerCase() === subjectName.toLowerCase() || 
+          p.subjectId?.toLowerCase() === subjectName.toLowerCase()
+        ) : (
+          p.subjectId === subject.id ||
+          p.subjectId?.toLowerCase() === subject.name.toLowerCase() ||
+          p.subjectId?.toLowerCase() === subject.code?.toLowerCase() ||
+          (p as any).subjectName?.toLowerCase() === subject.name.toLowerCase()
+        );
+
+        const matchGrade = !gradeName || !p.grade || 
+          p.grade.toLowerCase() === gradeName.toLowerCase() ||
+          `Grade ${p.grade}`.toLowerCase() === gradeName.toLowerCase() ||
+          gradeName.toLowerCase().includes(p.grade.toLowerCase());
+
+        return matchSubject && matchGrade;
       });
       setPapers(subjectPapers);
     } else if (!showPaperSetup) {
@@ -100,7 +110,8 @@ export default function ExamSetup() {
         weight: paperWeight,
         subjectId: subject.id,
         subjectName: subject.name,
-        subjectCode: (subject as any).code || subject.name.substring(0, 3).toUpperCase()
+        subjectCode: (subject as any).code || subject.name.substring(0, 3).toUpperCase(),
+        grade: selectedGradeForPapers || undefined
       } : p);
     } else {
       updatedPapers = [...papers, { 
@@ -108,6 +119,7 @@ export default function ExamSetup() {
         subjectId: subject.id,
         subjectName: subject.name,
         subjectCode: (subject as any).code || subject.name.substring(0, 3).toUpperCase(),
+        grade: selectedGradeForPapers || undefined,
         name: paperName, 
         weight: paperWeight 
       }];
@@ -117,11 +129,11 @@ export default function ExamSetup() {
 
     // Save to global storage
     const allPapers = getSubjectPapers();
-    const otherSubjectsPapers = allPapers.filter(p => p.subjectId !== subject.id && (p as any).subjectName !== subject.name);
-    saveSubjectPapers([...otherSubjectsPapers, ...updatedPapers]);
+    const otherPapers = allPapers.filter(p => !updatedPapers.some(u => u.id === p.id));
+    saveSubjectPapers([...otherPapers, ...updatedPapers]);
 
     const currentUser = getCurrentUser();
-    logActivity('general_change', `Saved paper configuration for ${subject.name}`, currentUser?.fullName || 'User');
+    logActivity('general_change', `Saved paper configuration for ${subject.name}${selectedGradeForPapers ? ` (${selectedGradeForPapers})` : ''}`, currentUser?.fullName || 'User');
 
     setEditingPaperId(null);
     setPaperName('');
@@ -258,10 +270,15 @@ export default function ExamSetup() {
                 <tbody className="divide-y divide-slate-50">
                   {addedSubjects.map(s => {
                     const allPapers = getSubjectPapers();
-                    const count = allPapers.filter(p => 
-                      p.subjectId?.toLowerCase() === s.subject.toLowerCase() || 
-                      (p as any).subjectName?.toLowerCase() === s.subject.toLowerCase()
-                    ).length;
+                    const count = allPapers.filter(p => {
+                      const matchSub = p.subjectId?.toLowerCase() === s.subject.toLowerCase() || 
+                                       (p as any).subjectName?.toLowerCase() === s.subject.toLowerCase();
+                      const matchGrade = !p.grade || 
+                                         p.grade.toLowerCase() === s.grade.toLowerCase() || 
+                                         `Grade ${p.grade}`.toLowerCase() === s.grade.toLowerCase() ||
+                                         s.grade.toLowerCase().includes(p.grade.toLowerCase());
+                      return matchSub && matchGrade;
+                    }).length;
 
                     return (
                       <tr key={s.id} className="hover:bg-slate-50/50 transition">
@@ -269,7 +286,7 @@ export default function ExamSetup() {
                         <td className="p-5 font-black text-slate-900">{s.subject}</td>
                         <td className="p-5 font-bold text-slate-600">{s.maxMarks}</td>
                         <td className="p-5">
-                          <button onClick={() => togglePaperSetup(s.subject)} className="text-blue-600 font-black text-sm hover:text-blue-800 transition flex items-center gap-2">
+                          <button onClick={() => togglePaperSetup(s.subject, s.grade)} className="text-blue-600 font-black text-sm hover:text-blue-800 transition flex items-center gap-2">
                             <span className="underline decoration-2 underline-offset-4">Setup Papers</span>
                             <span className={`px-2 py-0.5 text-xs rounded-full font-bold ${count > 0 ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-500'}`}>
                               {count > 0 ? `${count} paper${count > 1 ? 's' : ''}` : 'No papers'}
@@ -293,7 +310,7 @@ export default function ExamSetup() {
           {/* Left: Paper List */}
           <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
             <div className="flex items-center justify-between mb-8 pb-6 border-b border-slate-100">
-              <h3 className="text-2xl font-black text-slate-900">Papers for {selectedSubject}</h3>
+              <h3 className="text-2xl font-black text-slate-900">Papers for {selectedSubject} {selectedGradeForPapers ? `(${selectedGradeForPapers})` : ''}</h3>
               <button onClick={() => togglePaperSetup()} className="p-3 bg-slate-100 rounded-2xl text-slate-600 hover:bg-slate-200 transition"><X className="w-6 h-6" /></button>
             </div>
             
