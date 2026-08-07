@@ -74,7 +74,7 @@ import AttendanceRoll from './components/AttendanceRoll';
 import MyProfile from './components/MyProfile';
 import ResetPassword from './components/ResetPassword';
 import NotificationBell from './components/NotificationBell';
-import { getCurrentUser, setCurrentUser, getSchoolProfile, UserAccount, getUsers, getLearners, synchronizeWithMongoDB, startRealtimeCloudSync, getMessages, secureGet, secureSet, logActivity } from './utils/db';
+import { getCurrentUser, setCurrentUser, getSchoolProfile, UserAccount, getUsers, getLearners, synchronizeWithMongoDB, startRealtimeCloudSync, migrateLegacyLocalStorageToMongoDB, getMessages, secureGet, secureSet, logActivity } from './utils/db';
 import CloudAutoSyncHeaderBar from './components/CloudAutoSyncHeaderBar';
 import CloudSyncHealth from './components/CloudSyncHealth';
 import Remedial from './components/Remedial';
@@ -230,6 +230,8 @@ export default function App() {
   useEffect(() => {
     // Initialize theme preference from secure database cache
     initTheme();
+    // One-time migration check for legacy localStorage data
+    migrateLegacyLocalStorageToMongoDB();
     // Start instant real-time MongoDB sync listener
     startRealtimeCloudSync();
     // Initial sync with MongoDB database
@@ -338,10 +340,12 @@ export default function App() {
     };
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('db_updated', handleStorageChange);
+    window.addEventListener('dataUpdated', handleStorageChange);
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('db_updated', handleStorageChange);
+      window.removeEventListener('dataUpdated', handleStorageChange);
     };
   }, []);
 
