@@ -200,6 +200,13 @@ html.dark .sidebar {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
+  td.candidate-name, td:nth-child(3) {
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    text-align: left !important;
+    padding-left: 8px !important;
+  }
 
   /* 6️⃣ REMOVE EXTRA BLANK PAGES */
   #root {

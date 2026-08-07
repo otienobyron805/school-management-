@@ -2099,7 +2099,7 @@ try {
   logActivity('general_change', 'Completed full sweep of App.tsx and database layer to replace legacy storage calls with real-time MongoDB cloud data synchronization', 'Super Admin');
   logActivity('general_change', 'Verified all application storage operations route through secure DB utilities with automated cloud-syncing and real-time event broadcasting', 'Super Admin');
   logActivity('general_change', 'Implemented one-time legacy localStorage migration utility that inspects, transfers data to MongoDB secure storage, and cleans up legacy keys', 'Super Admin');
-  logActivity('general_change', 'Updated global A4 print stylesheet with large watermarking for ST AUGUSTINE CATHOLIC SCHOOL, table formatting, and exact-color rules', 'Super Admin');
+  logActivity('general_change', 'Updated global A4 print stylesheet with large watermarking for ST AUGUSTINE CATHOLIC SCHOOL, table formatting, candidate name text wrapping, and exact-color rules', 'Super Admin');
 } catch (e) {}
 
 // --- FINANCE & FEE MANAGEMENT TYPES AND STORAGE ---
