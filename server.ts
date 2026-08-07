@@ -218,6 +218,42 @@ async function startServer() {
     classification: 'learner_classification',
   };
 
+  async function saveArrayToCollection(collection: any, data: any[]) {
+    const seenIds = new Set();
+    const docs = [];
+    for (let i = 0; i < data.length; i++) {
+      const item = data[i];
+      let _id = item.id || item._id;
+      if (!_id || seenIds.has(_id)) {
+        _id = String(_id || 'doc') + '_' + Math.random().toString(36).substring(2, 9) + '_' + i;
+      }
+      seenIds.add(_id);
+      docs.push({
+        ...item,
+        _id,
+        syncedAt: new Date(),
+      });
+    }
+    if (docs.length > 0) {
+      const operations = docs.map(doc => ({
+        updateOne: {
+          filter: { _id: doc._id },
+          update: { $set: doc },
+          upsert: true
+        }
+      }));
+      try {
+        await collection.bulkWrite(operations, { ordered: false });
+        const validIds = docs.map(d => d._id);
+        await collection.deleteMany({ _id: { $nin: validIds } });
+      } catch (e) {
+        console.warn("BulkWrite warning (handled):", e);
+      }
+    } else {
+      await collection.deleteMany({});
+    }
+  }
+
   app.post("/api/mongo/save", async (req, res) => {
     const { collectionName, data } = req.body;
     if (!collectionName || !data) {
@@ -228,28 +264,7 @@ async function startServer() {
       const colName = TABLE_TO_COLLECTION[collectionName] || collectionName;
       const collection = mongoDb.collection(colName);
       if (Array.isArray(data)) {
-        await collection.deleteMany({});
-        if (data.length > 0) {
-          const seenIds = new Set();
-          const docs = [];
-          for (const item of data) {
-            let _id = item.id || item._id;
-            if (!_id || seenIds.has(_id)) {
-              _id = Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
-            }
-            seenIds.add(_id);
-            docs.push({
-              ...item,
-              _id,
-              syncedAt: new Date(),
-            });
-          }
-          try {
-            await collection.insertMany(docs, { ordered: false });
-          } catch (e) {
-            console.warn("InsertMany bulk warning (handled):", e);
-          }
-        }
+        await saveArrayToCollection(collection, data);
       } else {
         await collection.updateOne(
           { _id: data.id || data._id || colName },
@@ -568,32 +583,11 @@ async function startServer() {
             const collection = mongoDb.collection(colName);
 
             if (Array.isArray(data)) {
-              await collection.deleteMany({});
-              if (data.length > 0) {
-                const seenIds = new Set();
-                const docs = [];
-                for (const d of data) {
-                  let _id = d.id || d._id;
-                  if (!_id || seenIds.has(_id)) {
-                    _id = Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
-                  }
-                  seenIds.add(_id);
-                  docs.push({
-                    ...d,
-                    _id,
-                    syncedAt: new Date(),
-                  });
-                }
-                try {
-                  await collection.insertMany(docs, { ordered: false });
-                } catch (e) {
-                  console.warn("InsertMany bulk warning (handled):", e);
-                }
-              }
+              await saveArrayToCollection(collection, data);
             } else if (data && typeof data === 'object') {
               await collection.updateOne(
-                { _id: data.id || data._id || colName },
-                { $set: { ...data, syncedAt: new Date() } },
+                { _id: colName },
+                { $set: { _id: colName, data, syncedAt: new Date() } },
                 { upsert: true }
               );
             }
@@ -632,32 +626,11 @@ async function startServer() {
         const colName = TABLE_TO_COLLECTION[table] || table;
         const collection = mongoDb.collection(colName);
         if (Array.isArray(data)) {
-          await collection.deleteMany({});
-          if (data.length > 0) {
-            const seenIds = new Set();
-            const docs = [];
-            for (const item of data) {
-              let _id = item.id || item._id;
-              if (!_id || seenIds.has(_id)) {
-                _id = Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
-              }
-              seenIds.add(_id);
-              docs.push({
-                ...item,
-                _id,
-                syncedAt: new Date(),
-              });
-            }
-            try {
-              await collection.insertMany(docs, { ordered: false });
-            } catch (e) {
-              console.warn("InsertMany bulk warning (handled):", e);
-            }
-          }
+          await saveArrayToCollection(collection, data);
         } else {
           await collection.updateOne(
-            { _id: data.id || data._id || colName },
-            { $set: { ...data, syncedAt: new Date() } },
+            { _id: colName },
+            { $set: { _id: colName, data, syncedAt: new Date() } },
             { upsert: true }
           );
         }
