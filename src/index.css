@@ -152,8 +152,25 @@ html.dark .sidebar {
     margin: 0 !important;
     padding: 0 !important;
     background: white !important;
+    height: auto !important;
+    min-height: 0 !important;
+    page-break-after: auto !important;
+    orphans: 4 !important;
+  }
+  
+  .printable-report-modal section, .printable-report-modal .report-section {
+    page-break-before: avoid !important;
+  }
+  
+  .printable-report-modal tr, .printable-report-modal .learner-row {
+    page-break-inside: avoid !important;
   }
 
+  .printable-report-modal table {
+    border-spacing: 0 !important;
+    table-layout: fixed !important;
+  }
+  
   /* 2️⃣ REMOVE WIDTH LIMITS — FILL FULL PAGE */
   .report-modal, .report-card, table, .max-w-5xl, .max-w-4xl, .max-w-6xl, .printable-area {
     width: 100% !important;
