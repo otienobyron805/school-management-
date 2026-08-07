@@ -1,5 +1,23 @@
 {
-  "learners": [],
+  "learners": [
+    {
+      "id": "l_1786019112319132",
+      "name": "JOY CLARE",
+      "admNo": "1681",
+      "grade": 8,
+      "stream": "Alpha",
+      "firstName": "JOY",
+      "secondName": "CLARE",
+      "otherName": null,
+      "assessNo": "—",
+      "gradeLabel": "Grade 8",
+      "gender": "Male",
+      "type": "Day Scholar",
+      "status": "Active",
+      "parentPhone": "0745979371",
+      "createdAt": "2026-08-07T05:01:22.219Z"
+    }
+  ],
   "grades": [],
   "subjects": [],
   "users": [
@@ -21,77 +39,89 @@
       "systemRole": null,
       "adminOverride": false,
       "permissions": [],
-      "createdAt": "2026-08-05T15:55:16.653Z"
+      "createdAt": "2026-08-07T05:01:22.279Z"
     },
     {
-      "id": "u_test_123",
-      "username": "teacher1",
-      "fullName": "Jane Doe",
-      "role": "Teacher",
-      "created": "2026-08-05",
+      "id": "u_p_1786019170114",
+      "username": "0745979371",
+      "fullName": "Parent of JOY CLARE",
+      "role": "Parent",
+      "created": "2026-08-06",
       "status": "Active",
-      "password": null,
-      "staffNo": "ST-101",
+      "password": "1681",
+      "staffNo": null,
       "nationalId": null,
-      "phone": null,
+      "phone": "0745979371",
       "email": null,
       "empDate": null,
       "designatedRole": null,
       "department": null,
       "systemRole": null,
       "adminOverride": false,
-      "permissions": [],
-      "createdAt": "2026-08-05T15:55:16.653Z"
+      "permissions": [
+        "perm_own_marks"
+      ],
+      "createdAt": "2026-08-07T05:01:22.279Z"
     }
   ],
   "attendance_sheets": [],
-  "grading_rules": [],
+  "grading_rules": [
+    {
+      "id": "rule_178609813493392",
+      "code": "NEW",
+      "min": 0,
+      "max": 40,
+      "points": 1,
+      "category": "custom",
+      "createdAt": "2026-08-07T10:22:14.265Z"
+    }
+  ],
   "school_profile": {
-    "name": "ST AUGUSTINE CATHOLIC SCHOOL",
     "code": "",
-    "regNumber": "",
-    "county": "",
-    "subCounty": "",
+    "name": "ST AUGUSTINE CATHOLIC SCHOOL",
     "ward": "",
-    "village": "",
-    "pobox": "",
-    "postalCode": "",
-    "location": "",
-    "ownership": "",
-    "level": "",
-    "genderCategory": "",
-    "accommodationType": "",
-    "landArea": "",
     "email": "",
-    "mobileAdmin": "",
-    "mobileBursar": "",
-    "mobilePrincipal": "",
-    "officeTel": "",
-    "website": "",
-    "socials": "",
-    "bankName": "",
-    "bankAccount": "",
-    "mission": "",
-    "vision": "",
+    "level": "",
     "motto": "",
+    "pobox": "",
+    "county": "",
     "values": "",
+    "vision": "",
+    "logoUrl": "",
+    "mission": "",
+    "socials": "",
+    "village": "",
+    "website": "",
+    "bankName": "",
+    "landArea": "",
+    "location": "",
+    "officeTel": "",
+    "ownership": "",
+    "regNumber": "",
+    "subCounty": "",
     "termDates": "",
-    "termStartDate": "",
-    "termEndDate": "",
+    "postalCode": "",
+    "bankAccount": "",
     "currentTerm": "Term 3 2026",
-    "term1StartDate": "",
+    "mobileAdmin": "",
+    "termEndDate": "",
+    "mobileBursar": "",
     "term1EndDate": "",
     "term1Summary": "",
-    "term2StartDate": "",
     "term2EndDate": "",
     "term2Summary": "",
-    "term3StartDate": "",
     "term3EndDate": "",
     "term3Summary": "",
-    "academicCalendar": "",
     "principalName": "",
+    "termStartDate": "",
+    "genderCategory": "",
+    "term1StartDate": "",
+    "term2StartDate": "",
+    "term3StartDate": "",
     "appointmentDate": "",
-    "logoUrl": ""
+    "mobilePrincipal": "",
+    "academicCalendar": "",
+    "accommodationType": ""
   },
   "subject_enrollments": {},
   "messages": [
@@ -140,7 +170,7 @@
       },
       "lastUpdatedBy": "Administrator",
       "lastUpdatedAt": "2026-07-19T14:30:47.240Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25",
@@ -155,7 +185,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T13:46:58.984Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2",
@@ -170,7 +200,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T13:46:58.984Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3",
@@ -184,7 +214,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4",
@@ -198,7 +228,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5",
@@ -212,7 +242,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6",
@@ -226,7 +256,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7",
@@ -240,7 +270,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8",
@@ -254,7 +284,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9",
@@ -268,7 +298,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10",
@@ -282,7 +312,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11",
@@ -296,7 +326,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12",
@@ -310,7 +340,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13",
@@ -324,7 +354,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14",
@@ -338,7 +368,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15",
@@ -352,7 +382,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16",
@@ -366,7 +396,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17",
@@ -380,7 +410,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18",
@@ -394,7 +424,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19",
@@ -408,7 +438,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20",
@@ -422,7 +452,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21",
@@ -436,7 +466,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22",
@@ -450,7 +480,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23",
@@ -464,7 +494,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24",
@@ -478,7 +508,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25",
@@ -492,7 +522,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26",
@@ -506,7 +536,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27",
@@ -520,7 +550,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28",
@@ -534,7 +564,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29",
@@ -548,7 +578,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30",
@@ -562,7 +592,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31",
@@ -576,7 +606,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32",
@@ -590,7 +620,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33",
@@ -604,7 +634,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34",
@@ -618,7 +648,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35",
@@ -632,7 +662,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36",
@@ -646,7 +676,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37",
@@ -660,7 +690,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38",
@@ -674,7 +704,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39",
@@ -688,7 +718,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40",
@@ -702,7 +732,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41",
@@ -716,7 +746,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42",
@@ -730,7 +760,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43",
@@ -744,7 +774,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44",
@@ -758,7 +788,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45",
@@ -772,7 +802,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46",
@@ -786,7 +816,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46_47",
@@ -800,7 +830,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46_47_48",
@@ -814,7 +844,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46_47_48_49",
@@ -828,7 +858,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46_47_48_49_50",
@@ -842,7 +872,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46_47_48_49_50_51",
@@ -856,7 +886,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46_47_48_49_50_51_52",
@@ -870,7 +900,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46_47_48_49_50_51_52_53",
@@ -884,7 +914,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46_47_48_49_50_51_52_53_54",
@@ -898,7 +928,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46_47_48_49_50_51_52_53_54_55",
@@ -912,7 +942,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     },
     {
       "id": "2026-07-25_2_3_4_5_6_7_8_9_10_11_12_13_14_15_16_17_18_19_20_21_22_23_24_25_26_27_28_29_30_31_32_33_34_35_36_37_38_39_40_41_42_43_44_45_46_47_48_49_50_51_52_53_54_55_56",
@@ -926,7 +956,7 @@
       },
       "lastUpdatedBy": "Byron Gondi",
       "lastUpdatedAt": "2026-07-25T02:08:50.733Z",
-      "createdAt": "2026-07-27T04:09:29.856Z"
+      "createdAt": "2026-08-07T05:01:22.310Z"
     }
   ],
   "fee_payments": [],
@@ -936,6 +966,408 @@
       "examName": "Term 1 Mid-Term 2026",
       "academicYear": "2026",
       "term": "Term 1"
+    }
+  ],
+  "activity_logs": [
+    {
+      "id": "9em46m0",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:57:25.213Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:57:25.213Z"
+    },
+    {
+      "id": "za458oc",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:57:23.792Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:57:23.793Z"
+    },
+    {
+      "id": "gv5t5kz",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:57:22.494Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:57:22.494Z"
+    },
+    {
+      "id": "bglzqfi",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:57:20.805Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:57:20.805Z"
+    },
+    {
+      "id": "dn65nj2",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:57:20.196Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:57:20.196Z"
+    },
+    {
+      "id": "rldcp5q",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:57:19.357Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:57:19.357Z"
+    },
+    {
+      "id": "pvf2f53",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:57:16.380Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:57:16.380Z"
+    },
+    {
+      "id": "eq9fg0p",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:57:15.841Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:57:15.841Z"
+    },
+    {
+      "id": "fsn3900",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:57:13.284Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:57:13.284Z"
+    },
+    {
+      "id": "ozxao03",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:57:12.793Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:57:12.793Z"
+    },
+    {
+      "id": "cej1iem",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:57:10.726Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:57:10.726Z"
+    },
+    {
+      "id": "b6mpimt",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:57:10.144Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:57:10.144Z"
+    },
+    {
+      "id": "0zdvjbc",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:57:09.208Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:57:09.208Z"
+    },
+    {
+      "id": "zw0b4e7",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:57:05.750Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:57:05.750Z"
+    },
+    {
+      "id": "dvgnlh0",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:57:05.079Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:57:05.079Z"
+    },
+    {
+      "id": "eox54o3",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:57:04.095Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:57:04.095Z"
+    },
+    {
+      "id": "ykuumnd",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:57:03.458Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:57:03.458Z"
+    },
+    {
+      "id": "hqxbjpm",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:57:03.012Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:57:03.012Z"
+    },
+    {
+      "id": "sj5odd8",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:57:02.279Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:57:02.279Z"
+    },
+    {
+      "id": "emdce8t",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:57:00.310Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:57:00.310Z"
+    },
+    {
+      "id": "dbtxqt1",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:56:56.500Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:56:56.500Z"
+    },
+    {
+      "id": "ukuzj66",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:56:55.805Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:56:55.805Z"
+    },
+    {
+      "id": "viuqbrw",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:56:55.161Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:56:55.162Z"
+    },
+    {
+      "id": "ef8qgso",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:56:54.573Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:56:54.573Z"
+    },
+    {
+      "id": "esppuit",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:56:53.754Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:56:53.754Z"
+    },
+    {
+      "id": "4unfx0v",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:56:36.828Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:56:36.828Z"
+    },
+    {
+      "id": "t6vdpew",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:56:15.078Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:56:15.078Z"
+    },
+    {
+      "id": "lqjf79t",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:56:14.463Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:56:14.463Z"
+    },
+    {
+      "id": "4n24pn7",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:56:12.887Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:56:12.887Z"
+    },
+    {
+      "id": "grhdotz",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:56:06.495Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:56:06.495Z"
+    },
+    {
+      "id": "sa5qzka",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:56:05.822Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:56:05.822Z"
+    },
+    {
+      "id": "tvt1fq4",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:56:04.977Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:56:04.977Z"
+    },
+    {
+      "id": "ej9m72e",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:56:03.876Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:56:03.876Z"
+    },
+    {
+      "id": "kj5j8ak",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:55:56.468Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:55:56.468Z"
+    },
+    {
+      "id": "q5zkn6c",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:55:55.810Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:55:55.810Z"
+    },
+    {
+      "id": "e8ft3oe",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:55:54.174Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:55:54.174Z"
+    },
+    {
+      "id": "h5gi47i",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:55:46.566Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:55:46.566Z"
+    },
+    {
+      "id": "poex4ak",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:55:45.506Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:55:45.506Z"
+    },
+    {
+      "id": "eg9thqh",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:55:44.411Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:55:44.411Z"
+    },
+    {
+      "id": "jm58ryu",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:55:43.759Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:55:43.759Z"
+    },
+    {
+      "id": "pf9tcbu",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:55:43.210Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:55:43.210Z"
+    },
+    {
+      "id": "vlv5skp",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:55:42.228Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:55:42.228Z"
+    },
+    {
+      "id": "qtnvg9m",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:55:41.365Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:55:41.365Z"
+    },
+    {
+      "id": "xke8j44",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:55:40.513Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:55:40.513Z"
+    },
+    {
+      "id": "d4o9ykl",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:55:40.192Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:55:40.192Z"
+    },
+    {
+      "id": "m9uuibj",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:55:39.265Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:55:39.265Z"
+    },
+    {
+      "id": "0jk9n3s",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:55:38.216Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:55:38.216Z"
+    },
+    {
+      "id": "68f8pbe",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:55:35.214Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:55:35.214Z"
+    },
+    {
+      "id": "yx4ljib",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:55:26.704Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:55:26.704Z"
+    },
+    {
+      "id": "7trhcoc",
+      "type": "general_change",
+      "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
+      "timestamp": "2026-08-07T18:55:26.528Z",
+      "user": "Byron Gondi",
+      "updatedAt": "2026-08-07T18:55:26.528Z"
     }
   ]
 }

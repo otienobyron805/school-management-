@@ -37,6 +37,7 @@ import {
   Moon
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
+import SystemDiagnostics from './SystemDiagnostics';
 
 export default function Settings() {
   const [usersCount, setUsersCount] = useState(0);
@@ -826,6 +827,10 @@ export default function Settings() {
 
               </div>
             )}
+          </div>
+          
+          <div className="pt-8 border-t border-slate-200">
+            <SystemDiagnostics />
           </div>
 
         </div>

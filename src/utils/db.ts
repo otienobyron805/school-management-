@@ -1832,6 +1832,16 @@ export async function saveToBackend(table: string, data: any) {
   }
 }
 
+export async function checkMongoStatus(): Promise<{ connected: boolean; message: string }> {
+  try {
+    const res = await fetch('/api/mongo/status');
+    if (!res.ok) throw new Error('Status endpoint returned error');
+    return await res.json();
+  } catch (e: any) {
+    return { connected: false, message: e.message || 'Failed to connect to status endpoint' };
+  }
+}
+
 export async function pushLocalStorageToCloudSQL(): Promise<boolean> {
   return true;
 }

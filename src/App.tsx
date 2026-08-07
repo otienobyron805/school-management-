@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Routes, Route, useNavigate, useLocation, Link } from 'react-router-dom';
 import { 
   Home, 
   Menu, 
@@ -40,8 +41,10 @@ import {
   Search,
   KeyRound,
   FileText,
-  PenTool
+  PenTool,
+  Wrench
 } from 'lucide-react';
+import SystemDiagnostics from './components/SystemDiagnostics';
 import GlobalSearchModal from './components/GlobalSearchModal';
 import BackButton from './components/BackButton';
 import PerformanceReport from './components/PerformanceReport';
@@ -96,6 +99,8 @@ import { COLORS } from './constants/colors';
 export const CURRENT_SYSTEM_VERSION = '2.4.0';
 
 export default function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState<UserAccount | null>(() => getCurrentUser());
   const [showUpdateModal, setShowUpdateModal] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -154,14 +159,31 @@ export default function App() {
   }, []);
 
   const selectView = (viewName: string) => {
-    if (viewName !== activeView) {
-      setViewHistory(prev => [...prev, activeView]);
+    if (viewName === 'System Diagnostics') {
+      navigate('/diagnostics');
       setActiveView(viewName);
+    } else {
+      if (location.pathname !== '/') {
+        navigate('/');
+      }
+      if (viewName !== activeView) {
+        setViewHistory(prev => [...prev, activeView]);
+        setActiveView(viewName);
+      }
     }
+    
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
       setIsSidebarOpen(false);
     }
   };
+
+  useEffect(() => {
+    if (location.pathname === '/diagnostics') {
+      setActiveView('System Diagnostics');
+    } else if (location.pathname === '/' && activeView === 'System Diagnostics') {
+      setActiveView('Home');
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     const handleGoBack = (e: any) => {
@@ -526,6 +548,7 @@ export default function App() {
         { name: 'My Profile', icon: <User className="w-4 h-4 text-slate-400" />, visible: true },
         { name: 'Reset Password', icon: <KeyRound className="w-4 h-4 text-amber-500" />, visible: !isParent },
         { name: 'Settings', icon: <Settings className="w-4 h-4 text-slate-300" />, visible: isSuperAdmin },
+        { name: 'System Diagnostics', icon: <Wrench className="w-4 h-4 text-amber-400" />, visible: isSuperAdmin },
         { name: 'Check-in/out Settings', icon: <Clock className="w-4 h-4 text-slate-300" />, visible: isSuperAdmin },
       ],
     },
@@ -544,6 +567,7 @@ export default function App() {
       case 'My Profile': return <MyProfile />;
       case 'Reset Password': return <ResetPassword />;
       case 'Settings': return isSuperAdmin ? <SettingsComponent /> : <div className="p-6 text-slate-500 font-bold">Access Denied.</div>;
+      case 'System Diagnostics': return isSuperAdmin ? <SystemDiagnostics /> : <div className="p-6 text-slate-500 font-bold">Access Denied.</div>;
       case 'Subscriptions': return <Subscriptions />;
       case 'Check-in/out Settings': return isSuperAdmin ? <AttendanceSettingsPanel /> : <div className="p-6 text-slate-500 font-bold">Access Denied.</div>;
       case 'School Profile': return <SchoolProfileForm />;
@@ -675,27 +699,47 @@ export default function App() {
                         </p>
                         {visibleItems.map((item) => {
                           const isTod = item.name === 'Teachers On Duty (TOD)';
+                          const isDiagnostics = item.name === 'System Diagnostics';
+                          
+                          const itemContent = (
+                            <>
+                              {typeof item.icon === 'string' ? (
+                                <span className="text-lg">{item.icon}</span>
+                              ) : (
+                                item.icon
+                              )}
+                              <span>{item.name}</span>
+                              {isTod && userDutyCount > 0 && (
+                                <span className="ml-auto bg-emerald-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full min-w-[20px] text-center shadow-xs">
+                                  {userDutyCount}
+                                </span>
+                              )}
+                            </>
+                          );
+
+                          const baseClassName = `w-full py-2.5 px-3 rounded-xl flex items-center gap-3 text-xs font-bold transition ${
+                            activeView === item.name
+                              ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
+                              : 'hover:bg-slate-800 text-slate-400 hover:text-white'
+                          }`;
+
+                          if (isDiagnostics) {
+                            return (
+                              <div key={item.name} className="space-y-1">
+                                <Link to="/diagnostics" className={baseClassName}>
+                                  {itemContent}
+                                </Link>
+                              </div>
+                            );
+                          }
+
                           return (
                             <div key={item.name} className="space-y-1">
                               <button
                                 onClick={() => selectView(item.name)}
-                                className={`w-full py-2.5 px-3 rounded-xl flex items-center gap-3 text-xs font-bold transition ${
-                                  activeView === item.name
-                                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
-                                    : 'hover:bg-slate-800 text-slate-400 hover:text-white'
-                                }`}
+                                className={baseClassName}
                               >
-                                {typeof item.icon === 'string' ? (
-                                  <span className="text-lg">{item.icon}</span>
-                                ) : (
-                                  item.icon
-                                )}
-                                <span>{item.name}</span>
-                                {isTod && userDutyCount > 0 && (
-                                  <span className="ml-auto bg-emerald-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full min-w-[20px] text-center shadow-xs">
-                                    {userDutyCount}
-                                  </span>
-                                )}
+                                {itemContent}
                               </button>
 
                               {isTod && (
@@ -910,14 +954,19 @@ export default function App() {
             </div>
 
             <div className="pt-4">
-              <motion.div 
-                key={activeView}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                {renderContent()}
-              </motion.div>
+              <Routes>
+                <Route path="/diagnostics" element={isSuperAdmin ? <SystemDiagnostics /> : <div className="p-6 text-slate-500 font-bold">Access Denied.</div>} />
+                <Route path="*" element={
+                  <motion.div 
+                    key={activeView}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    {renderContent()}
+                  </motion.div>
+                } />
+              </Routes>
             </div>
           </div>
         </main>
