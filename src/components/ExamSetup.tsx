@@ -4,7 +4,7 @@ import {
   GraduationCap, BookOpen, Scale, Plus, Settings, ListChecks, 
   Edit3, X, Trash2, Save
 } from 'lucide-react';
-import { getGrades, getSubjects, Grade, Subject, getSubjectPapers, saveSubjectPapers, SubjectPaper, secureGet, secureSet, logActivity, getCurrentUser } from '../utils/db';
+import { getGrades, getSubjects, Grade, Subject, getSubjectPapers, saveSubjectPapers, SubjectPaper, secureGet, secureSet, logActivity, getCurrentUser, isGradeMatch } from '../utils/db';
 import { canDelete } from '../utils/permissions';
 
 export default function ExamSetup() {
@@ -61,10 +61,7 @@ export default function ExamSetup() {
           (p as any).subjectName?.toLowerCase() === subject.name.toLowerCase()
         );
 
-        const matchGrade = !gradeName || !p.grade || 
-          p.grade.toLowerCase() === gradeName.toLowerCase() ||
-          `Grade ${p.grade}`.toLowerCase() === gradeName.toLowerCase() ||
-          gradeName.toLowerCase().includes(p.grade.toLowerCase());
+        const matchGrade = gradeName && p.grade ? isGradeMatch(p.grade, gradeName) : (!gradeName || !p.grade);
 
         return matchSubject && matchGrade;
       });
@@ -88,7 +85,18 @@ export default function ExamSetup() {
   };
 
   const removeSubject = (id: string) => {
+    const target = addedSubjects.find(s => s.id === id);
     saveAddedSubjects(addedSubjects.filter(s => s.id !== id));
+    if (target) {
+      const allPapers = getSubjectPapers();
+      const remaining = allPapers.filter(p => {
+        const matchSub = p.subjectId?.toLowerCase() === target.subject.toLowerCase() || 
+                         (p as any).subjectName?.toLowerCase() === target.subject.toLowerCase();
+        const matchGrade = isGradeMatch(p.grade, target.grade);
+        return !(matchSub && matchGrade);
+      });
+      saveSubjectPapers(remaining);
+    }
   };
 
   // Paper Handlers
@@ -273,10 +281,7 @@ export default function ExamSetup() {
                     const count = allPapers.filter(p => {
                       const matchSub = p.subjectId?.toLowerCase() === s.subject.toLowerCase() || 
                                        (p as any).subjectName?.toLowerCase() === s.subject.toLowerCase();
-                      const matchGrade = !p.grade || 
-                                         p.grade.toLowerCase() === s.grade.toLowerCase() || 
-                                         `Grade ${p.grade}`.toLowerCase() === s.grade.toLowerCase() ||
-                                         s.grade.toLowerCase().includes(p.grade.toLowerCase());
+                      const matchGrade = isGradeMatch(p.grade, s.grade);
                       return matchSub && matchGrade;
                     }).length;
 

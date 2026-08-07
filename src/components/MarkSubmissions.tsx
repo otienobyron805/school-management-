@@ -7,7 +7,7 @@ import {
 import { 
   secureGet, secureSet, getLearners, getGrades, getSubjects, getGradingRules, 
   getSubjectAssignments, getSubjectPapers, Learner, Grade, Subject, GradingRule, SubjectPaper,
-  getCurrentUser, logTeacherAction, logActivity
+  getCurrentUser, logTeacherAction, logActivity, isGradeMatch
 } from '../utils/db';
 
 interface ExamMark {
@@ -115,6 +115,12 @@ export default function MarkSubmissions() {
     if (storedSubStatuses) {
       setSubmissionStatuses(JSON.parse(storedSubStatuses));
     }
+
+    const handleDbUpdated = () => {
+      setSubjectPapers(getSubjectPapers());
+    };
+    window.addEventListener('db_updated', handleDbUpdated);
+    window.addEventListener('storage', handleDbUpdated);
 
     // Check for existing draft autosave
     const storedDraft = secureGet('mark_submissions_draft');
@@ -421,14 +427,10 @@ export default function MarkSubmissions() {
 
       if (!matchesSubject) return false;
 
-      if (!paper.grade) return true;
-      const pGradeLower = paper.grade.toLowerCase();
-      const sGradeLower = (selectedGradeName || '').toLowerCase();
-
-      return pGradeLower === sGradeLower || 
-             `grade ${pGradeLower}` === sGradeLower || 
-             sGradeLower === `grade ${pGradeLower}` ||
-             sGradeLower.includes(pGradeLower);
+      if (paper.grade && selectedGradeName) {
+        return isGradeMatch(paper.grade, selectedGradeName);
+      }
+      return false;
     });
   };
 

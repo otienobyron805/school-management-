@@ -1240,6 +1240,21 @@ export function saveGradingRules(rules: GradingRule[]): void {
   }
 }
 
+export function isGradeMatch(g1?: string, g2?: string): boolean {
+  if (!g1 || !g2) return false;
+  const s1 = g1.toString().trim().toLowerCase();
+  const s2 = g2.toString().trim().toLowerCase();
+  if (s1 === s2) return true;
+
+  const num1 = s1.replace(/[^0-9]/g, '');
+  const num2 = s2.replace(/[^0-9]/g, '');
+  if (num1 && num2) {
+    return num1 === num2;
+  }
+
+  return s1.includes(s2) || s2.includes(s1);
+}
+
 export function getSubjectPapers(): SubjectPaper[] {
   const data = secureGet('school_subject_papers') || secureGet('subject_papers');
   if (!data) return [];

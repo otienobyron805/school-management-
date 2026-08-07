@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { secureGet, secureSet, getSubjectPapers, getSubjects, getGrades, logActivity, getCurrentUser, getGradingRules, SubjectPaper, Subject, Grade } from '../utils/db';
+import { secureGet, secureSet, getSubjectPapers, getSubjects, getGrades, logActivity, getCurrentUser, getGradingRules, SubjectPaper, Subject, Grade, isGradeMatch } from '../utils/db';
 
 // ===== DATA TYPES =====
 interface Learner {
@@ -79,6 +79,19 @@ const MarkEntry: React.FC = () => {
     }
     return DEFAULT_SUBJECTS;
   }, [dbSubjects]);
+
+  // Listen for real-time DB changes (e.g. paper setup changes in Exam Setup)
+  useEffect(() => {
+    const handleDbUpdated = () => {
+      setSubjectPapers(getSubjectPapers());
+    };
+    window.addEventListener('db_updated', handleDbUpdated);
+    window.addEventListener('storage', handleDbUpdated);
+    return () => {
+      window.removeEventListener('db_updated', handleDbUpdated);
+      window.removeEventListener('storage', handleDbUpdated);
+    };
+  }, []);
 
   // Load baseline DB values
   useEffect(() => {
@@ -178,18 +191,17 @@ const MarkEntry: React.FC = () => {
       if (!matchesSub) return false;
 
       // Grade check
-      if (!paper.grade) return true;
-      if (selectedGrade === 'all') return true;
+      if (selectedGrade !== 'all') {
+        return paper.grade ? isGradeMatch(paper.grade, selectedGrade) : false;
+      }
 
-      const pGradeLower = paper.grade.toLowerCase();
-      const selGradeLower = selectedGrade.toLowerCase();
+      if (paper.grade && displayedLearners.length > 0) {
+        return displayedLearners.some(l => isGradeMatch(paper.grade, l.grade));
+      }
 
-      return pGradeLower === selGradeLower || 
-             `grade ${pGradeLower}` === selGradeLower || 
-             selGradeLower === `grade ${pGradeLower}` ||
-             selGradeLower.includes(pGradeLower);
+      return false;
     });
-  }, [subjectPapers, selectedSubject, dbSubjects, SUBJECTS, selectedGrade]);
+  }, [subjectPapers, selectedSubject, dbSubjects, SUBJECTS, selectedGrade, displayedLearners]);
 
   // Handle single paper mark change and re-calculate subject total automatically
   const handlePaperMarkChange = (learnerId: string, paperId: string, inputValue: string) => {
@@ -452,16 +464,19 @@ const MarkEntry: React.FC = () => {
                   const mainMarkKey = `${learner.id}-${selectedSubject}`;
                   const mainRecord = marks[mainMarkKey];
 
+                  const learnerPapers = activeSubjectPapers.filter(p => !p.grade || isGradeMatch(p.grade, learner.grade));
+                  const hasPapers = learnerPapers.length > 0;
+
                   return (
                     <tr key={learner.id} className="hover:bg-blue-50/50 transition-colors">
                       <td className="px-5 py-3 font-semibold text-slate-900">{learner.name}</td>
                       <td className="px-5 py-3 text-slate-600 font-mono text-xs">{learner.admNo}</td>
                       <td className="px-5 py-3 text-slate-600 font-medium">{learner.stream || 'A'}</td>
 
-                      {/* If papers are configured, render an input for each paper */}
-                      {activeSubjectPapers.length > 0 ? (
+                      {/* If papers are configured for this learner's grade, render an input for each paper */}
+                      {hasPapers ? (
                         <>
-                          {activeSubjectPapers.map(paper => {
+                          {learnerPapers.map(paper => {
                             const pKey = `${learner.id}-${selectedSubject}-paper-${paper.id}`;
                             const pRecord = marks[pKey];
                             const pRaw = pRecord?.rawInput ?? '';
