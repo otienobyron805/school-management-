@@ -2319,6 +2319,10 @@ try {
   logActivity('general_change', 'Fixed print CSS: isolated printable modal to prevent extra pages and fixed table page breaking', 'Super Admin');
   logActivity('general_change', 'Applied Stream Report print styling and table optimizations to Grade Report (table-layout auto, candidate name nowrap, compact cell padding, and subject mean summary)', 'Super Admin');
   logActivity('general_change', 'Added bottom margin spacing to printable report tables for improved spacing between data sections when printed', 'Super Admin');
+  logActivity('general_change', 'Configured A4 landscape print orientation, compact 4mm margins, 95% print scaling, and 8.5pt table cell padding to prevent rightmost columns (Total, Score, Mean, Grade, Position) from being cut off on paper', 'Super Admin');
+  logActivity('general_change', 'Updated print CSS for .printable-report-modal to apply explicit 10% width constraints to summary columns (Total Score, Mean, Grade, Position) to prevent right-edge table overflow', 'Super Admin');
+  logActivity('general_change', 'Updated print CSS for .printable-report-modal to set table header and cell font size to 7pt for extra printable area clearance', 'Super Admin');
+  logActivity('general_change', 'Linked KJSEA classification to learner report card generation to automatically display learner placement', 'Super Admin');
 } catch (e) {}
 
 // --- FINANCE & FEE MANAGEMENT TYPES AND STORAGE ---

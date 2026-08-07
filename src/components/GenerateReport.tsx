@@ -37,6 +37,7 @@ import {
 } from '../utils/db';
 import { VerificationQRCode } from './VerificationQRCode';
 import { PrintHeader } from './PrintHeader';
+import { getKJSEAClassification } from '../utils/kjsea';
 
 // Fallback Mock Exams if none exist in secure storage
 const FALLBACK_EXAMS: any[] = [];
@@ -2700,6 +2701,18 @@ export default function GenerateReport() {
                           {activeReportModal.data.gradePosition}
                         </span>{' '}
                         out of <span className="font-black">{activeReportModal.data.gradeTotal}</span> candidates
+                      </p>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs text-slate-700">
+                      <p className="font-bold">
+                        Total Points: <span className="font-black text-emerald-600">{activeReportModal.data.totalScore}</span>
+                      </p>
+                      <p className="font-bold">
+                        KJSEA Classification:{' '}
+                        <span className="font-black text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">
+                          {getKJSEAClassification(activeReportModal.data.totalScore).performance} ({getKJSEAClassification(activeReportModal.data.totalScore).category})
+                        </span>
                       </p>
                     </div>
 

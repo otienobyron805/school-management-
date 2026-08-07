@@ -126,20 +126,21 @@ html.dark .sidebar {
    ========================================================= */
 
 @page {
-  size: A4 portrait;
-  margin: 5mm;
+  size: A4 landscape;
+  margin: 4mm;
 }
 
 @page landscape {
   size: A4 landscape;
-  margin: 12mm;
+  margin: 4mm;
 }
 
 @media print {
-  /* 1️⃣ HIDE BUTTONS & NAV — KEEP EVERYTHING ELSE */
   /* 1️⃣ HIDE EVERYTHING EXCEPT THE REPORT MODAL */
   body, body * {
     visibility: hidden !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   .printable-report-modal, .printable-report-modal * {
     visibility: visible !important;
@@ -149,6 +150,7 @@ html.dark .sidebar {
     left: 0 !important;
     top: 0 !important;
     width: 100% !important;
+    max-width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
     background: white !important;
@@ -157,6 +159,7 @@ html.dark .sidebar {
     page-break-after: auto !important;
     orphans: 4 !important;
     overflow: visible !important;
+    zoom: 95%;
   }
   
   .printable-report-modal section, .printable-report-modal .report-section {
@@ -168,9 +171,31 @@ html.dark .sidebar {
   }
 
   .printable-report-modal table {
+    width: 100% !important;
+    max-width: 100% !important;
     border-spacing: 0 !important;
     table-layout: auto !important;
-    margin-bottom: 20px !important;
+    margin-bottom: 12px !important;
+  }
+  
+  .printable-report-modal th, 
+  .printable-report-modal td {
+    padding: 2px 3px !important;
+    font-size: 7pt !important;
+  }
+
+  /* Specific column widths for summary columns to prevent right-edge column clipping */
+  .printable-report-modal th.summary-col,
+  .printable-report-modal td.summary-col,
+  .printable-report-modal .col-total,
+  .printable-report-modal .col-score,
+  .printable-report-modal .col-mean,
+  .printable-report-modal .col-grade,
+  .printable-report-modal .col-position {
+    width: 10% !important;
+    max-width: 10% !important;
+    white-space: nowrap !important;
+    text-align: center !important;
   }
   
   /* 2️⃣ REMOVE WIDTH LIMITS — FILL FULL PAGE */
@@ -221,7 +246,11 @@ html.dark .sidebar {
   td.candidate-name, th.candidate-name, td:nth-child(3) {
     white-space: nowrap !important;
     text-align: left !important;
-    padding-left: 8px !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+    max-width: 150px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
 
   /* 5️⃣ REMOVE EXTRA BLANK PAGES */
