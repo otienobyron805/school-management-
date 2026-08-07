@@ -169,7 +169,8 @@ html.dark .sidebar {
 
   .printable-report-modal table {
     border-spacing: 0 !important;
-    table-layout: fixed !important;
+    table-layout: auto !important;
+    margin-bottom: 20px !important;
   }
   
   /* 2️⃣ REMOVE WIDTH LIMITS — FILL FULL PAGE */
@@ -217,7 +218,7 @@ html.dark .sidebar {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
-  td.candidate-name, td:nth-child(3) {
+  td.candidate-name, th.candidate-name, td:nth-child(3) {
     white-space: nowrap !important;
     text-align: left !important;
     padding-left: 8px !important;

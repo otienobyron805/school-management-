@@ -2169,23 +2169,33 @@ export default function GenerateReport() {
                         <span>↔️</span>
                       </div>
 
+                      {/* Title & Average Bar */}
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-3 relative z-10">
+                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest">
+                          Class List & Performance Sheet · {targetGrade} (All Streams)
+                        </h4>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          Grade Average: {Number((rankedCandidates.reduce((sum: number, c: any) => sum + c.mean, 0) / (rankedCandidates.length || 1)).toFixed(1))}%
+                        </span>
+                      </div>
+
                       {/* 📊 MERIT LIST TABLE CONTAINER */}
                       <div className="relative z-10 overflow-x-auto border border-slate-150 rounded-2xl bg-white/90 backdrop-blur-[2px]">
-                        <table className="w-full text-left border-collapse" style={{ fontSize: `${gradeReportFontSize}px` }}>
+                        <table className="w-full text-left border-collapse text-xs" style={{ fontSize: `${gradeReportFontSize}px` }}>
                           <thead>
                             <tr 
                               className="text-white font-black uppercase text-[10px] tracking-wider whitespace-nowrap"
                               style={{ backgroundColor: gradeReportHeaderColor }}
                             >
                               {gradeReportFormat !== 'grades' && (
-                                <th className="p-2.5 text-center border-b border-white/10 w-12 whitespace-nowrap">POS</th>
+                                <th className="p-2 text-center border-b border-white/10 whitespace-nowrap">POS</th>
                               )}
-                              <th className="p-2.5 border-b border-white/10 w-24 whitespace-nowrap">ADM</th>
-                              <th className="p-2.5 border-b border-white/10 min-w-[150px] whitespace-nowrap">CANDIDATE NAME</th>
-                              <th className="p-2.5 border-b border-white/10 w-24 whitespace-nowrap">STREAM</th>
+                              <th className="p-2 border-b border-white/10 whitespace-nowrap">ADM</th>
+                              <th className="p-2 border-b border-white/10 whitespace-nowrap candidate-name">CANDIDATE NAME</th>
+                              <th className="p-2 border-b border-white/10 whitespace-nowrap">STREAM</th>
                               
                               {activeSubjects.map((sub: any) => (
-                                <th key={sub.id} className="p-2.5 text-center border-b border-white/10 whitespace-nowrap" title={sub.name}>
+                                <th key={sub.id} className="p-2 text-center border-b border-white/10 whitespace-nowrap" title={sub.name}>
                                   {sub.code}
                                   {gradeReportFormat === 'points' && " (PTS)"}
                                   {gradeReportFormat === 'grades' && " (GRD)"}
@@ -2193,16 +2203,16 @@ export default function GenerateReport() {
                               ))}
 
                               {gradeReportFormat !== 'points' && gradeReportFormat !== 'grades' && (
-                                <th className="p-2.5 text-center border-b border-white/10 w-20 whitespace-nowrap">TOTAL</th>
+                                <th className="p-2 text-center border-b border-white/10 whitespace-nowrap">TOTAL</th>
                               )}
                               {(gradeReportFormat === 'full' || gradeReportFormat === 'points' || gradeReportFormat === 'grades') && (
-                                <th className="p-2.5 text-center border-b border-white/10 w-20 whitespace-nowrap">POINTS</th>
+                                <th className="p-2 text-center border-b border-white/10 whitespace-nowrap">POINTS</th>
                               )}
                               {gradeReportFormat !== 'points' && gradeReportFormat !== 'grades' && (
-                                <th className="p-2.5 text-center border-b border-white/10 w-20 whitespace-nowrap">MEAN %</th>
+                                <th className="p-2 text-center border-b border-white/10 whitespace-nowrap">MEAN %</th>
                               )}
                               {gradeReportFormat !== 'marks' && (
-                                <th className="p-2.5 text-center border-b border-white/10 w-20 whitespace-nowrap">GRADE</th>
+                                <th className="p-2 text-center border-b border-white/10 whitespace-nowrap">GRADE</th>
                               )}
                             </tr>
                           </thead>
@@ -2211,20 +2221,20 @@ export default function GenerateReport() {
                               <tr key={cand.id} className="hover:bg-slate-50/50 transition">
                                 
                                 {gradeReportFormat !== 'grades' && (
-                                  <td className="p-2.5 text-center font-black text-slate-900 border-r border-slate-100">
+                                  <td className="p-2 text-center font-black text-slate-900 border-r border-slate-100">
                                     {cand.currentRank}
                                   </td>
                                 )}
                                 
-                                <td className="p-2.5 font-mono font-bold text-slate-600 border-r border-slate-100">{cand.admNo}</td>
-                                <td className="p-2.5 font-black text-slate-800 border-r border-slate-100 candidate-name">{cand.name}</td>
-                                <td className="p-2.5 font-semibold text-slate-500 border-r border-slate-100">{cand.stream}</td>
+                                <td className="p-2 font-mono font-bold text-slate-600 border-r border-slate-100">{cand.admNo}</td>
+                                <td className="p-2 font-black text-slate-800 border-r border-slate-100 candidate-name">{cand.name}</td>
+                                <td className="p-2 font-semibold text-slate-500 border-r border-slate-100">{cand.stream}</td>
                                 
                                 {activeSubjects.map((sub: any) => {
                                   const scoreVal = cand.subjectScores[sub.code];
                                   
                                   return (
-                                    <td key={sub.id} className="p-2.5 text-center font-bold text-slate-700 border-r border-slate-100">
+                                    <td key={sub.id} className="p-2 text-center font-bold text-slate-700 border-r border-slate-100">
                                       {gradeReportFormat === 'marks' && (scoreVal !== "" ? scoreVal : '—')}
                                       {gradeReportFormat === 'points' && (cand.subjectPoints[sub.code] !== "" ? cand.subjectPoints[sub.code] : '—')}
                                       {gradeReportFormat === 'grades' && cand.subjectGrades[sub.code]}
@@ -2243,19 +2253,19 @@ export default function GenerateReport() {
                                 })}
 
                                 {gradeReportFormat !== 'points' && gradeReportFormat !== 'grades' && (
-                                  <td className="p-2.5 text-center font-black text-blue-600 bg-blue-50/10 border-r border-slate-100">{cand.total}</td>
+                                  <td className="p-2 text-center font-black text-blue-600 bg-blue-50/10 border-r border-slate-100">{cand.total}</td>
                                 )}
                                 
                                 {(gradeReportFormat === 'full' || gradeReportFormat === 'points' || gradeReportFormat === 'grades') && (
-                                  <td className="p-2.5 text-center font-black text-purple-600 bg-purple-50/10 border-r border-slate-100">{cand.totalPoints} pts</td>
+                                  <td className="p-2 text-center font-black text-purple-600 bg-purple-50/10 border-r border-slate-100">{cand.totalPoints} pts</td>
                                 )}
 
                                 {gradeReportFormat !== 'points' && gradeReportFormat !== 'grades' && (
-                                  <td className="p-2.5 text-center font-black text-emerald-600 bg-emerald-50/10 border-r border-slate-100">{cand.mean}%</td>
+                                  <td className="p-2 text-center font-black text-emerald-600 bg-emerald-50/10 border-r border-slate-100">{cand.mean}%</td>
                                 )}
 
                                 {gradeReportFormat !== 'marks' && (
-                                  <td className="p-2.5 text-center">
+                                  <td className="p-2 text-center">
                                     <span className={`px-2 py-0.5 rounded text-[10px] font-black block text-center ${
                                       cand.gradeCode.startsWith('EE') ? 'bg-emerald-50 text-emerald-600' :
                                       cand.gradeCode.startsWith('ME') ? 'bg-blue-50 text-blue-600' :
@@ -2269,6 +2279,31 @@ export default function GenerateReport() {
 
                               </tr>
                             ))}
+
+                            {/* Grade Subject averages summary row */}
+                            <tr className="bg-slate-100/70 font-bold text-slate-700">
+                              <td colSpan={gradeReportFormat !== 'grades' ? 4 : 3} className="p-2.5 text-right text-xs uppercase font-black">
+                                GRADE MEAN SUBJECT MARKS:
+                              </td>
+                              {activeSubjects.map((sub: any) => {
+                                let sum = 0;
+                                let count = 0;
+                                rankedCandidates.forEach((c: any) => {
+                                  const score = c.subjectScores[sub.code];
+                                  if (typeof score === 'number' && !isNaN(score)) {
+                                    sum += score;
+                                    count++;
+                                  }
+                                });
+                                const avg = count > 0 ? (sum / count).toFixed(1) : '—';
+                                return (
+                                  <td key={sub.id} className="p-2 text-center font-extrabold text-blue-600 border-r border-slate-100">
+                                    {avg}%
+                                  </td>
+                                );
+                              })}
+                              <td colSpan={4} className="p-2"></td>
+                            </tr>
                           </tbody>
                         </table>
                       </div>
