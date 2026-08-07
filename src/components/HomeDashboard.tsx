@@ -112,7 +112,11 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
   useEffect(() => {
     refreshExams();
     window.addEventListener('storage', refreshExams);
-    return () => window.removeEventListener('storage', refreshExams);
+    window.addEventListener('db_updated', refreshExams);
+    return () => {
+      window.removeEventListener('storage', refreshExams);
+      window.removeEventListener('db_updated', refreshExams);
+    };
   }, []);
 
   // Convert Check-In Start Time (scheduled time) to opening time (offset earlier)
