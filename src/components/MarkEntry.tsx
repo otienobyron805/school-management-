@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { secureGet, secureSet, getSubjectPapers, getSubjects, getGrades, logActivity, getCurrentUser, getGradingRules, SubjectPaper, Subject, Grade, isGradeMatch } from '../utils/db';
+import { secureGet, secureSet, getSubjectPapers, getSubjects, getGrades, logActivity, getCurrentUser, getGradingRules, SubjectPaper, Subject, Grade, GradingRule, isGradeMatch } from '../utils/db';
 
 // ===== DATA TYPES =====
 interface Learner {
@@ -34,7 +34,19 @@ const MarkEntry: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [savedMsg, setSavedMsg] = useState('');
   
-  const gradingRules = useMemo(() => getGradingRules(), []);
+  const [gradingRules, setGradingRules] = useState<GradingRule[]>(() => getGradingRules());
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setGradingRules(getGradingRules());
+    };
+    window.addEventListener('db_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('db_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
 
   const getScoreStyles = (score: number | null) => {
     if (score === null) return 'border-slate-200 bg-white';
@@ -51,18 +63,18 @@ const MarkEntry: React.FC = () => {
   };
 
   // Fallback default subject list
-  const DEFAULT_SUBJECTS = [
-    { code: 'MATHEMATICS', name: 'Mathematics' },
-    { code: 'ENGLISH', name: 'English' },
-    { code: 'KISWAHILI', name: 'Kiswahili' },
-    { code: 'SCIENCE', name: 'Science and Technology' },
-    { code: 'INTEGRATED', name: 'Integrated Science' },
-    { code: 'AGRICULTURE', name: 'Agriculture and Nutrition' },
-    { code: 'CREATIVE', name: 'Creative Art and Sports' },
-    { code: 'PRETECH', name: 'Pretechnical Studies' },
-    { code: 'CRE', name: 'CRE' },
-    { code: 'SOCIAL', name: 'Social Studies' },
-    { code: 'FRENCH', name: 'French' },
+  const DEFAULT_SUBJECTS: Array<{ code: string; name: string; id: string }> = [
+    { code: 'MATHEMATICS', name: 'Mathematics', id: 'def_mat' },
+    { code: 'ENGLISH', name: 'English', id: 'def_eng' },
+    { code: 'KISWAHILI', name: 'Kiswahili', id: 'def_kis' },
+    { code: 'SCIENCE', name: 'Science and Technology', id: 'def_sci' },
+    { code: 'INTEGRATED', name: 'Integrated Science', id: 'def_int' },
+    { code: 'AGRICULTURE', name: 'Agriculture and Nutrition', id: 'def_agr' },
+    { code: 'CREATIVE', name: 'Creative Art and Sports', id: 'def_cre' },
+    { code: 'PRETECH', name: 'Pretechnical Studies', id: 'def_pre' },
+    { code: 'CRE', name: 'CRE', id: 'def_cre2' },
+    { code: 'SOCIAL', name: 'Social Studies', id: 'def_soc' },
+    { code: 'FRENCH', name: 'French', id: 'def_fre' },
   ];
 
   // Combined subject list from db and defaults

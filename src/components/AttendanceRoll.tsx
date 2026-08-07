@@ -11,7 +11,8 @@ import {
   Grade, 
   Learner, 
   AttendanceSheet,
-  Message 
+  Message,
+  UserAccount
 } from '../utils/db';
 import { sendNotification } from '../utils/notifications';
 import { 
@@ -66,11 +67,27 @@ export default function AttendanceRoll() {
   const [saveToast, setSaveToast] = useState<string | null>(null);
 
   // DB Data
-  const grades = useMemo(() => getGrades(), []);
-  const allLearners = useMemo(() => getLearners(), []);
+  const [grades, setGrades] = useState<Grade[]>(() => getGrades());
+  const [allLearners, setAllLearners] = useState<Learner[]>(() => getLearners());
   const [allSheets, setAllSheets] = useState<AttendanceSheet[]>(() => getAttendanceSheets());
-  const currentUser = useMemo(() => getCurrentUser(), []);
-  const classTeacherAssignments = useMemo(() => getClassTeacherAssignments(), []);
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => getCurrentUser());
+  const [classTeacherAssignments, setClassTeacherAssignments] = useState<any[]>(() => getClassTeacherAssignments());
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setGrades(getGrades());
+      setAllLearners(getLearners());
+      setAllSheets(getAttendanceSheets());
+      setCurrentUser(getCurrentUser());
+      setClassTeacherAssignments(getClassTeacherAssignments());
+    };
+    window.addEventListener('db_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('db_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
 
   // Default to first grade if none selected
   useEffect(() => {

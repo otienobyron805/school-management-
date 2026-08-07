@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   getAttendanceSheets, 
   getStaffAttendanceSheets, 
@@ -6,7 +6,10 @@ import {
   getUsers, 
   getGrades,
   AttendanceSheet,
-  StaffAttendanceSheet
+  StaffAttendanceSheet,
+  Learner,
+  UserAccount,
+  Grade
 } from '../utils/db';
 import { 
   BarChart, Bar, AreaChart, Area, LineChart, Line, PieChart, Pie, Cell,
@@ -25,11 +28,27 @@ export default function AttendanceDashboard() {
   const [absenteeSearch, setAbsenteeSearch] = useState<string>('');
 
   // Raw data from storage
-  const learnerSheets = useMemo(() => getAttendanceSheets(), []);
-  const staffSheets = useMemo(() => getStaffAttendanceSheets(), []);
-  const learners = useMemo(() => getLearners(), []);
-  const staff = useMemo(() => getUsers().filter(u => u.role !== 'Parent'), []);
-  const grades = useMemo(() => getGrades(), []);
+  const [learnerSheets, setLearnerSheets] = useState<AttendanceSheet[]>(() => getAttendanceSheets());
+  const [staffSheets, setStaffSheets] = useState<StaffAttendanceSheet[]>(() => getStaffAttendanceSheets());
+  const [learners, setLearners] = useState<Learner[]>(() => getLearners());
+  const [staff, setStaff] = useState<UserAccount[]>(() => getUsers().filter(u => u.role !== 'Parent'));
+  const [grades, setGrades] = useState<Grade[]>(() => getGrades());
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setLearnerSheets(getAttendanceSheets());
+      setStaffSheets(getStaffAttendanceSheets());
+      setLearners(getLearners());
+      setStaff(getUsers().filter(u => u.role !== 'Parent'));
+      setGrades(getGrades());
+    };
+    window.addEventListener('db_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('db_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
 
   // Compute Absenteeism Roster list
   const absenteeList = useMemo(() => {
