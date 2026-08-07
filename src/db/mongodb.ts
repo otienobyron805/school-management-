@@ -9,12 +9,12 @@ let dbInstance: Db | null = null;
  * or throws a helpful error message if not configured.
  */
 export async function getMongoClient(): Promise<{ client: MongoClient; db: Db }> {
-  const uri = process.env.MONGODB_URI;
+  const uri ="mongodb+srv://otienobyron805_db_user:BYRON805679@school001.e6efz2g.mongodb.net/?retryWrites=true&w=majority&appName=School001"
   if (!uri) {
     throw new Error('MONGODB_URI environment variable is not defined. Please configure MONGODB_URI in settings or .env file.');
   }
 
-  const dbName = process.env.MONGODB_DB_NAME || 'school_management_db';
+  const dbName ="school_management";
 
   if (!client) {
     client = new MongoClient(uri, {
@@ -33,7 +33,7 @@ export async function getMongoClient(): Promise<{ client: MongoClient; db: Db }>
  * Checks if MongoDB environment configuration is present and tests the connection.
  */
 export async function checkMongoStatus(): Promise<{ connected: boolean; message: string; dbName?: string; collectionsCount?: number }> {
-  const uri = process.env.MONGODB_URI;
+  const uri = "mongodb+srv://otienobyron805_db_user:BYRON805679@school001.e6efz2g.mongodb.net/?retryWrites=true&w=majority&appName=School001";
   if (!uri) {
     return {
       connected: false,
