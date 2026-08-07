@@ -96,7 +96,7 @@ export default function AttendanceSettingsPanel() {
             <label className="text-xs font-bold text-slate-700 uppercase">{item.label}</label>
             <input
               type={item.type || 'text'}
-              value={attendanceSettings[item.key as keyof AttendanceSettings] ?? ''}
+              value={String(attendanceSettings[item.key as keyof AttendanceSettings] ?? '')}
               onChange={(e) => updateSetting(item.key as keyof AttendanceSettings, e.target.value)}
               className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500"
             />

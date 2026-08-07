@@ -31,6 +31,7 @@ import {
   GradingRule,
   SchoolProfile
 } from '../utils/db';
+import { getKJSEAClassification } from '../utils/kjsea';
 
 export default function PerformanceReport() {
   // Database States
@@ -148,8 +149,23 @@ export default function PerformanceReport() {
     rows.sort((a, b) => b.mean - a.mean);
     const rankedRows = rows.map((r, idx) => ({
       ...r,
-      pos: idx + 1
+      gradePos: idx + 1,
+      streamPos: 0
     }));
+
+    // Calculate Stream Positions
+    const streamGroups: Record<string, typeof rankedRows> = {};
+    rankedRows.forEach(r => {
+      if (!streamGroups[r.stream]) streamGroups[r.stream] = [];
+      streamGroups[r.stream].push(r);
+    });
+
+    Object.keys(streamGroups).forEach(stream => {
+      streamGroups[stream].sort((a, b) => b.mean - a.mean);
+      streamGroups[stream].forEach((r, idx) => {
+        r.streamPos = idx + 1;
+      });
+    });
 
     return {
       headers: activeSubjects,
@@ -424,8 +440,8 @@ export default function PerformanceReport() {
           <table className="w-full border-collapse min-w-[1000px]">
             <thead>
               <tr className="bg-blue-800 text-white text-[10px] uppercase font-black tracking-widest">
-                <th className="p-3 text-center border-r border-blue-700/50 rounded-tl-xl w-12">POS</th>
-                <th className="p-3 text-left border-r border-blue-700/50 w-24">ADM NO</th>
+                <th className="p-3 text-center border-r border-blue-700/50 rounded-tl-xl w-12">STREAM POS</th>
+                <th className="p-3 text-center border-r border-blue-700/50 w-24">ADM NO</th>
                 <th className="p-3 text-left border-r border-blue-700/50 min-w-[200px]">NAME</th>
                 <th className="p-3 text-left border-r border-blue-700/50 w-24">STREAM</th>
                 {headers.map(h => {
@@ -451,38 +467,49 @@ export default function PerformanceReport() {
                 <th className="p-3 text-center border-r border-blue-700/50 bg-blue-900">TOTAL</th>
                 <th className="p-3 text-center border-r border-blue-700/50 bg-blue-900">MEAN</th>
                 <th className="p-3 text-center border-r border-blue-700/50 bg-blue-900">GRADE</th>
-                <th className="p-3 text-center rounded-tr-xl bg-blue-900">RANK</th>
+                <th className="p-3 text-center border-r border-indigo-700/50 bg-indigo-900 text-indigo-100">KJSEA RANK</th>
+                <th className="p-3 text-center rounded-tr-xl bg-blue-900">GRADE POS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rows.map((row) => (
-                <tr key={row.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="p-3 text-center font-black text-slate-400 text-xs">{row.pos}</td>
-                  <td className="p-3 text-left font-mono font-bold text-slate-500 text-xs">{row.admNo}</td>
-                  <td className="p-3 text-left font-black text-slate-800 text-sm">{row.name}</td>
-                  <td className="p-3 text-left font-bold text-slate-500 text-xs uppercase">{row.stream}</td>
-                  {headers.map(h => {
-                    const score = row.subjectScores[h.code];
-                    const isLowScore = showHeatmap && typeof score === 'number' && score < threshold;
-                    return (
-                      <td 
-                        key={h.id} 
-                        className={`p-3 text-center font-bold text-xs transition-colors ${
-                          isLowScore 
-                            ? 'bg-red-100/80 text-red-900 font-extrabold border-red-200' 
-                            : 'text-slate-700'
-                        }`}
-                      >
-                        {score}
-                      </td>
-                    );
-                  })}
-                  <td className="p-3 text-center font-black text-blue-700 text-sm bg-blue-50/30">{row.total}</td>
-                  <td className="p-3 text-center font-black text-blue-700 text-sm bg-blue-50/30">{row.mean}</td>
-                  <td className="p-3 text-center font-black text-slate-800 text-xs bg-slate-50/50">{row.grade}</td>
-                  <td className="p-3 text-center font-black text-slate-800 text-xs bg-slate-50/50">{row.pos}</td>
-                </tr>
-              ))}
+              {rows.map((row) => {
+                const kjseaPoints = Math.min(72, Math.max(0, Math.round((row.mean / 100) * 72)));
+                const kjsea = getKJSEAClassification(kjseaPoints);
+
+                return (
+                  <tr key={row.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="p-3 text-center font-black text-slate-400 text-xs">{row.streamPos}</td>
+                    <td className="p-3 text-center font-mono font-bold text-slate-500 text-xs">{row.admNo}</td>
+                    <td className="p-3 text-left font-black text-slate-800 text-sm">{row.name}</td>
+                    <td className="p-3 text-left font-bold text-slate-500 text-xs uppercase">{row.stream}</td>
+                    {headers.map(h => {
+                      const score = row.subjectScores[h.code];
+                      const isLowScore = showHeatmap && typeof score === 'number' && score < threshold;
+                      return (
+                        <td 
+                          key={h.id} 
+                          className={`p-3 text-center font-bold text-xs transition-colors ${
+                            isLowScore 
+                              ? 'bg-red-100/80 text-red-900 font-extrabold border-red-200' 
+                              : 'text-slate-700'
+                          }`}
+                        >
+                          {score}
+                        </td>
+                      );
+                    })}
+                    <td className="p-3 text-center font-black text-blue-700 text-sm bg-blue-50/30">{row.total}</td>
+                    <td className="p-3 text-center font-black text-blue-700 text-sm bg-blue-50/30">{row.mean}</td>
+                    <td className="p-3 text-center font-black text-slate-800 text-xs bg-slate-50/50">{row.grade}</td>
+                    <td className="p-3 text-center font-extrabold text-xs bg-indigo-50/50" title={`${kjsea.performance} (${kjsea.category})`}>
+                      <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-900 font-black text-[10px] border border-indigo-200 uppercase">
+                        {kjsea.code}
+                      </span>
+                    </td>
+                    <td className="p-3 text-center font-black text-slate-800 text-xs bg-slate-50/50">{row.gradePos}</td>
+                  </tr>
+                );
+              })}
               {rows.length === 0 && (
                 <tr>
                   <td colSpan={headers.length + 8} className="p-12 text-center text-slate-400 italic">

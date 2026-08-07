@@ -84,7 +84,7 @@ export default function AttendanceRoll() {
     if (currentUser && classTeacherAssignments.length > 0) {
       const userAssignment = classTeacherAssignments.find((c: any) => 
         c.teacherId === currentUser.id || 
-        (currentUser.name && c.teacher && c.teacher.toLowerCase() === currentUser.name.toLowerCase())
+        (currentUser.fullName && c.teacher && c.teacher.toLowerCase() === currentUser.fullName.toLowerCase())
       );
       if (userAssignment) {
         const matchingGrade = grades.find(g => g.id === userAssignment.gradeId || g.name === userAssignment.grade);
@@ -353,7 +353,7 @@ export default function AttendanceRoll() {
       streamId: selectedStream,
       records: currentRecords,
       reasons: currentReasons,
-      lastUpdatedBy: currentUser?.name || 'Administrator',
+      lastUpdatedBy: currentUser?.fullName || currentUser?.username || 'Administrator',
       lastUpdatedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 

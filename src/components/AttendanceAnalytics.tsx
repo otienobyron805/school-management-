@@ -269,7 +269,7 @@ export default function AttendanceAnalytics() {
 
                     if (latestGradeSheet && latestGradeSheet.records) {
                       gradeLearners.forEach(l => {
-                        const status = latestGradeSheet.records[l.id];
+                        const status = latestGradeSheet.records[l.id] as any;
                         if (status === 'Absent') absent++;
                         else if (status && status !== 'Absent') present++;
                       });
@@ -344,7 +344,7 @@ export default function AttendanceAnalytics() {
 
                     if (latestStreamSheet && latestStreamSheet.records) {
                       streamLearners.forEach(l => {
-                        const status = latestStreamSheet.records[l.id];
+                        const status = latestStreamSheet.records[l.id] as any;
                         if (status === 'Absent') absent++;
                         else if (status && status !== 'Absent') present++;
                       });

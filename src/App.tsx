@@ -228,6 +228,7 @@ export default function App() {
   const [isSynced, setIsSynced] = useState(true);
 
   useEffect(() => {
+    console.log('App: useEffect - initializing');
     // Initialize theme preference from secure database cache
     initTheme();
     // One-time migration check for legacy localStorage data
@@ -235,7 +236,12 @@ export default function App() {
     // Start instant real-time MongoDB sync listener
     startRealtimeCloudSync();
     // Initial sync with MongoDB database
-    synchronizeWithMongoDB().finally(() => {
+    console.log('App: useEffect - starting sync');
+    Promise.race([
+      synchronizeWithMongoDB(),
+      new Promise(resolve => setTimeout(resolve, 5000)) // 5 second timeout
+    ]).finally(() => {
+      console.log('App: useEffect - sync completed');
       setIsSynced(true);
     });
 

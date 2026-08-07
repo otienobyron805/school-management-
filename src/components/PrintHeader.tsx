@@ -15,7 +15,7 @@ export function PrintHeader() {
           {schoolProfile?.name || 'School Report'}
         </h1>
         <p className="text-[10px] text-slate-500 font-mono">
-          {schoolProfile?.address || 'Official Academic Portal'}
+          {schoolProfile?.address || schoolProfile?.location || 'Official Academic Portal'}
         </p>
       </div>
       <div className="text-right">

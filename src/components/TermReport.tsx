@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { getSchoolProfile, SchoolProfile, secureGet, getLearners } from '../utils/db';
-import { Printer, X, Eye, Trash2, Plus, Sparkles, CheckCircle, HelpCircle, FileText, List, Award, Download } from 'lucide-react';
+import { Printer, X, Eye, Trash2, Plus, Sparkles, CheckCircle, HelpCircle, FileText, List, Award, Download, ShieldCheck } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { VerificationQRCode } from './VerificationQRCode';
 import { PrintHeader } from './PrintHeader';
+import { getKJSEAClassification, saveClassification } from '../utils/kjsea';
 
 interface ComponentExam {
   name: string;
@@ -54,6 +55,17 @@ export default function TermReport() {
       console.error("Failed to load school profile or learners", e);
     }
   }, []);
+
+  // Auto-link KJSEA classification when learner is selected
+  useEffect(() => {
+    if (!selectedLearnerId || learnersList.length === 0) return;
+    const currentLearner = learnersList.find(l => l.id === selectedLearnerId);
+    if (currentLearner && currentLearner.admNo) {
+      const totalScore = (currentLearner.cat1 || 0) + (currentLearner.cat2 || 0) + (currentLearner.endTerm || 0);
+      const points = Math.min(72, Math.max(0, Math.round((totalScore / 100) * 72)));
+      saveClassification(currentLearner.admNo, points, currentLearner.name);
+    }
+  }, [selectedLearnerId, learnersList]);
 
   const handleCreateReport = (e: React.FormEvent) => {
     e.preventDefault();
@@ -630,6 +642,10 @@ export default function TermReport() {
                       const totalScore = (learner.cat1 || 0) + (learner.cat2 || 0) + (learner.endTerm || 0);
                       const rating = getCBCRating(totalScore);
 
+                      // Calculate KJSEA classification
+                      const kjseaPoints = Math.min(72, Math.max(0, Math.round((totalScore / 100) * 72)));
+                      const kjsea = getKJSEAClassification(kjseaPoints);
+
                       return (
                         <div className="space-y-6">
                           {/* Student Bio Matrix */}
@@ -649,6 +665,49 @@ export default function TermReport() {
                             <div>
                               <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block">Performance Class:</span>
                               <span className="text-blue-600 font-extrabold text-sm uppercase block">{rating.code}</span>
+                            </div>
+                          </div>
+
+                          {/* KJSEA Classification Link & Senior School Placement Banner */}
+                          <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 text-white rounded-2xl p-4 border border-indigo-700/50 shadow-md space-y-3">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center font-black text-xs border border-indigo-400/30 shrink-0">
+                                  <ShieldCheck className="w-5 h-5 text-indigo-300" />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="text-xs font-black uppercase tracking-wider text-indigo-100">KJSEA Classification & Senior School Placement</h4>
+                                    <span className="bg-indigo-500/30 text-indigo-200 text-[9px] font-mono px-2 py-0.5 rounded border border-indigo-400/30">Auto-Linked</span>
+                                  </div>
+                                  <p className="text-[10px] text-indigo-200/80 font-medium">Kenya Junior Secondary Education Assessment (MOE Classification Scale)</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="bg-slate-950/80 text-indigo-200 text-[11px] font-mono font-bold px-3 py-1 rounded-xl border border-indigo-700/50">
+                                  Points: <strong className="text-white">{kjseaPoints}</strong> / 72
+                                </span>
+                                <span className="bg-amber-400 text-slate-950 font-black text-xs px-3 py-1 rounded-xl uppercase tracking-wider shadow-sm">
+                                  {kjsea.code}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-indigo-800/80 text-xs">
+                              <div className="bg-white/10 p-2.5 rounded-xl border border-white/10">
+                                <span className="text-[9px] uppercase tracking-wider text-indigo-300 font-black block">Level Descriptor:</span>
+                                <span className="font-extrabold text-white text-xs">{kjsea.performance}</span>
+                              </div>
+                              <div className="bg-white/10 p-2.5 rounded-xl border border-white/10">
+                                <span className="text-[9px] uppercase tracking-wider text-indigo-300 font-black block">School Placement Category:</span>
+                                <span className="font-black text-amber-300 text-xs">{kjsea.category}</span>
+                              </div>
+                              <div className="bg-white/10 p-2.5 rounded-xl border border-white/10">
+                                <span className="text-[9px] uppercase tracking-wider text-indigo-300 font-black block">Automated Senior School Track:</span>
+                                <span className="font-bold text-emerald-300 text-[11px] block leading-tight">
+                                  Qualifies for {kjsea.category.split('—')[1]?.trim() || kjsea.category} secondary institution placement.
+                                </span>
+                              </div>
                             </div>
                           </div>
 

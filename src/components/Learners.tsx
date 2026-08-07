@@ -1380,7 +1380,6 @@ export default function Learners() {
                 onChange={handleFileChange}
                 className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                 required
-                capture="filesystem"
               />
               <div className="text-[10px] text-slate-400">
                 Supports .csv, .txt, and spreadsheets from any folder.

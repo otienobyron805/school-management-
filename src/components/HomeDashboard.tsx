@@ -446,7 +446,7 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
         const roster = JSON.parse(savedRoster);
         const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
         const isActive = roster.some((r: any) => {
-            const isUser = r.teacherName.toLowerCase() === activeUser.fullName?.toLowerCase() || r.teacherId === activeUser.id;
+            const isUser = (r.teacherName || '').toLowerCase() === (activeUser.fullName || '').toLowerCase() || r.teacherId === activeUser.id;
             if (!isUser) return false;
             if (r.status === 'On Duty') return true;
             if (r.startDate && r.endDate) {

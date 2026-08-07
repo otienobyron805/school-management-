@@ -34,6 +34,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+console.log('Main: Rendering App');
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>

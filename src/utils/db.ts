@@ -209,6 +209,9 @@ export interface CloudSnapshotMeta {
   formattedDate?: string;
   recordCount?: number;
   snapshotData?: any;
+  createdBy?: string;
+  note?: string;
+  tablesCount?: number;
 }
 
 async function createCloudSnapshotToCloud(data: any, name: string, note: string): Promise<{ success: boolean; snapshot?: CloudSnapshotMeta; error?: string; }> {
@@ -312,13 +315,22 @@ export interface Learner {
   firstName?: string;
   secondName?: string;
   otherName?: string;
+  fullName?: string;
+  admissionNumber?: string;
   assessNo?: string;
   gradeLabel?: string;
+  gradeStream?: string;
   gender?: 'Male' | 'Female';
   type?: 'Day Scholar' | 'Boarder';
   status?: 'Active' | 'Inactive';
   parentPhone?: string;
+  parentName?: string;
+  guardianName?: string;
   avatarUrl?: string;
+  linkedSubjects?: string[];
+  cat1?: number;
+  cat2?: number;
+  endTerm?: number;
 }
 
 export interface SubjectPaper {
@@ -1498,6 +1510,7 @@ export interface SchoolProfile {
   principalName: string;
   appointmentDate: string;
   logoUrl?: string;
+  address?: string;
 }
 
 const DEFAULT_SCHOOL_PROFILE: SchoolProfile = {
@@ -2121,10 +2134,11 @@ export function migrateLegacyLocalStorageToMongoDB(): { migratedCount: number; k
   return { migratedCount: migratedKeys.length, keys: migratedKeys };
 }
 
-export async function synchronizeWithMongoDB(force: boolean = false): Promise<boolean> {
-  const syncPromise = (async () => {
-    isSyncingFromServer = true;
-    console.log(`[DEBUG] Starting bi-directional cloud sync (force: ${force})...`);
+export async function synchronizeWithMongoDB(force: boolean = false, retries: number = 3): Promise<boolean> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      isSyncingFromServer = true;
+      console.log(`[DEBUG] Starting bi-directional cloud sync (force: ${force}, attempt: ${i + 1})...`);
 
     // Check & execute one-time legacy localStorage migration if needed
     migrateLegacyLocalStorageToMongoDB();
@@ -2179,32 +2193,18 @@ export async function synchronizeWithMongoDB(force: boolean = false): Promise<bo
       }));
     }
     return true;
-  })();
-
-  const timeoutPromise = new Promise<boolean>((resolve) => {
-    setTimeout(() => {
-      console.warn("[CloudSync] Sync took longer than 30s, completing with local fallback.");
-      isInitialCloudPullCompleted = true;
-      secureSet('school_last_sync_time', new Date().toISOString(), { skipCloud: true });
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('db_updated'));
-        window.dispatchEvent(new Event('storage'));
-        window.dispatchEvent(new CustomEvent('cloud_sync_status', {
-          detail: { status: 'synced', table: 'all', timestamp: new Date() }
-        }));
+    } catch (e) {
+      console.error(`Sync attempt ${i + 1} failed:`, e);
+      if (i === retries - 1) {
+        console.warn("Sync failed after all retries. Falling back to local data.");
+        return true;
       }
-      resolve(true);
-    }, 30000);
-  });
-
-  try {
-    return await Promise.race([syncPromise, timeoutPromise]);
-  } catch (err) {
-    console.warn("[CloudSync] Sync failed:", err);
-    return true; // return true so UI shows success within 30s
-  } finally {
-    isSyncingFromServer = false;
+      await new Promise(res => setTimeout(res, 1000 * (i + 1))); // Exponential backoff
+    } finally {
+      isSyncingFromServer = false;
+    }
   }
+  return true;
 }
 
 export function getLastSyncTime(): string | null {
@@ -2323,6 +2323,8 @@ try {
   logActivity('general_change', 'Updated print CSS for .printable-report-modal to apply explicit 10% width constraints to summary columns (Total Score, Mean, Grade, Position) to prevent right-edge table overflow', 'Super Admin');
   logActivity('general_change', 'Updated print CSS for .printable-report-modal to set table header and cell font size to 7pt for extra printable area clearance', 'Super Admin');
   logActivity('general_change', 'Linked KJSEA classification to learner report card generation to automatically display learner placement', 'Super Admin');
+  logActivity('general_change', 'Resolved blank screen rendering and build artifacts failure by adding null-safety checks and fixing all TypeScript compilation errors', 'Super Admin');
+  logActivity('general_change', 'Added Stream Position and Grade Position columns to the Performance Report', 'Super Admin');
 } catch (e) {}
 
 // --- FINANCE & FEE MANAGEMENT TYPES AND STORAGE ---

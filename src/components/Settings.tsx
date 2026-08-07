@@ -11,7 +11,10 @@ import {
   getSchoolProfile,
   UserAccount,
   secureGet,
-  secureSet
+  secureSet,
+  synchronizeWithMongoDB,
+  markPendingChange,
+  pushPendingChangesToCloud
 } from '../utils/db';
 import { getAlertConfig, saveAlertConfig, getAlertLogs, addAlertLog, clearAlertLogs, AlertLog, AlertConfig } from '../utils/alerts';
 import { 
@@ -495,14 +498,13 @@ export default function Settings() {
                 <button
                   type="button"
                   onClick={async () => {
-                    const dbUtils = await import('../utils/db');
-                    const ok = await dbUtils.synchronizeWithMongoDB();
-                    if (ok) {
-                      alert('✅ Database Sync Completed successfully! Loaded freshest datasets.');
-                    } else {
-                      alert('❌ Database Sync failed. Check server logs.');
-                    }
-                  }}
+                  const ok = await synchronizeWithMongoDB();
+                  if (ok) {
+                    alert('✅ Database Sync Completed successfully! Loaded freshest datasets.');
+                  } else {
+                    alert('❌ Database Sync failed. Check server logs.');
+                  }
+                }}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase py-1.5 px-3 rounded transition cursor-pointer"
                 >
                   Force Pull Sync
@@ -518,24 +520,23 @@ export default function Settings() {
                   type="button"
                   onClick={async () => {
                     try {
-                      const dbUtils = await import('../utils/db');
-                      dbUtils.markPendingChange('grades');
-                      dbUtils.markPendingChange('subjects');
-                      dbUtils.markPendingChange('learners');
-                      dbUtils.markPendingChange('users');
-                      dbUtils.markPendingChange('subject_enrollments');
-                      dbUtils.markPendingChange('grading_rules');
-                      dbUtils.markPendingChange('subject_assignments_list');
-                      dbUtils.markPendingChange('class_teacher_assignments_list');
-                      dbUtils.markPendingChange('school_profile');
-                      dbUtils.markPendingChange('holidays');
-                      dbUtils.markPendingChange('terms');
-                      dbUtils.markPendingChange('attendance_sheets');
-                      dbUtils.markPendingChange('fee_structures');
-                      dbUtils.markPendingChange('fee_payments');
-                      dbUtils.markPendingChange('schemes_of_work');
+                      markPendingChange('grades');
+                      markPendingChange('subjects');
+                      markPendingChange('learners');
+                      markPendingChange('users');
+                      markPendingChange('subject_enrollments');
+                      markPendingChange('grading_rules');
+                      markPendingChange('subject_assignments_list');
+                      markPendingChange('class_teacher_assignments_list');
+                      markPendingChange('school_profile');
+                      markPendingChange('holidays');
+                      markPendingChange('terms');
+                      markPendingChange('attendance_sheets');
+                      markPendingChange('fee_structures');
+                      markPendingChange('fee_payments');
+                      markPendingChange('schemes_of_work');
 
-                      const ok = await dbUtils.pushPendingChangesToCloud();
+                      const ok = await pushPendingChangesToCloud();
                       if (ok) {
                         alert('✅ Bulk push completed! All local browser datasets have been synchronized and successfully saved to MongoDB Cloud.');
                       } else {

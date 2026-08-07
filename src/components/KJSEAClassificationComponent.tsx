@@ -185,7 +185,7 @@ export default function KJSEAClassificationComponent() {
                 <option value="">-- Choose Learner from System --</option>
                 {learners.map(l => (
                   <option key={l.id || l.admNo} value={l.admNo}>
-                    {l.admNo} - {l.name} ({l.gradeStream || 'No Grade'})
+                    {l.admNo} - {l.name} ({l.gradeStream || l.gradeLabel || `Grade ${l.grade} ${l.stream}`})
                   </option>
                 ))}
               </select>

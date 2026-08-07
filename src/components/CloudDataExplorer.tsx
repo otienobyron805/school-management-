@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Database, RefreshCw, AlertTriangle } from 'lucide-react';
+import { secureGet } from '../utils/db';
 
 export default function CloudDataExplorer() {
   const [tables, setTables] = useState<string[]>(['learners', 'staff', 'subjects', 'attendance', 'messages', 'exams']);
@@ -20,13 +21,11 @@ export default function CloudDataExplorer() {
       if (json.success && Array.isArray(json.documents) && json.documents.length > 0) {
         setData(json.documents);
       } else {
-        const { secureGet } = await import('../utils/db');
         const local = secureGet(tableName) || secureGet(`school_${tableName}`);
         setData(Array.isArray(local) ? local : (local ? [local] : []));
       }
     } catch (e) {
       console.error('Error fetching MongoDB collection data:', e);
-      const { secureGet } = await import('../utils/db');
       const local = secureGet(tableName) || secureGet(`school_${tableName}`);
       setData(Array.isArray(local) ? local : (local ? [local] : []));
     } finally {

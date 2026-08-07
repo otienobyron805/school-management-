@@ -2047,7 +2047,7 @@ export default function Finances() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDeleteStructure(struct.id, `${struct.grade} - ${struct.term}`);
+                              handleDeleteStructure(struct.id, `${(struct as any).grade || (struct as any).gradeName || 'Grade'} - ${struct.term}`);
                             }}
                             className="p-1.5 bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-400 rounded-lg text-xs transition cursor-pointer active:scale-90"
                             title="Delete Structure"
