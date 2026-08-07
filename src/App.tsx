@@ -434,8 +434,9 @@ export default function App() {
 
   // Define role permission helpers
   const isSuperAdmin = user.role === 'Super Admin';
-  const isAdminOrHead = isSuperAdmin || user.role === 'Admin' || user.role === 'Headteacher' || user.role === 'Head Teacher' || user.role === 'Deputy Headteacher' || user.role === 'Deputy Head Teacher' || user.role === 'Senior Teacher';
-  const isAuthorizedRole = ['Super Admin', 'Admin', 'Headteacher', 'Head Teacher', 'Deputy Headteacher', 'Deputy Head Teacher', 'Senior Teacher', 'Class Teacher'].includes(user.role);
+  const roleStr = String(user.role || '');
+  const isAdminOrHead = isSuperAdmin || roleStr === 'Admin' || roleStr === 'Headteacher' || roleStr === 'Head Teacher' || roleStr === 'Deputy Headteacher' || roleStr === 'Deputy Head Teacher' || roleStr === 'Senior Teacher';
+  const isAuthorizedRole = ['Super Admin', 'Admin', 'Headteacher', 'Head Teacher', 'Deputy Headteacher', 'Deputy Head Teacher', 'Senior Teacher', 'Class Teacher'].includes(roleStr);
   const isParent = user.role === 'Parent';
 
   const menuGroups = [

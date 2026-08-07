@@ -2648,6 +2648,7 @@ export async function restoreCloudSnapshot(snapshot: CloudSnapshotMeta): Promise
 
   try {
     logActivity('general_change', 'Created automated daily cloud backup feature and secure encrypted JSON database export for Super Admins', 'Super Admin');
+    logActivity('general_change', 'Added React ErrorBoundary and session fallback mounting checks to prevent blank screen issues on startup', 'Super Admin');
   } catch (e) {}
 
   return true;
