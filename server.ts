@@ -472,6 +472,7 @@ async function startServer() {
     await syncSQLToServerStore();
     return res.json({
       success: true,
+      isFallback: true,
       data: {
         grades: serverStore.grades || [],
         subjects: serverStore.subjects || [],
@@ -1063,8 +1064,15 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  app.listen(PORT, "0.0.0.0", async () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    const mongoStatus = await checkMongoStatus();
+    if (mongoStatus.connected) {
+      console.log(`✅ [MongoDB] CONNECTED to ${mongoStatus.dbName} (${mongoStatus.collectionsCount} collections)`);
+    } else {
+      console.warn(`❌ [MongoDB] DISCONNECTED: ${mongoStatus.message}`);
+      console.warn(`⚠️ [Storage] Falling back to ephemeral server_store.json. Data will be lost on container restart!`);
+    }
   });
 }
 

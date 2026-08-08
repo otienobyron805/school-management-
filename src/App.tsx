@@ -247,7 +247,7 @@ export default function App() {
     };
   }, [user]);
 
-  const [isSynced, setIsSynced] = useState(true);
+  const [isSynced, setIsSynced] = useState(false);
 
   useEffect(() => {
     console.log('App: useEffect - initializing');
@@ -259,13 +259,19 @@ export default function App() {
     startRealtimeCloudSync();
     // Initial sync with MongoDB database
     console.log('App: useEffect - starting sync');
-    Promise.race([
-      synchronizeWithMongoDB(),
-      new Promise(resolve => setTimeout(resolve, 5000)) // 5 second timeout
-    ]).finally(() => {
-      console.log('App: useEffect - sync completed');
-      setIsSynced(true);
-    });
+    synchronizeWithMongoDB()
+      .then((success) => {
+        if (!success) {
+          console.warn('App: Cloud sync failed on startup (backend unavailable)');
+        }
+      })
+      .catch(err => {
+        console.error('App: Cloud sync error:', err);
+      })
+      .finally(() => {
+        console.log('App: useEffect - sync completed');
+        setIsSynced(true);
+      });
 
     // Live multi-device background synchronization interval (10s) and focus handler
     const syncInterval = setInterval(() => {

@@ -1,23 +1,5 @@
 {
-  "learners": [
-    {
-      "id": "l_1786019112319132",
-      "name": "JOY CLARE",
-      "admNo": "1681",
-      "grade": 8,
-      "stream": "Alpha",
-      "firstName": "JOY",
-      "secondName": "CLARE",
-      "otherName": null,
-      "assessNo": "—",
-      "gradeLabel": "Grade 8",
-      "gender": "Male",
-      "type": "Day Scholar",
-      "status": "Active",
-      "parentPhone": "0745979371",
-      "createdAt": "2026-08-07T05:01:22.219Z"
-    }
-  ],
+  "learners": [],
   "grades": [],
   "subjects": [],
   "users": [
@@ -39,7 +21,7 @@
       "systemRole": null,
       "adminOverride": false,
       "permissions": [],
-      "createdAt": "2026-08-07T05:01:22.279Z"
+      "createdAt": "2026-08-08T06:21:24.405Z"
     },
     {
       "id": "u_p_1786019170114",
@@ -61,7 +43,29 @@
       "permissions": [
         "perm_own_marks"
       ],
-      "createdAt": "2026-08-07T05:01:22.279Z"
+      "createdAt": "2026-08-08T06:21:24.405Z"
+    },
+    {
+      "id": "u_p_1786015883467",
+      "username": "0717736494",
+      "fullName": "Parent of ESTHER KARIMI",
+      "role": "Parent",
+      "created": "2026-08-06",
+      "status": "Active",
+      "password": "1528",
+      "staffNo": null,
+      "nationalId": null,
+      "phone": "0717736494",
+      "email": null,
+      "empDate": null,
+      "designatedRole": null,
+      "department": null,
+      "systemRole": null,
+      "adminOverride": false,
+      "permissions": [
+        "perm_own_marks"
+      ],
+      "createdAt": "2026-08-08T06:21:24.405Z"
     }
   ],
   "attendance_sheets": [],
@@ -970,404 +974,404 @@
   ],
   "activity_logs": [
     {
-      "id": "dpdmxed",
+      "id": "l63us45",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:40:15.695Z",
+      "timestamp": "2026-08-08T09:27:33.869Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:40:15.695Z"
+      "updatedAt": "2026-08-08T09:27:33.870Z"
     },
     {
-      "id": "7xpqwx4",
+      "id": "3s50flo",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:40:14.422Z",
+      "timestamp": "2026-08-08T09:27:33.523Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:40:14.422Z"
+      "updatedAt": "2026-08-08T09:27:33.523Z"
     },
     {
-      "id": "mvypgrj",
+      "id": "leveme4",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:40:11.164Z",
+      "timestamp": "2026-08-08T09:27:31.375Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:40:11.164Z"
+      "updatedAt": "2026-08-08T09:27:31.375Z"
     },
     {
-      "id": "pexnix5",
+      "id": "6kgvtc6",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:40:10.714Z",
+      "timestamp": "2026-08-08T09:27:31.072Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:40:10.714Z"
+      "updatedAt": "2026-08-08T09:27:31.072Z"
     },
     {
-      "id": "zccljqd",
+      "id": "q5xgx0o",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:40:09.219Z",
+      "timestamp": "2026-08-08T09:27:28.973Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:40:09.219Z"
+      "updatedAt": "2026-08-08T09:27:28.973Z"
     },
     {
-      "id": "b63zbys",
+      "id": "upgoear",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:40:08.322Z",
+      "timestamp": "2026-08-08T09:27:26.274Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:40:08.322Z"
+      "updatedAt": "2026-08-08T09:27:26.274Z"
     },
     {
-      "id": "dd911pv",
+      "id": "ri6mb2l",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:40:06.243Z",
+      "timestamp": "2026-08-08T09:27:25.959Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:40:06.243Z"
+      "updatedAt": "2026-08-08T09:27:25.959Z"
     },
     {
-      "id": "z6aexpe",
+      "id": "xw77lf8",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:40:05.737Z",
+      "timestamp": "2026-08-08T09:27:24.089Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:40:05.737Z"
+      "updatedAt": "2026-08-08T09:27:24.089Z"
     },
     {
-      "id": "jrm5kry",
+      "id": "jckiul0",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:40:04.238Z",
+      "timestamp": "2026-08-08T09:27:23.775Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:40:04.238Z"
+      "updatedAt": "2026-08-08T09:27:23.775Z"
     },
     {
-      "id": "frmixvh",
+      "id": "4cj4hl3",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:40:01.180Z",
+      "timestamp": "2026-08-08T09:27:21.339Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:40:01.180Z"
+      "updatedAt": "2026-08-08T09:27:21.339Z"
     },
     {
-      "id": "ot137gu",
+      "id": "7zpu357",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:58.903Z",
+      "timestamp": "2026-08-08T09:27:19.373Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:58.903Z"
+      "updatedAt": "2026-08-08T09:27:19.373Z"
     },
     {
-      "id": "3n75dqf",
+      "id": "rmy3ihi",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:58.245Z",
+      "timestamp": "2026-08-08T09:27:16.337Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:58.245Z"
+      "updatedAt": "2026-08-08T09:27:16.337Z"
     },
     {
-      "id": "yge212t",
+      "id": "xd0va0w",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:56.328Z",
+      "timestamp": "2026-08-08T09:27:16.024Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:56.328Z"
+      "updatedAt": "2026-08-08T09:27:16.024Z"
     },
     {
-      "id": "n0wsp5b",
+      "id": "z464xkh",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:54.070Z",
+      "timestamp": "2026-08-08T09:27:13.872Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:54.070Z"
+      "updatedAt": "2026-08-08T09:27:13.872Z"
     },
     {
-      "id": "kkpmap8",
+      "id": "udcxfw0",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:51.711Z",
+      "timestamp": "2026-08-08T09:27:13.566Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:51.712Z"
+      "updatedAt": "2026-08-08T09:27:13.566Z"
     },
     {
-      "id": "sf5xets",
+      "id": "w0eniin",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:50.785Z",
+      "timestamp": "2026-08-08T09:27:11.306Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:50.785Z"
+      "updatedAt": "2026-08-08T09:27:11.306Z"
     },
     {
-      "id": "6mroy4s",
+      "id": "ksqxcz8",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:49.659Z",
+      "timestamp": "2026-08-08T09:27:10.993Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:49.659Z"
+      "updatedAt": "2026-08-08T09:27:10.993Z"
     },
     {
-      "id": "acfzzgj",
+      "id": "go2il9u",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:48.853Z",
+      "timestamp": "2026-08-08T09:27:09.030Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:48.853Z"
+      "updatedAt": "2026-08-08T09:27:09.031Z"
     },
     {
-      "id": "4t9818u",
+      "id": "79gecay",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:46.270Z",
+      "timestamp": "2026-08-08T09:27:06.394Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:46.271Z"
+      "updatedAt": "2026-08-08T09:27:06.394Z"
     },
     {
-      "id": "c4hxwa5",
+      "id": "zsord1z",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:45.751Z",
+      "timestamp": "2026-08-08T09:27:03.845Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:45.751Z"
+      "updatedAt": "2026-08-08T09:27:03.845Z"
     },
     {
-      "id": "dtuer07",
+      "id": "37p92bv",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:44.523Z",
+      "timestamp": "2026-08-08T09:27:03.526Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:44.523Z"
+      "updatedAt": "2026-08-08T09:27:03.526Z"
     },
     {
-      "id": "nmu7mgz",
+      "id": "41xxxb4",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:41.959Z",
+      "timestamp": "2026-08-08T09:27:01.383Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:41.959Z"
+      "updatedAt": "2026-08-08T09:27:01.383Z"
     },
     {
-      "id": "jlw32em",
+      "id": "tjjbaak",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:41.037Z",
+      "timestamp": "2026-08-08T09:27:01.078Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:41.037Z"
+      "updatedAt": "2026-08-08T09:27:01.078Z"
     },
     {
-      "id": "p81a9i7",
+      "id": "hv60wew",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:39.856Z",
+      "timestamp": "2026-08-08T09:26:59.091Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:39.856Z"
+      "updatedAt": "2026-08-08T09:26:59.091Z"
     },
     {
-      "id": "xxhfwg4",
+      "id": "vr8kv47",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:38.989Z",
+      "timestamp": "2026-08-08T09:26:56.341Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:38.989Z"
+      "updatedAt": "2026-08-08T09:26:56.341Z"
     },
     {
-      "id": "5y3oyg0",
+      "id": "am7yrwu",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:37.823Z",
+      "timestamp": "2026-08-08T09:26:56.043Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:37.823Z"
+      "updatedAt": "2026-08-08T09:26:56.043Z"
     },
     {
-      "id": "t7bntfj",
+      "id": "m37ugjj",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:36.923Z",
+      "timestamp": "2026-08-08T09:26:53.922Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:36.923Z"
+      "updatedAt": "2026-08-08T09:26:53.922Z"
     },
     {
-      "id": "xwr9a4h",
+      "id": "zq0rhyy",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:36.025Z",
+      "timestamp": "2026-08-08T09:26:53.610Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:36.025Z"
+      "updatedAt": "2026-08-08T09:26:53.611Z"
     },
     {
-      "id": "0bvbrz3",
+      "id": "jc1huvg",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:32.177Z",
+      "timestamp": "2026-08-08T09:26:51.358Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:32.177Z"
+      "updatedAt": "2026-08-08T09:26:51.358Z"
     },
     {
-      "id": "lqr3gss",
+      "id": "4e3js57",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:31.711Z",
+      "timestamp": "2026-08-08T09:26:51.041Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:31.711Z"
+      "updatedAt": "2026-08-08T09:26:51.041Z"
     },
     {
-      "id": "q0ejqsw",
+      "id": "qihrqa8",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:26.326Z",
+      "timestamp": "2026-08-08T09:26:49.271Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:26.326Z"
+      "updatedAt": "2026-08-08T09:26:49.271Z"
     },
     {
-      "id": "gq77its",
+      "id": "1ipww69",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:25.726Z",
+      "timestamp": "2026-08-08T09:26:46.307Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:25.726Z"
+      "updatedAt": "2026-08-08T09:26:46.307Z"
     },
     {
-      "id": "gtcxil2",
+      "id": "163kh77",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:24.201Z",
+      "timestamp": "2026-08-08T09:26:46.005Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:24.201Z"
+      "updatedAt": "2026-08-08T09:26:46.005Z"
     },
     {
-      "id": "3lm7okx",
+      "id": "gzzouwl",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:21.713Z",
+      "timestamp": "2026-08-08T09:26:43.837Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:21.713Z"
+      "updatedAt": "2026-08-08T09:26:43.837Z"
     },
     {
-      "id": "uv5zetr",
+      "id": "74xqtjx",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:20.786Z",
+      "timestamp": "2026-08-08T09:26:43.526Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:20.786Z"
+      "updatedAt": "2026-08-08T09:26:43.526Z"
     },
     {
-      "id": "av6qinu",
+      "id": "871dyqs",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:18.907Z",
+      "timestamp": "2026-08-08T09:26:41.300Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:18.907Z"
+      "updatedAt": "2026-08-08T09:26:41.300Z"
     },
     {
-      "id": "5hpzwe8",
+      "id": "dtmskop",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:18.345Z",
+      "timestamp": "2026-08-08T09:26:40.995Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:18.345Z"
+      "updatedAt": "2026-08-08T09:26:40.995Z"
     },
     {
-      "id": "m717f09",
+      "id": "ftjgr9a",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:16.244Z",
+      "timestamp": "2026-08-08T09:26:39.125Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:16.244Z"
+      "updatedAt": "2026-08-08T09:26:39.125Z"
     },
     {
-      "id": "dipri87",
+      "id": "gjmd5kr",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:15.741Z",
+      "timestamp": "2026-08-08T09:26:36.392Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:15.741Z"
+      "updatedAt": "2026-08-08T09:26:36.392Z"
     },
     {
-      "id": "jy33sda",
+      "id": "lqyxy9h",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:14.337Z",
+      "timestamp": "2026-08-08T09:26:36.082Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:14.337Z"
+      "updatedAt": "2026-08-08T09:26:36.082Z"
     },
     {
-      "id": "vs2gr2k",
+      "id": "10s2qos",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:11.589Z",
+      "timestamp": "2026-08-08T09:26:33.837Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:11.589Z"
+      "updatedAt": "2026-08-08T09:26:33.837Z"
     },
     {
-      "id": "iltzptc",
+      "id": "jiduo3o",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:10.739Z",
+      "timestamp": "2026-08-08T09:26:33.516Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:10.740Z"
+      "updatedAt": "2026-08-08T09:26:33.516Z"
     },
     {
-      "id": "crcxi3p",
+      "id": "xrbtefz",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:08.862Z",
+      "timestamp": "2026-08-08T09:26:31.375Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:08.862Z"
+      "updatedAt": "2026-08-08T09:26:31.375Z"
     },
     {
-      "id": "at3zvp5",
+      "id": "a6n83w7",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:08.397Z",
+      "timestamp": "2026-08-08T09:26:31.076Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:08.397Z"
+      "updatedAt": "2026-08-08T09:26:31.076Z"
     },
     {
-      "id": "a36jxej",
+      "id": "l4jlylu",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:06.317Z",
+      "timestamp": "2026-08-08T09:26:29.000Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:06.317Z"
+      "updatedAt": "2026-08-08T09:26:29.000Z"
     },
     {
-      "id": "nt519om",
+      "id": "vrggjf4",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:05.787Z",
+      "timestamp": "2026-08-08T09:26:26.334Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:05.787Z"
+      "updatedAt": "2026-08-08T09:26:26.334Z"
     },
     {
-      "id": "huukaom",
+      "id": "xwi22d4",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:04.290Z",
+      "timestamp": "2026-08-08T09:26:26.171Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:04.290Z"
+      "updatedAt": "2026-08-08T09:26:26.171Z"
     },
     {
-      "id": "k47pnsz",
+      "id": "l5tqa3b",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:01.315Z",
+      "timestamp": "2026-08-08T09:26:23.864Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:01.315Z"
+      "updatedAt": "2026-08-08T09:26:23.864Z"
     },
     {
-      "id": "34q15v5",
+      "id": "leewdj4",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:39:00.790Z",
+      "timestamp": "2026-08-08T09:26:23.545Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:39:00.790Z"
+      "updatedAt": "2026-08-08T09:26:23.545Z"
     },
     {
-      "id": "bi1g9sv",
+      "id": "i1677ps",
       "type": "general_change",
       "message": "Updated Teachers On Duty navigation item with upcoming weekly duty notification badge",
-      "timestamp": "2026-08-07T19:38:58.922Z",
+      "timestamp": "2026-08-08T09:26:21.355Z",
       "user": "Byron Gondi",
-      "updatedAt": "2026-08-07T19:38:58.922Z"
+      "updatedAt": "2026-08-08T09:26:21.355Z"
     }
   ]
 }

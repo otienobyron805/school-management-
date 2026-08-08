@@ -4,19 +4,33 @@ let client: MongoClient | null = null;
 let dbInstance: Db | null = null;
 
 /**
+ * Sanitizes the MongoDB URI by removing accidental prefixes and surrounding quotes.
+ */
+function sanitizeUri(uri: string): string {
+  let cleaned = uri.trim();
+  if (cleaned.startsWith('MONGODB_URI=')) {
+    cleaned = cleaned.replace('MONGODB_URI=', '').trim();
+  }
+  if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+    cleaned = cleaned.substring(1, cleaned.length - 1).trim();
+  }
+  return cleaned;
+}
+
+/**
  * Lazy initialization helper for MongoDB client.
  * Returns the MongoDB Db instance if MONGODB_URI environment variable is provided,
  * or throws a helpful error message if not configured.
  */
 export async function getMongoClient(): Promise<{ client: MongoClient; db: Db }> {
-  const uri = process.env.MONGODB_URI || "mongodb+srv://otienobyron805_db_user:BYRON805679@school001.e6efz2g.mongodb.net/?retryWrites=true&w=majority&appName=School001";
+  const rawUri = process.env.MONGODB_URI || "mongodb+srv://otienobyron805_db_user:BYRON805679@school001.e6efz2g.mongodb.net/?retryWrites=true&w=majority&appName=School001";
+  const uri = sanitizeUri(rawUri);
+  
   if (!uri) {
     throw new Error('MONGODB_URI environment variable is not defined. Please configure MONGODB_URI in settings or .env file.');
   }
 
-  const isProduction = process.env.NODE_ENV === 'production';
-  const defaultDbName = isProduction ? 'school_production' : 'school_management';
-  const dbName = process.env.MONGODB_DB_NAME || defaultDbName;
+  const dbName = process.env.MONGODB_DB_NAME || "school_management";
 
   if (!client) {
     client = new MongoClient(uri, {
@@ -35,7 +49,9 @@ export async function getMongoClient(): Promise<{ client: MongoClient; db: Db }>
  * Checks if MongoDB environment configuration is present and tests the connection.
  */
 export async function checkMongoStatus(): Promise<{ connected: boolean; message: string; dbName?: string; collectionsCount?: number }> {
-  const uri = process.env.MONGODB_URI || "mongodb+srv://otienobyron805_db_user:BYRON805679@school001.e6efz2g.mongodb.net/?retryWrites=true&w=majority&appName=School001";
+  const rawUri = process.env.MONGODB_URI || "mongodb+srv://otienobyron805_db_user:BYRON805679@school001.e6efz2g.mongodb.net/?retryWrites=true&w=majority&appName=School001";
+  const uri = sanitizeUri(rawUri);
+  
   if (!uri) {
     return {
       connected: false,

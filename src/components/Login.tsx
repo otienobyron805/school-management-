@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getUsers, getSchoolProfile, setCurrentUser, getLearners, synchronizeWithMongoDB, UserAccount } from '../utils/db';
-import { Shield, Key, Sparkles, LogIn, GraduationCap, Users, User, ArrowRight, BookOpen, X, Sun, Moon } from 'lucide-react';
+import { Shield, Key, Sparkles, LogIn, GraduationCap, Users, User, ArrowRight, BookOpen, X, Sun, Moon, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface LoginProps {
@@ -17,6 +17,21 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const [isSyncingLogin, setIsSyncingLogin] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   
+  const [isMongoConnected, setIsMongoConnected] = useState<boolean | null>(null);
+  
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        const res = await fetch('/api/health');
+        const json = await res.json();
+        setIsMongoConnected(json.mongodb?.connected === true);
+      } catch (e) {
+        setIsMongoConnected(false);
+      }
+    };
+    checkConnection();
+  }, []);
+
   // States for role selection flow
   const [selectedTab, setSelectedTab] = useState<'super_admin' | 'admin' | 'teacher' | 'parent'>('super_admin');
   const [greeting, setGreeting] = useState('');
@@ -428,6 +443,21 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           <div className="border-t border-slate-200/50 my-1 relative z-10"></div>
 
           {/* Cloud Sync Status & Multi-Device Sync Button */}
+          {isMongoConnected === false && (
+            <div className="bg-rose-100 border-2 border-rose-300 p-4 rounded-2xl text-xs font-black text-rose-900 flex flex-col gap-2 shadow-lg animate-bounce relative z-20">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-rose-600" />
+                <span>CRITICAL: DISCONNECTED FROM CLOUD DATABASE</span>
+              </div>
+              <p className="font-bold opacity-90 leading-tight">
+                Any data you enter now WILL BE DELETED when you refresh or close this browser because the server cannot reach MongoDB.
+              </p>
+              <div className="p-2 bg-white/50 rounded-lg border border-rose-200 text-rose-800">
+                👉 <strong>Super Admin:</strong> Please configure <strong>MONGODB_URI</strong> in the app settings (Secrets) to enable persistent storage.
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col gap-1.5 bg-emerald-50/90 border border-emerald-200/80 p-3 rounded-2xl text-xs font-semibold text-emerald-900 relative z-10 shadow-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">

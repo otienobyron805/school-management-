@@ -4,9 +4,25 @@ import { addAlertLog } from './alerts';
 // ==========================================
 // 🔑 YOUR MONGODB CONNECTION & REAL-TIME CLOUD CONFIG
 // ==========================================
-export const MONGODB_URI = 
+const RAW_MONGODB_URI = 
   (typeof import.meta !== 'undefined' && (import.meta as any).env && ((import.meta as any).env.VITE_MONGODB_URI || (import.meta as any).env.MONGODB_URI)) ||
-  'mongodb+srv://YOUR_USER:YOUR_PASSWORD@cluster0.abc.mongodb.net/schoolDB?retryWrites=true&w=majority';
+  'mongodb+srv://otienobyron805_db_user:BYRON805679@school001.e6efz2g.mongodb.net/?retryWrites=true&w=majority&appName=School001';
+
+/**
+ * Sanitizes the MongoDB URI by removing accidental prefixes and surrounding quotes.
+ */
+function sanitizeUri(uri: string): string {
+  let cleaned = uri.trim();
+  if (cleaned.startsWith('MONGODB_URI=')) {
+    cleaned = cleaned.replace('MONGODB_URI=', '').trim();
+  }
+  if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+    cleaned = cleaned.substring(1, cleaned.length - 1).trim();
+  }
+  return cleaned;
+}
+
+export const MONGODB_URI = sanitizeUri(RAW_MONGODB_URI);
 
 export const DB_NAME = 'school_management';
 
@@ -185,6 +201,13 @@ async function fetchAllFromCloud(table?: string): Promise<any> {
     } else {
       const res = await fetch('/api/sync');
       const json = await res.json();
+      if (json.isFallback) {
+        console.warn('[CloudSync] Warning: Database is currently in local fallback mode. MongoDB is not connected.');
+        isBackendUnavailable = true;
+        throw new Error('Database is in fallback mode (MongoDB disconnected)');
+      } else {
+        isBackendUnavailable = false;
+      }
       return json.success ? json.data : {};
     }
   } catch (e) {
@@ -2272,7 +2295,7 @@ export async function synchronizeWithMongoDB(force: boolean = false, retries: nu
       console.error(`Sync attempt ${i + 1} failed:`, e);
       if (i === retries - 1) {
         console.warn("Sync failed after all retries. Falling back to local data.");
-        return true;
+        return false;
       }
       await new Promise(res => setTimeout(res, 1000 * (i + 1))); // Exponential backoff
     } finally {

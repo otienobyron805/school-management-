@@ -1,6 +1,6 @@
 {
   "name": "School Admin Suite",
-  "description": "A simple school administration dashboard for managing profiles, staff, subjects, and marks.",
+  "description": "Professional school management system with secure MongoDB cloud persistence, staff roles, and academic tracking.",
   "requestFramePermissions": ["geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

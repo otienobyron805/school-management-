@@ -108,8 +108,24 @@ export default function Settings() {
     } catch (e) {}
   };
 
+  const [isMongoConnected, setIsMongoConnected] = useState<boolean | null>(null);
+  const [mongoDetails, setMongoDetails] = useState<{ message: string; dbName?: string; collectionsCount?: number } | null>(null);
+
+  const checkConnection = async () => {
+    try {
+      const res = await fetch('/api/health');
+      const json = await res.json();
+      setIsMongoConnected(json.mongodb?.connected === true);
+      setMongoDetails(json.mongodb);
+    } catch (e) {
+      setIsMongoConnected(false);
+      setMongoDetails({ message: 'Failed to reach server health check endpoint' });
+    }
+  };
+
   useEffect(() => {
     refreshSettingsData();
+    checkConnection();
 
     const handleAlertRefresh = () => {
       setAlertLogs(getAlertLogs());
@@ -500,36 +516,62 @@ export default function Settings() {
 
             {/* MongoDB Integration */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-              <span className="block text-xs font-black text-slate-700 uppercase tracking-wider">
-                MongoDB Status
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="block text-xs font-black text-slate-700 uppercase tracking-wider">
+                  MongoDB Cloud Persistence
+                </span>
+                <button 
+                  onClick={checkConnection}
+                  className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 transition"
+                  title="Refresh Connection Status"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isMongoConnected === null ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
               <p className="text-xs text-slate-600">
-                Your application is connected to a live, production-grade MongoDB document database for cloud persistence and multi-device synchronization.
+                Live document database connection for multi-device sync and permanent storage.
               </p>
               
-              <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex items-center justify-between gap-3">
+              <div className={`${isMongoConnected ? 'bg-emerald-50 border-emerald-200' : isMongoConnected === false ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200'} border p-4 rounded-xl flex items-center justify-between gap-3 transition-colors`}>
                 <div className="flex items-center gap-2.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                  <div className={`w-2.5 h-2.5 rounded-full ${isMongoConnected ? 'bg-emerald-500 animate-pulse' : isMongoConnected === false ? 'bg-rose-500' : 'bg-slate-300'}`}></div>
                   <div>
-                    <span className="block text-xs font-bold text-emerald-800 font-mono">CONNECTED</span>
-                    <span className="block text-[10px] text-emerald-600 font-semibold uppercase tracking-wider">MongoDB Engine Active</span>
+                    <span className={`block text-xs font-bold font-mono ${isMongoConnected ? 'text-emerald-800' : isMongoConnected === false ? 'text-rose-800' : 'text-slate-500'}`}>
+                      {isMongoConnected ? 'CONNECTED' : isMongoConnected === false ? 'DISCONNECTED' : 'CHECKING...'}
+                    </span>
+                    <span className={`block text-[10px] font-semibold uppercase tracking-wider ${isMongoConnected ? 'text-emerald-600' : isMongoConnected === false ? 'text-rose-600' : 'text-slate-400'}`}>
+                      {isMongoConnected ? `Database: ${mongoDetails?.dbName || 'school_management'}` : 'Cloud Engine Offline'}
+                    </span>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={async () => {
-                  const ok = await synchronizeWithMongoDB();
-                  if (ok) {
-                    alert('✅ Database Sync Completed successfully! Loaded freshest datasets.');
-                  } else {
-                    alert('❌ Database Sync failed. Check server logs.');
-                  }
-                }}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase py-1.5 px-3 rounded transition cursor-pointer"
+                    const ok = await synchronizeWithMongoDB();
+                    if (ok) {
+                      alert('✅ Database Sync Completed successfully! Loaded freshest datasets.');
+                      refreshSettingsData();
+                    } else {
+                      alert('❌ Database Sync failed. Check server logs or ensure MongoDB URI is correct.');
+                    }
+                  }}
+                  className={`${isMongoConnected ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-400 cursor-not-allowed'} text-white font-black text-[10px] uppercase py-1.5 px-3 rounded transition`}
+                  disabled={!isMongoConnected}
                 >
                   Force Pull Sync
                 </button>
               </div>
+
+              {isMongoConnected === false && (
+                <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl">
+                  <p className="text-[10px] text-rose-800 font-bold leading-tight">
+                    ⚠️ Error: {mongoDetails?.message || 'Could not establish connection to MongoDB Cluster.'}
+                  </p>
+                  <p className="text-[10px] text-rose-600 mt-1">
+                    Check your <strong>MONGODB_URI</strong> in Settings &gt; Secrets.
+                  </p>
+                </div>
+              )}
 
               <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl flex items-center justify-between gap-3">
                 <div>
@@ -558,17 +600,18 @@ export default function Settings() {
 
                       const ok = await pushPendingChangesToCloud();
                       if (ok) {
-                        alert('✅ Bulk push completed! All local browser datasets have been synchronized and successfully saved to MongoDB Cloud.');
+                        alert('✅ Backup Successful! All local datasets have been synchronized to MongoDB Cloud.');
                       } else {
-                        alert('⚠️ Bulk push returned non-success response. Check server connection.');
+                        alert('⚠️ Backup failed. Ensure your connection is active.');
                       }
                     } catch (err) {
-                      alert('❌ Failed to push backup. Check console or server logs.');
+                      alert('❌ Critical failure during backup push.');
                     }
                   }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase py-1.5 px-3 rounded transition cursor-pointer active:scale-95"
+                  className={`${isMongoConnected ? 'bg-blue-600 hover:bg-blue-700' : 'bg-slate-400 cursor-not-allowed'} text-white font-black text-[10px] uppercase py-1.5 px-3 rounded transition`}
+                  disabled={!isMongoConnected}
                 >
-                  Backup to SQL
+                  Backup to MongoDB
                 </button>
               </div>
             </div>
