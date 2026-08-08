@@ -77,7 +77,7 @@ import AttendanceRoll from './components/AttendanceRoll';
 import MyProfile from './components/MyProfile';
 import ResetPassword from './components/ResetPassword';
 import NotificationBell from './components/NotificationBell';
-import { getCurrentUser, setCurrentUser, getSchoolProfile, UserAccount, getUsers, getLearners, synchronizeWithMongoDB, startRealtimeCloudSync, migrateLegacyLocalStorageToMongoDB, getMessages, secureGet, secureSet, logActivity } from './utils/db';
+import { getCurrentUser, setCurrentUser, getSchoolProfile, UserAccount, getUsers, getLearners, synchronizeWithMongoDB, startRealtimeCloudSync, migrateLegacyLocalStorageToMongoDB, getMessages, secureGet, secureSet, logActivity, getSubjectAssignments, getClassTeacherAssignments } from './utils/db';
 import CloudAutoSyncHeaderBar from './components/CloudAutoSyncHeaderBar';
 import CloudSyncHealth from './components/CloudSyncHealth';
 import Remedial from './components/Remedial';
@@ -414,6 +414,24 @@ export default function App() {
 
   const userDutyCount = getUserUpcomingDutiesCount();
 
+  const getMyAssignmentsInfo = () => {
+    if (!user) return { subjects: [], classes: [] };
+    
+    const subjects = getSubjectAssignments().filter(a => 
+      (a.teacher || '').toLowerCase() === (user.fullName || '').toLowerCase() || 
+      a.teacherId === user.id
+    );
+    
+    const classes = getClassTeacherAssignments().filter(ct => 
+      ct.teacherId === user.id || 
+      (ct.teacher || '').toLowerCase() === (user.fullName || '').toLowerCase()
+    );
+    
+    return { subjects, classes };
+  };
+
+  const myAssignments = getMyAssignmentsInfo();
+
   const handleLoginSuccess = (loggedInUser: UserAccount) => {
     setUser(loggedInUser);
     if (typeof window !== 'undefined') {
@@ -688,6 +706,36 @@ export default function App() {
                 </div>
               ) : (
                 <>
+                  {/* Teacher Assignments Summary in Sidebar */}
+                  {(myAssignments.subjects.length > 0 || myAssignments.classes.length > 0) && (
+                    <div className="px-4 py-3 mb-4 bg-slate-900/50 rounded-2xl border border-slate-800 space-y-2.5 shadow-inner">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">My Assignments</p>
+                      
+                      {myAssignments.classes.map((role, idx) => (
+                        <div key={`ct-${idx}`} className="flex items-center gap-2.5 text-[11px] font-bold text-emerald-400">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span>Class Teacher: {role.grade} {role.stream}</span>
+                        </div>
+                      ))}
+
+                      {myAssignments.subjects.length > 0 && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
+                            <BookOpen className="w-3 h-3" />
+                            <span>My Subjects:</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 pl-5">
+                            {Array.from(new Set(myAssignments.subjects.map(s => s.subject))).map((sName, sIdx) => (
+                              <span key={sIdx} className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded-lg text-[9px] font-black border border-slate-700/50">
+                                {sName}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {menuGroups.map((group) => {
                     const visibleItems = group.items.filter((item) => item.visible);
                     if (visibleItems.length === 0) return null;

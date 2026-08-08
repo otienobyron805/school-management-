@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getCurrentUser, getSchoolProfile, UserAccount, SchoolProfile, saveUsers, getUsers, setCurrentUser, getLearners, getAttendanceSheets, getStaffAttendanceSheets, saveStaffAttendanceSheets, StaffAttendanceSheet, StaffAttendanceRecord, secureGet, secureSet, deleteRecord } from '../utils/db';
+import { getCurrentUser, getSchoolProfile, UserAccount, SchoolProfile, saveUsers, getUsers, setCurrentUser, getLearners, getAttendanceSheets, getStaffAttendanceSheets, saveStaffAttendanceSheets, StaffAttendanceSheet, StaffAttendanceRecord, secureGet, secureSet, deleteRecord, getSubjectAssignments, getClassTeacherAssignments } from '../utils/db';
 import { getAttendanceSettings } from '../utils/attendance';
-import { Calendar, Clock, GraduationCap, ShieldCheck, User, Camera, Upload, X, Link, Check, AlertCircle, Trash2, ArrowRight, LogIn, LogOut, Lock, Pencil, Zap, UserPlus, FileText, Settings, BookOpen, TrendingUp, PieChart, Bell, Megaphone, CheckCircle2, ListTodo, Plus, Activity, ChevronRight, UserCheck } from 'lucide-react';
+import { Calendar, Clock, GraduationCap, ShieldCheck, User, Camera, Upload, X, Link, Check, AlertCircle, Trash2, ArrowRight, LogIn, LogOut, Lock, Pencil, Zap, UserPlus, FileText, Settings, BookOpen, TrendingUp, PieChart, Bell, Megaphone, CheckCircle2, ListTodo, Plus, Activity, ChevronRight, UserCheck, GraduationCap as GradeIcon } from 'lucide-react';
 import CurrentLocationDisplay from './CurrentLocationDisplay';
 import CloudStorageCard from './CloudStorageCard';
 
@@ -41,6 +41,8 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
   const [newNoticeContent, setNewNoticeContent] = useState('');
   const [newNoticeCategory, setNewNoticeCategory] = useState('General');
   const [isUserTOD, setIsUserTOD] = useState(false);
+  const [mySubjects, setMySubjects] = useState<any[]>([]);
+  const [myClassTeacherRoles, setMyClassTeacherRoles] = useState<any[]>([]);
 
   const handleSaveNotice = (e: React.FormEvent) => {
     e.preventDefault();
@@ -468,6 +470,21 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
       if (activeUser) {
         loadMyAttendance(activeUser);
 
+        // Load assignments
+        const allAssignments = getSubjectAssignments();
+        const teacherAssignments = allAssignments.filter(a => 
+          (a.teacher || '').toLowerCase() === (activeUser.fullName || '').toLowerCase() || 
+          a.teacherId === activeUser.id
+        );
+        setMySubjects(teacherAssignments);
+
+        const allClassTeachers = getClassTeacherAssignments();
+        const teacherClassRoles = allClassTeachers.filter(ct => 
+          ct.teacherId === activeUser.id || 
+          (ct.teacher || '').toLowerCase() === (activeUser.fullName || '').toLowerCase()
+        );
+        setMyClassTeacherRoles(teacherClassRoles);
+
         // Load TOD roster and check if user is TOD
         const savedRoster = secureGet('tod_duty_roster_v1');
         if (savedRoster) {
@@ -718,6 +735,24 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
           <div className="text-xs opacity-90 font-medium mt-1 inline-flex items-center justify-center gap-1">
             <ShieldCheck className="w-3.5 h-3.5" /> {user.role}
           </div>
+
+          {/* Teacher Assignments Display */}
+          {(mySubjects.length > 0 || myClassTeacherRoles.length > 0) && (
+            <div className="mt-4 pt-4 border-t border-white/20 flex flex-wrap justify-center gap-3">
+              {myClassTeacherRoles.map((role, idx) => (
+                <div key={idx} className="bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full text-[10px] font-bold flex items-center gap-1.5 border border-white/30">
+                  <GradeIcon className="w-3 h-3" />
+                  CLASS TEACHER: {role.grade} {role.stream}
+                </div>
+              ))}
+              {mySubjects.length > 0 && (
+                <div className="bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full text-[10px] font-bold flex items-center gap-1.5 border border-white/30">
+                  <BookOpen className="w-3 h-3" />
+                  ASSIGNED SUBJECTS: {Array.from(new Set(mySubjects.map(s => s.subject))).join(', ')}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* School Day Banner */}

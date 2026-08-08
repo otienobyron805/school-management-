@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { secureGet, secureSet, getSubjectPapers, getSubjects, getGrades, getLearners, logActivity, getCurrentUser, getGradingRules, SubjectPaper, Subject, Grade, GradingRule, isGradeMatch, Learner } from '../utils/db';
+import { secureGet, secureSet, getSubjectPapers, getSubjects, getGrades, getLearners, logActivity, getCurrentUser, getGradingRules, getSubjectAssignments, SubjectPaper, Subject, Grade, GradingRule, isGradeMatch, Learner } from '../utils/db';
+import { AlertCircle, Lock } from 'lucide-react';
 
 // ===== DATA TYPES =====
 interface MarkEntryRecord {
@@ -24,6 +25,8 @@ const MarkEntry: React.FC = () => {
   const [selectedGrade, setSelectedGrade] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [savedMsg, setSavedMsg] = useState('');
+  const [userAssignments, setUserAssignments] = useState<any[]>([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   
   const [gradingRules, setGradingRules] = useState<GradingRule[]>(() => getGradingRules());
 
@@ -68,20 +71,35 @@ const MarkEntry: React.FC = () => {
     { code: 'FRENCH', name: 'French', id: 'def_fre' },
   ];
 
-  // Combined subject list from db and defaults
+  // Combined subject list from db and defaults, filtered by user assignments
   const SUBJECTS = useMemo(() => {
+    let list: any[] = [];
     if (dbSubjects.length > 0) {
-      const list = dbSubjects.map(s => ({ code: s.code || s.name.toUpperCase(), name: s.name, id: s.id }));
+      list = dbSubjects.map(s => ({ code: s.code || s.name.toUpperCase(), name: s.name, id: s.id }));
       // ensure English and Mathematics are included
       DEFAULT_SUBJECTS.forEach(def => {
         if (!list.some(s => s.code.toUpperCase() === def.code.toUpperCase() || s.name.toLowerCase() === def.name.toLowerCase())) {
           list.push(def);
         }
       });
-      return list;
+    } else {
+      list = DEFAULT_SUBJECTS;
     }
-    return DEFAULT_SUBJECTS;
-  }, [dbSubjects]);
+
+    // Authorization filtering for non-admins
+    const userRole = (currentUser?.role || '').toLowerCase();
+    const isAdmin = ['admin', 'headteacher', 'deputy', 'senior teacher', 'super admin', 'administrator', 'principal'].some(r => userRole.includes(r));
+    
+    if (isAdmin) return list;
+
+    // Filter by assignments
+    return list.filter(subj => {
+      return userAssignments.some(a => 
+        a.subject.toLowerCase() === subj.name.toLowerCase() || 
+        a.subject.toLowerCase() === subj.code.toLowerCase()
+      );
+    });
+  }, [dbSubjects, userAssignments, currentUser]);
 
   // Listen for real-time DB changes (e.g. paper setup changes in Exam Setup)
   useEffect(() => {
@@ -101,6 +119,16 @@ const MarkEntry: React.FC = () => {
     setLoading(true);
     setSavedMsg('');
     try {
+      const activeUser = getCurrentUser();
+      setCurrentUser(activeUser);
+      
+      const assignments = getSubjectAssignments();
+      const myAssignments = assignments.filter(a => 
+        (a.teacher || '').toLowerCase() === (activeUser?.fullName || '').toLowerCase() || 
+        a.teacherId === activeUser?.id
+      );
+      setUserAssignments(myAssignments);
+
       const allLearners = getLearners();
       const loadedExams = secureGet('exams') ? JSON.parse(secureGet('exams')!) : [];
       setExams(loadedExams);
@@ -309,6 +337,45 @@ const MarkEntry: React.FC = () => {
     }
   };
 
+  // Filter selectable grades based on assignments for non-admins
+  const filteredGrades = useMemo(() => {
+    const userRole = (currentUser?.role || '').toLowerCase();
+    const isAdmin = ['admin', 'headteacher', 'deputy', 'senior teacher', 'super admin', 'administrator', 'principal'].some(r => userRole.includes(r));
+    
+    if (isAdmin) return grades;
+
+    // Filter grades assigned to the current user for the selected subject
+    const assignedGrades = userAssignments
+      .filter(a => a.subject.toLowerCase() === selectedSubject.toLowerCase() || 
+                  (SUBJECTS.find(s => s.code === selectedSubject)?.name.toLowerCase() === a.subject.toLowerCase()))
+      .map(a => a.grade.toLowerCase());
+
+    return grades.filter(g => assignedGrades.includes(g.name.toLowerCase()));
+  }, [grades, userAssignments, currentUser, selectedSubject, SUBJECTS]);
+
+  // Authorization check for current selection
+  const isAuthorized = useMemo(() => {
+    const userRole = (currentUser?.role || '').toLowerCase();
+    const isAdmin = ['admin', 'headteacher', 'deputy', 'senior teacher', 'super admin', 'administrator', 'principal'].some(r => userRole.includes(r));
+    
+    if (isAdmin) return true;
+    if (SUBJECTS.length === 0) return false;
+
+    const isSubjectAssigned = SUBJECTS.some(s => s.code === selectedSubject);
+    if (!isSubjectAssigned) return false;
+
+    if (selectedGrade !== 'all') {
+      const isGradeAssigned = userAssignments.some(a => 
+        (a.subject.toLowerCase() === selectedSubject.toLowerCase() || 
+         SUBJECTS.find(s => s.code === selectedSubject)?.name.toLowerCase() === a.subject.toLowerCase()) &&
+        a.grade.toLowerCase() === selectedGrade.toLowerCase()
+      );
+      return isGradeAssigned;
+    }
+
+    return true;
+  }, [currentUser, selectedSubject, selectedGrade, userAssignments, SUBJECTS]);
+
   if (loading) {
     return (
       <div className="p-8 text-center text-slate-600 font-semibold flex flex-col items-center justify-center gap-2">
@@ -322,6 +389,33 @@ const MarkEntry: React.FC = () => {
 
   return (
     <div className="p-4 max-w-7xl mx-auto space-y-6">
+      {/* ===== AUTHORIZATION WARNING ===== */}
+      {!isAuthorized && !loading && SUBJECTS.length > 0 && (
+        <div className="bg-rose-50 border border-rose-200 p-6 rounded-2xl flex flex-col items-center text-center gap-3 animate-pulse">
+          <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center">
+            <Lock className="w-6 h-6" />
+          </div>
+          <h3 className="text-lg font-black text-rose-900">Access Restricted</h3>
+          <p className="text-sm text-rose-700 max-w-md">
+            You are not assigned to teach <strong>{selectedSubjectObj?.name || selectedSubject}</strong> in <strong>{selectedGrade === 'all' ? 'this grade' : selectedGrade}</strong>. 
+            Please contact the administration to update your subject assignments.
+          </p>
+          <div className="flex gap-2 mt-2">
+            {SUBJECTS.length > 0 && (
+              <button 
+                onClick={() => {
+                  setSelectedSubject(SUBJECTS[0].code);
+                  setSelectedGrade('all');
+                }}
+                className="px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition"
+              >
+                Go to Assigned Subject
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ===== PAGE HEADER ===== */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -348,7 +442,7 @@ const MarkEntry: React.FC = () => {
                   className="bg-white text-xs font-bold text-slate-800 p-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="all">All Grades / Classes</option>
-                  {grades.map(g => (
+                  {filteredGrades.map(g => (
                     <option key={g.id} value={g.name}>{g.name}</option>
                   ))}
                 </select>
