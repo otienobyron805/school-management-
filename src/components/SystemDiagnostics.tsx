@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { checkMongoStatus } from '../utils/db';
+import { 
+  checkMongoStatus, 
+  pushPendingChangesToCloud, 
+  markPendingChange, 
+  secureGet, 
+  secureSet, 
+  deduplicateAnyList 
+} from '../utils/db';
 
 type CheckStatus = 'idle' | 'checking' | 'pass' | 'fail' | 'warning';
 
@@ -29,42 +36,93 @@ const SystemDiagnostics = () => {
     setIsRunning(true);
     const results: DiagnosticCheck[] = [];
 
-    // ✅ CHECK 1: MongoDB Connection
+    // ✅ CHECK 1: Server Health & MongoDB Status
     try {
-      const mongoStatus = await checkMongoStatus();
+      const res = await fetch('/api/health');
+      const health = await res.json();
+      const mongo = health.mongodb || {};
+      
       results.push({
-        name: '☁️ MongoDB Database Connection',
-        status: mongoStatus.connected ? 'pass' : 'fail',
-        message: mongoStatus.message,
-        fix: mongoStatus.connected ? undefined : '👉 Ensure the server is running and the MongoDB connection string in server.ts is correct.'
+        name: '☁️ Server-to-MongoDB Link',
+        status: mongo.connected ? 'pass' : 'fail',
+        message: mongo.connected 
+          ? `✅ Connected to ${mongo.dbName || 'MongoDB'} (${health.env || 'development'} mode) — ${mongo.collectionsCount || 0} collections` 
+          : `❌ Server cannot reach MongoDB: ${mongo.message}`,
+        fix: mongo.connected ? undefined : '👉 Check if MONGODB_URI is correctly set in the environment variables (Settings > Secrets).'
       });
+
+      // Report if using fallback storage
+      if (!mongo.connected) {
+        results.push({
+          name: '⚠️ Storage Fallback Active',
+          status: 'warning',
+          message: '⚠️ Server is currently using local file storage (server_store.json) because MongoDB is disconnected.',
+          fix: '👉 Devices will only sync if they hit the SAME server instance. MongoDB is required for reliable cross-device sync.'
+        });
+      }
     } catch (e: any) {
       results.push({
-        name: '☁️ MongoDB Database Connection',
+        name: '🌐 Server API Connectivity',
         status: 'fail',
-        message: '❌ Connection check failed: ' + e.message,
-        fix: '👉 Check server logs — ensure connection string is complete and correct'
+        message: '❌ Cannot reach the backend API: ' + e.message,
+        fix: '👉 Ensure the application is deployed and the URL is correct.'
       });
     }
 
-    // ✅ CHECK 2: Data Storage Location
-    // We check if we have received a response from the server sync at least once
-    const usesCloud = (window as any).isSyncActive !== false;
-    results.push({
-      name: '💾 Data Storage Location',
-      status: !usesCloud ? 'warning' : 'pass',
-      message: !usesCloud 
-        ? '⚠️ Saving primarily to browser (Sync inactive)' 
-        : '✅ Saving to MongoDB Cloud — SAFE!',
-      fix: !usesCloud ? '👉 Fix MongoDB connection above to switch to Cloud storage' : undefined
-    });
+    // ✅ CHECK 2: End-to-End Sync Test
+    try {
+      const testKey = 'diag_sync_test';
+      const testData = { timestamp: Date.now(), rand: Math.random() };
+      
+      // Try to save
+      const saveRes = await fetch('/api/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table: testKey, data: testData })
+      });
+      const saveJson = await saveRes.json();
+      
+      if (saveJson.success) {
+        // Try to read back
+        const syncRes = await fetch('/api/sync');
+        const syncJson = await syncRes.json();
+        const cloudData = syncJson.data?.[testKey];
+        
+        const isMatch = cloudData && cloudData.timestamp === testData.timestamp;
+        
+        results.push({
+          name: '🔄 End-to-End Sync Test',
+          status: isMatch ? 'pass' : 'fail',
+          message: isMatch 
+            ? '✅ Successfully wrote to Cloud and read back!' 
+            : '❌ Data mismatch: Saved data was not found in the next sync cycle.',
+          fix: isMatch ? undefined : '👉 This suggests a database write-read delay or permission issue.'
+        });
+      } else {
+        results.push({
+          name: '🔄 End-to-End Sync Test',
+          status: 'fail',
+          message: '❌ Failed to write test data to server.',
+          fix: '👉 Check server logs for permission or disk space issues.'
+        });
+      }
+    } catch (e: any) {
+      results.push({
+        name: '🔄 End-to-End Sync Test',
+        status: 'fail',
+        message: '❌ Sync test failed: ' + e.message
+      });
+    }
 
-    // ✅ CHECK 3: Sync & Device Status
+    // ✅ CHECK 3: Device Polling Status
+    const isSyncActive = (window as any).isSyncActive !== false;
     results.push({
-      name: '🔄 Device Sync Status',
-      status: 'pass',
-      message: `✅ ${deviceInfo.device} — Ready to sync with Cloud`,
-      fix: undefined
+      name: '📱 Real-time Polling Status',
+      status: isSyncActive ? 'pass' : 'warning',
+      message: isSyncActive 
+        ? '✅ Device is actively listening for Cloud changes (2.5s interval)' 
+        : '⚠️ Real-time polling seems to be disabled on this device.',
+      fix: isSyncActive ? undefined : '👉 Check if startRealtimeCloudSync() is being called in App.tsx'
     });
 
     // ✅ CHECK 4: Required Settings
@@ -154,6 +212,94 @@ const SystemDiagnostics = () => {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* FORCE SYNC ACTION */}
+      <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6">
+        <h3 className="text-lg font-bold text-blue-800 mb-2">🚀 Force Sync All Data to Cloud</h3>
+        <p className="text-sm text-blue-600 mb-4">
+          If your device has data that is not appearing on other phones, click below to force a full upload of all local records to the MongoDB cloud.
+        </p>
+        <button
+          onClick={async () => {
+            if (!window.confirm('This will upload ALL data from this phone to the Cloud. Are you sure?')) return;
+            setIsRunning(true);
+            try {
+              const tables = [
+                'learners', 'users', 'grades', 'subjects', 'exams', 'exam_marks', 
+                'attendance_sheets', 'school_profile', 'grading_rules', 'holidays', 'terms',
+                'fee_payments', 'fee_structures', 'subject_assignments', 'class_teacher_assignments'
+              ];
+              
+              tables.forEach(t => markPendingChange(t));
+              const success = await pushPendingChangesToCloud();
+              
+              if (success) {
+                alert('✅ Full synchronization completed! All local records have been pushed to the Cloud.');
+              } else {
+                alert('❌ Synchronization failed. Check your internet connection or MongoDB status.');
+              }
+            } catch (err: any) {
+              alert('❌ Error: ' + err.message);
+            }
+            setIsRunning(false);
+            runAllChecks();
+          }}
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 active:scale-95 transition-all flex items-center gap-2 mb-4"
+        >
+          📤 Push All Local Data to Cloud Now
+        </button>
+
+        <div className="h-px bg-blue-200 my-4" />
+
+        <h3 className="text-lg font-bold text-amber-800 mb-2">🧹 Clean All Duplicates</h3>
+        <p className="text-sm text-amber-700 mb-4">
+          Found multiple copies of the same student or teacher? Click below to merge them and remove duplicates from all devices.
+        </p>
+        <button
+          onClick={async () => {
+            if (!window.confirm('This will merge all duplicate records based on ID and Name. This action will sync to all devices. Continue?')) return;
+            setIsRunning(true);
+            try {
+              const tables = [
+                'learners', 'users', 'grades', 'subjects', 'exams', 'exam_marks', 
+                'attendance_sheets', 'grading_rules', 'holidays', 'terms',
+                'fee_payments', 'fee_structures', 'subject_assignments', 'class_teacher_assignments'
+              ];
+              
+              let totalCleaned = 0;
+              for (const t of tables) {
+                const data = secureGet(t) || secureGet(`school_${t}`);
+                if (data) {
+                  let parsed = typeof data === 'string' ? JSON.parse(data) : data;
+                  if (Array.isArray(parsed)) {
+                    const originalCount = parsed.length;
+                    const cleaned = deduplicateAnyList(parsed);
+                    if (cleaned.length < originalCount) {
+                      totalCleaned += (originalCount - cleaned.length);
+                      secureSet(t, JSON.stringify(cleaned));
+                      markPendingChange(t);
+                    }
+                  }
+                }
+              }
+              
+              if (totalCleaned > 0) {
+                const pushed = await pushPendingChangesToCloud();
+                alert(`✅ Successfully removed ${totalCleaned} duplicate records across all tables and updated the Cloud!`);
+              } else {
+                alert('✨ No duplicates found! Your data is already clean.');
+              }
+            } catch (err: any) {
+              alert('❌ Error cleaning duplicates: ' + err.message);
+            }
+            setIsRunning(false);
+            runAllChecks();
+          }}
+          className="bg-amber-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-amber-700 active:scale-95 transition-all flex items-center gap-2"
+        >
+          🧹 Find and Remove Duplicates Now
+        </button>
       </div>
 
       {/* SUMMARY */}

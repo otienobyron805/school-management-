@@ -74,9 +74,13 @@ export default function Learners() {
   // Toast alert notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Multi-selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     const refreshLearners = () => {
       setLearners(getLearners());
+      setSelectedIds(new Set()); // Reset selection on refresh
     };
     refreshLearners();
     window.addEventListener('storage', refreshLearners);
@@ -94,6 +98,50 @@ export default function Learners() {
     setTimeout(() => {
       setToastMessage(null);
     }, 2500);
+  };
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const toggleSelectAll = (visibleLearners: Learner[]) => {
+    if (selectedIds.size === visibleLearners.length && visibleLearners.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(visibleLearners.map(l => l.id)));
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (!canDelete()) {
+      triggerToast('Permission restricted: Only Super Admin can delete learner records');
+      return;
+    }
+    if (selectedIds.size === 0) return;
+
+    confirmAction({
+      title: 'Bulk Delete Students',
+      message: `Are you sure you want to delete ${selectedIds.size} selected student records? This action is permanent and cannot be undone.`,
+      confirmText: `Delete ${selectedIds.size} Students`,
+      variant: 'danger',
+      onConfirm: () => {
+        const idsToRemove = new Set(selectedIds);
+        setLearners(prev => {
+          const updated = prev.filter(l => !idsToRemove.has(l.id));
+          // Perform the save inside the functional update to ensure we use the freshest state
+          setTimeout(() => saveLearners(updated), 0);
+          return updated;
+        });
+        const count = selectedIds.size;
+        setSelectedIds(new Set());
+        triggerToast(`Successfully removed ${count} student records`);
+        const user = getCurrentUser();
+        if (user) logActivity('learner_deleted', `Bulk deleted ${count} learners.`, user.fullName);
+      }
+    });
   };
 
   // Helper to ensure learners have firstName/secondName
@@ -236,10 +284,14 @@ export default function Learners() {
       confirmText: 'Delete Student',
       variant: 'danger',
       onConfirm: () => {
-        const updated = learners.filter(l => l.id !== id);
-        setLearners(updated);
-        saveLearners(updated);
+        setLearners(prev => {
+          const updated = prev.filter(l => l.id !== id);
+          setTimeout(() => saveLearners(updated), 0);
+          return updated;
+        });
         triggerToast(`Removed student record for ${name}`);
+        const user = getCurrentUser();
+        if (user) logActivity('learner_deleted', `Deleted learner ${name}.`, user.fullName);
       }
     });
   };
@@ -595,6 +647,14 @@ export default function Learners() {
         </h1>
         {!isParent && (
           <div className="flex flex-wrap gap-2">
+            {selectedIds.size > 0 && canDelete() && (
+              <button 
+                onClick={handleBulkDelete}
+                className="bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 px-5 py-2.5 rounded-xl font-bold text-sm inline-flex items-center gap-2 transition shadow-sm cursor-pointer min-h-[44px] animate-in fade-in slide-in-from-right-4"
+              >
+                <Trash2 className="w-4 h-4" /> Bulk Delete ({selectedIds.size})
+              </button>
+            )}
             <button 
               onClick={() => setIsBulkModalOpen(true)}
               className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-5 py-2.5 rounded-xl font-bold text-sm inline-flex items-center gap-2 transition shadow-sm cursor-pointer min-h-[44px]"
@@ -662,6 +722,16 @@ export default function Learners() {
           <table className="w-full text-left border-collapse min-w-[950px]">
             <thead>
               <tr className="bg-slate-50/70 border-b border-slate-200">
+                {!isParent && (
+                  <th className="p-4 w-10">
+                    <input 
+                      type="checkbox"
+                      checked={selectedIds.size === filteredLearners.length && filteredLearners.length > 0}
+                      onChange={() => toggleSelectAll(filteredLearners)}
+                      className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </th>
+                )}
                 <th className="p-4 text-xs font-bold text-slate-500 uppercase">#</th>
                 <th className="p-4 text-xs font-bold text-slate-500 uppercase">First Name</th>
                 <th className="p-4 text-xs font-bold text-slate-500 uppercase">Second Name</th>
@@ -678,7 +748,7 @@ export default function Learners() {
             <tbody className="divide-y divide-slate-100">
               {filteredLearners.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="p-16 text-center text-slate-400 font-medium">
+                  <td colSpan={12} className="p-16 text-center text-slate-400 font-medium">
                     <span className="text-5xl block mb-3 opacity-60">🔍</span>
                     No matching learners found. Add a learner or reset your filters!
                   </td>
@@ -689,8 +759,18 @@ export default function Learners() {
                   return (
                     <tr 
                       key={learner.id} 
-                      className={`hover:bg-slate-50/40 transition-colors ${isInactive ? 'opacity-50 bg-slate-50/30' : ''}`}
+                      className={`hover:bg-slate-50/40 transition-colors ${isInactive ? 'opacity-50 bg-slate-50/30' : ''} ${selectedIds.has(learner.id) ? 'bg-blue-50/50' : ''}`}
                     >
+                      {!isParent && (
+                        <td className="p-4">
+                          <input 
+                            type="checkbox"
+                            checked={selectedIds.has(learner.id)}
+                            onChange={() => toggleSelect(learner.id)}
+                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                        </td>
+                      )}
                       <td className="p-4 text-xs font-bold text-slate-400">{idx + 1}</td>
                       <td className="p-4 font-extrabold text-slate-800">
                         <div className="flex items-center gap-2.5">

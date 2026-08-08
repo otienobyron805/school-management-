@@ -1,6 +1,6 @@
 export interface ActivityEvent {
   id: string;
-  type: 'learner_added' | 'attendance_finalized' | 'exam_created' | 'general_change';
+  type: 'learner_added' | 'learner_deleted' | 'attendance_finalized' | 'exam_created' | 'general_change' | 'bulk_delete';
   message: string;
   timestamp: string;
   user: string;

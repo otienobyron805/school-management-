@@ -131,6 +131,7 @@ async function startServer() {
     const mongoStatus = await checkMongoStatus();
     res.json({ 
       status: "ok", 
+      env: process.env.NODE_ENV || "development",
       database: isDbConfigured ? "configured" : "server_store",
       mongodb: mongoStatus,
       timestamp: new Date().toISOString()
@@ -224,6 +225,18 @@ async function startServer() {
     for (let i = 0; i < data.length; i++) {
       const item = data[i];
       let _id = item.id || item._id;
+      
+      if (!_id || seenIds.has(_id)) {
+        // Try to derive a stable ID from known unique fields to prevent duplicate entries across devices
+        const stableKey = item.admNo || item.username || item.code || item.key || item.email || item.name;
+        if (stableKey) {
+          const derived = String(stableKey).trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
+          if (!seenIds.has(derived)) {
+            _id = derived;
+          }
+        }
+      }
+
       if (!_id || seenIds.has(_id)) {
         _id = String(_id || 'doc') + '_' + Math.random().toString(36).substring(2, 9) + '_' + i;
       }
@@ -244,8 +257,9 @@ async function startServer() {
       }));
       try {
         await collection.bulkWrite(operations, { ordered: false });
-        // We removed the deleteMany call to prevent destructive overrides from multiple devices.
-        // This ensures that if Device B hasn't synced Device A's new record yet, it won't accidentally delete it.
+        // To support deletion while avoiding total wipeouts, we delete documents that are NOT in the incoming array.
+        // This ensures that items explicitly removed in the UI are also removed from MongoDB.
+        await collection.deleteMany({ _id: { $nin: Array.from(seenIds) } });
       } catch (e) {
         console.warn("BulkWrite warning (handled):", e);
       }
@@ -415,12 +429,36 @@ async function startServer() {
         
         const data: Record<string, any> = {};
         for (const m of syncMap) {
-          if (!m.isArray) {
-            const single = await mongoDb.collection(m.col).findOne({ _id: m.col } as any);
-            data[m.key] = single ? (single.data !== undefined ? single.data : single) : (serverStore[m.key] || serverStore[m.col] || null);
-          } else {
-            const docs = await mongoDb.collection(m.col).find({}).toArray();
-            data[m.key] = docs.length > 0 ? docs.map(d => { const { _id, syncedAt, ...rest } = d; return { id: d.id || _id, ...rest }; }) : (serverStore[m.key] || serverStore[m.col] || []);
+          try {
+            if (!m.isArray) {
+              const single = await mongoDb.collection(m.col).findOne({ _id: m.col } as any);
+              // If connected and found nothing, we still return null if it's not in serverStore either
+              data[m.key] = single ? (single.data !== undefined ? single.data : single) : (serverStore[m.key] || serverStore[m.col] || null);
+            } else {
+              const docs = await mongoDb.collection(m.col).find({}).toArray();
+              // CRITICAL FIX: If we are connected to Mongo, the MongoDB result is the source of truth.
+              // We should only use serverStore as a fallback if the table doesn't exist in Mongo at all, 
+              // but if it exists and is empty, we must return [].
+              if (docs && docs.length > 0) {
+                data[m.key] = docs.map(d => { 
+                  const { _id, syncedAt, ...rest } = d; 
+                  return { id: d.id || _id, ...rest }; 
+                });
+              } else {
+                // Check if this collection has EVER been synced (by checking if the collection exists)
+                const collections = await mongoDb.listCollections({ name: m.col }).toArray();
+                if (collections.length > 0) {
+                  // Collection exists but is empty -> return empty array
+                  data[m.key] = [];
+                } else {
+                  // Collection doesn't exist in Mongo -> fallback to serverStore
+                  data[m.key] = (serverStore[m.key] || serverStore[m.col] || []);
+                }
+              }
+            }
+          } catch (err) {
+            console.warn(`[MongoSync] Failed to fetch ${m.key}:`, err.message);
+            data[m.key] = (serverStore[m.key] || serverStore[m.col] || (m.isArray ? [] : null));
           }
         }
 

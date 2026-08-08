@@ -175,7 +175,13 @@ async function fetchAllFromCloud(table?: string): Promise<any> {
         body: JSON.stringify({ collectionName: table, limit: 1000 })
       });
       const json = await res.json();
-      return json.success ? json.documents : [];
+      if (json.success && Array.isArray(json.documents)) {
+        return json.documents.map((d: any) => ({
+          ...d,
+          id: d.id || d._id
+        }));
+      }
+      return [];
     } else {
       const res = await fetch('/api/sync');
       const json = await res.json();
@@ -835,30 +841,9 @@ export function deleteRecord<T = any>(
   // Save updated array to local storage and sync to backend immediately
   secureSet(storageKey, JSON.stringify(updated));
 
-  let tableName: string | null = null;
-  if (storageKey === 'school_grades' || storageKey === 'classes' || storageKey === 'grades') tableName = 'grades';
-  else if (storageKey === 'school_subjects' || storageKey === 'subjects') tableName = 'subjects';
-  else if (storageKey === 'school_learners' || storageKey === 'students' || storageKey === 'learners') tableName = 'learners';
-  else if (storageKey === 'school_users' || storageKey === 'teachers' || storageKey === 'users' || storageKey === 'staff') tableName = 'users';
-  else if (storageKey === 'school_attendance_sheets' || storageKey === 'attendance') tableName = 'attendance_sheets';
-  else if (storageKey === 'school_exam_marks' || storageKey === 'marks' || storageKey === 'exam_marks') tableName = 'school_exam_marks';
-  else if (storageKey === 'exams') tableName = 'exams';
-  else if (storageKey === 'subject_enrollments') tableName = 'subject_enrollments';
-  else if (storageKey === 'school_grading_rules') tableName = 'grading_rules';
-  else if (storageKey === 'subject_assignments_list' || storageKey === 'subject_assignments') tableName = 'subject_assignments';
-  else if (storageKey === 'class_teacher_assignments_list' || storageKey === 'class_teacher_assignments') tableName = 'class_teacher_assignments';
-  else if (storageKey === 'school_profile') tableName = 'school_profile';
-  else if (storageKey === 'school_holidays') tableName = 'holidays';
-  else if (storageKey === 'school_terms') tableName = 'terms';
-  else if (storageKey === 'school_messages') tableName = 'messages';
-  else if (storageKey === 'school_subject_papers') tableName = 'subject_papers';
-  else if (storageKey === 'schemes_of_work' || storageKey === 'resources') tableName = 'schemes_of_work';
-  else if (storageKey === 'teachers_on_duty' || storageKey === 'tod') tableName = 'tod';
-  else if (storageKey === 'fee_payments' || storageKey === 'fees') tableName = 'fee_payments';
-
-  if (tableName) {
-    saveToBackend(tableName, updated);
-  }
+  // Sync to cloud immediately if we can map this storage key to a backend table
+  // We use the storageKey directly as saveToBackend handles the mapping
+  saveToBackend(storageKey, updated);
 
   return updated;
 }
@@ -2000,8 +1985,15 @@ export function writeToLocalStorageWithAliases(rawTable: string, data: any): voi
     primaryKey,
     rawTable,
     ...(TABLE_ALIASES[rawTable] || []),
-    ...(TABLE_ALIASES[primaryKey] || [])
-  ]));
+    ...(TABLE_ALIASES[primaryKey || ''] || [])
+  ])).filter(Boolean) as string[];
+
+  // CRITICAL: Prevent overwriting local storage if we have local pending changes for this table.
+  // This ensures that deletions and updates are not "rolled back" by a fast polling cycle before the push completes.
+  const hasPending = aliases.some(a => pendingChangesSet.has(a));
+  if (hasPending) {
+    return;
+  }
 
   if ((rawTable === 'current_user' || rawTable === 'school_current_user') && (!data || (typeof data === 'object' && Object.keys(data).length === 0))) {
     const existing = getCurrentUser();
@@ -2012,15 +2004,10 @@ export function writeToLocalStorageWithAliases(rawTable: string, data: any): voi
 
   let finalData = data;
   if (Array.isArray(data)) {
-    let existingLocal = secureGet(primaryKey) || secureGet(rawTable);
-    if (typeof existingLocal === 'string') {
-      try { existingLocal = JSON.parse(existingLocal); } catch(e) {}
-    }
-    if (Array.isArray(existingLocal)) {
-      finalData = mergeArrays(existingLocal, data);
-    } else {
-      finalData = deduplicateAnyList(data);
-    }
+    // If we have no pending changes, the Cloud is the absolute authority for this table.
+    // We overwrite local with Cloud to ensure deletions propagate correctly across devices.
+    // If we DID have pending changes, this function would have returned early above (line 1989).
+    finalData = deduplicateAnyList(data);
   }
 
   const serialized = typeof finalData === 'string' ? finalData : JSON.stringify(finalData);
@@ -2068,8 +2055,21 @@ export function startRealtimeCloudSync(): () => void {
 
 const getItemKey = (item: any): string => {
   if (!item) return '';
-  if (typeof item !== 'object') return String(item);
-  return item.id || item.admNo || item.username || item.code || item.key || item.name || JSON.stringify(item);
+  if (typeof item !== 'object') return String(item).trim().toLowerCase();
+  
+  // Priority: id > _id > admNo > username > code > key > name > fullName
+  const rawKey = item.id || item._id || item.admNo || item.username || item.code || item.key || item.name || item.fullName || '';
+  
+  if (rawKey) {
+    return String(rawKey).trim().toLowerCase();
+  }
+  
+  // Fallback to stable string representation for complex objects without identifiers
+  try {
+    return JSON.stringify(item);
+  } catch (e) {
+    return String(Math.random());
+  }
 };
 
 const mergeArrays = (localArr: any[], cloudArr: any[]): any[] => {
@@ -2218,6 +2218,16 @@ export async function synchronizeWithMongoDB(force: boolean = false, retries: nu
         }
         let val = rawVal;
         if (val !== undefined && val !== null) {
+          // Normalize IDs for arrays
+          if (Array.isArray(val)) {
+            val = val.map((doc: any) => {
+              if (doc && doc._id && !doc.id) {
+                return { ...doc, id: doc._id };
+              }
+              return doc;
+            });
+          }
+
           if (table === 'school_profile') {
             const existingLocal = secureGet('school_profile');
             if (existingLocal) {
@@ -2391,6 +2401,9 @@ try {
   logActivity('general_change', 'Resolved blank screen rendering and build artifacts failure by adding null-safety checks and fixing all TypeScript compilation errors', 'Super Admin');
   logActivity('general_change', 'Added Stream Position and Grade Position columns to the Performance Report', 'Super Admin');
   logActivity('general_change', 'Implemented non-destructive bi-directional MongoDB sync with updatedAt timestamps, document-level collection mapping for high-concurrency tables (exams, marks), and reduced polling interval for true real-time multi-device consistency.', 'Super Admin');
+  logActivity('general_change', 'Resolved cross-device sync issues by enforcing MongoDB as the primary source of truth and fixing deletion persistence.', 'System Agent');
+  logActivity('general_change', 'Implemented intelligent record deduplication across all tables and added a manual cleanup tool in the System Diagnostics panel to resolve cross-device data duplication.', 'Super Admin');
+  logActivity('general_change', 'Implemented multi-selection and bulk delete capabilities for the Learners registry to improve administrative efficiency.', 'Super Admin');
 } catch (e) {}
 
 // --- FINANCE & FEE MANAGEMENT TYPES AND STORAGE ---
