@@ -499,7 +499,6 @@ export default function App() {
         { name: 'School Profile', icon: <Building className="w-4 h-4 text-indigo-400" />, visible: isAdminOrHead || isParent },
         { name: 'Manage Staff', icon: <Users className="w-4 h-4 text-cyan-400" />, visible: user.role === 'Admin' || isSuperAdmin },
         { name: 'Subject Assignments', icon: <BookOpen className="w-4 h-4 text-teal-400" />, visible: !isParent || isSuperAdmin },
-        { name: 'Marks Submissions', icon: <ClipboardList className="w-4 h-4 text-emerald-400" />, visible: !isParent || isSuperAdmin },
         { name: 'Data Management', icon: <Database className="w-4 h-4 text-purple-400" />, visible: isSuperAdmin },
         { name: 'Cloud Data Explorer', icon: <Database className="w-4 h-4 text-blue-500" />, visible: isSuperAdmin },
       ],
@@ -507,9 +506,7 @@ export default function App() {
     {
       title: 'Finances',
       items: [
-        { name: 'Finances', icon: <DollarSign className="w-4 h-4 text-emerald-400" />, visible: isAdminOrHead },
-        { name: 'Fee Collections & Balances', icon: <Wallet className="w-4 h-4 text-emerald-400" />, visible: isAdminOrHead },
-        { name: 'Grade Fee Structures', icon: <Receipt className="w-4 h-4 text-blue-400" />, visible: isAdminOrHead },
+        { name: 'Finance Management', icon: <DollarSign className="w-4 h-4 text-emerald-400" />, visible: isAdminOrHead },
       ],
     },
     {
@@ -582,6 +579,7 @@ export default function App() {
     switch (activeView) {
       case 'Home': return isParent ? <ParentPortal user={user} activeTab={parentTab} onTabChange={setParentTab} /> : <HomeDashboard setActiveView={setActiveView} />;
       case 'Cloud Sync Health': return <CloudSyncHealth />;
+      case 'Finance Management':
       case 'Finances':
       case 'Fee Collections & Balances':
       case 'Grade Fee Structures':

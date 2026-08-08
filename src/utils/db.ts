@@ -676,6 +676,27 @@ export function getTableNameFromKey(key: string): string | null {
   return key;
 }
 
+/**
+ * Deduplicates an array of objects by their unique ID to prevent UI and database duplication.
+ */
+function deduplicateArrayById(arr: any[]): any[] {
+  if (!Array.isArray(arr)) return arr;
+  const docsMap = new Map();
+  arr.forEach((item, index) => {
+    if (item && typeof item === 'object') {
+      const id = item.id || item._id || (item.admNo ? `adm_${item.admNo}` : null);
+      if (id) {
+        // Later items in the array (usually newer) overwrite earlier ones
+        docsMap.set(String(id), item);
+      } else {
+        // Fallback for items without IDs: use index but this is risky for duplication
+        docsMap.set(`temp_index_${index}`, item);
+      }
+    }
+  });
+  return Array.from(docsMap.values());
+}
+
 export function secureSet(key: string, value: string, options?: { skipCloud?: boolean }): void {
   if (!key) return;
   if (isThirdPartyKey(key)) {
@@ -683,39 +704,41 @@ export function secureSet(key: string, value: string, options?: { skipCloud?: bo
   }
 
   const primaryKey = getStorageKeyForTable(key);
-  const aliases = Array.from(new Set([
-    primaryKey,
-    key,
-    ...(TABLE_ALIASES[key] || []),
-    ...(TABLE_ALIASES[primaryKey] || [])
-  ]));
-
-  // Ensure every item in an array has an updatedAt timestamp for robust merging
-  let valueWithTimestamps = value;
+  
+  // Ensure every item in an array has an updatedAt timestamp and is deduplicated
+  let finalValue = value;
   try {
-    const parsed = JSON.parse(value);
+    let parsed = JSON.parse(value);
     if (Array.isArray(parsed)) {
       const now = new Date().toISOString();
-      const updated = parsed.map(item => {
+      const deduplicated = deduplicateArrayById(parsed);
+      const updated = deduplicated.map(item => {
         if (item && typeof item === 'object') {
           return { ...item, updatedAt: item.updatedAt || now };
         }
         return item;
       });
-      valueWithTimestamps = JSON.stringify(updated);
+      finalValue = JSON.stringify(updated);
     }
   } catch (e) {
     // value is not JSON or not an array, keep as is
   }
 
-  for (const alias of aliases) {
-    memCache[alias] = valueWithTimestamps;
+  // Write ONLY to the primary canonical key to avoid data fragmentation in localStorage
+  memCache[primaryKey] = finalValue;
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.setItem(primaryKey, finalValue);
+    } catch (e) {}
+  }
+
+  // Also write to the requested key if it's different from primary, but we prefer canonical
+  if (key !== primaryKey) {
+    memCache[key] = finalValue;
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
-        window.localStorage.setItem(alias, valueWithTimestamps);
-      } catch (e) {
-        // ignore quota errors
-      }
+        window.localStorage.setItem(key, finalValue);
+      } catch (e) {}
     }
   }
 
@@ -723,10 +746,10 @@ export function secureSet(key: string, value: string, options?: { skipCloud?: bo
     const tableName = getTableNameFromKey(key);
     if (tableName) {
       try {
-        const parsed = JSON.parse(valueWithTimestamps);
+        const parsed = JSON.parse(finalValue);
         saveToBackend(tableName, parsed);
       } catch (err) {
-        saveToBackend(tableName, valueWithTimestamps);
+        saveToBackend(tableName, finalValue);
       }
     }
   }

@@ -172,6 +172,9 @@ async function startServer() {
     school_learners: 'school_learners',
     users: 'school_users',
     school_users: 'school_users',
+    staff: 'school_users',
+    school_staff: 'school_users',
+    teachers: 'school_users',
     grading_rules: 'school_grading_rules',
     school_grading_rules: 'school_grading_rules',
     holidays: 'school_holidays',
@@ -205,10 +208,11 @@ async function startServer() {
     school_fee_structures: 'school_fee_structures',
     fees: 'school_fee_structures',
     feeStructure: 'school_fee_structures',
-    staff: 'school_staff',
-    school_staff: 'school_staff',
     streams: 'school_streams',
     school_streams: 'school_streams',
+    tod: 'school_teachers_on_duty',
+    teachers_on_duty: 'school_teachers_on_duty',
+    school_tod: 'school_teachers_on_duty',
     transport: 'school_transport_routes',
     transportRoutes: 'school_transport_routes',
     school_transport_routes: 'school_transport_routes',
@@ -220,33 +224,42 @@ async function startServer() {
   };
 
   async function saveArrayToCollection(collection: any, data: any[]) {
-    const seenIds = new Set();
-    const docs = [];
+    const docsMap = new Map();
+    
     for (let i = 0; i < data.length; i++) {
       const item = data[i];
-      let _id = item.id || item._id;
+      if (!item) continue;
+
+      let id = item.id || item._id;
       
-      if (!_id || seenIds.has(_id)) {
-        // Try to derive a stable ID from known unique fields to prevent duplicate entries across devices
+      // If no ID, try to derive a stable one from unique fields
+      if (!id) {
         const stableKey = item.admNo || item.username || item.code || item.key || item.email || item.name;
         if (stableKey) {
-          const derived = String(stableKey).trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
-          if (!seenIds.has(derived)) {
-            _id = derived;
-          }
+          id = String(stableKey).trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
         }
       }
 
-      if (!_id || seenIds.has(_id)) {
-        _id = String(_id || 'doc') + '_' + Math.random().toString(36).substring(2, 9) + '_' + i;
+      // If still no ID, we must generate one, but we use a prefix to identify it
+      // and we try to make it as stable as possible for this batch.
+      if (!id) {
+        id = `gen_${i}_${Date.now().toString(36)}`;
       }
-      seenIds.add(_id);
-      docs.push({
+
+      const finalId = String(id);
+      
+      // Upsert: newer items in the same batch (later in array) overwrite older ones
+      docsMap.set(finalId, {
         ...item,
-        _id,
+        _id: finalId,
+        id: finalId, // Ensure id and _id are consistent
         syncedAt: new Date(),
       });
     }
+
+    const docs = Array.from(docsMap.values());
+    const seenIds = Array.from(docsMap.keys());
+
     if (docs.length > 0) {
       const operations = docs.map(doc => ({
         updateOne: {
@@ -255,16 +268,19 @@ async function startServer() {
           upsert: true
         }
       }));
+      
       try {
         await collection.bulkWrite(operations, { ordered: false });
-        // To support deletion while avoiding total wipeouts, we delete documents that are NOT in the incoming array.
-        // This ensures that items explicitly removed in the UI are also removed from MongoDB.
-        await collection.deleteMany({ _id: { $nin: Array.from(seenIds) } });
+        // Cleanup: remove items that are no longer in this complete dataset
+        await collection.deleteMany({ _id: { $nin: seenIds } });
       } catch (e) {
-        console.warn("BulkWrite warning (handled):", e);
+        console.warn("BulkWrite/Cleanup warning:", e);
       }
     } else {
-      await collection.deleteMany({});
+      // If the incoming array is empty, it means all items were deleted
+      try {
+        await collection.deleteMany({});
+      } catch (e) {}
     }
   }
 
