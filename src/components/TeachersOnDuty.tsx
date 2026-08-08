@@ -53,7 +53,7 @@ export interface DutyLog {
   id: string;
   date: string;
   teacherName: string;
-  category: 'General Observation' | 'Late Arrivals' | 'Medical / First Aid' | 'Compound Inspection';
+  category: 'General Observation' | 'Late Arrivals' | 'Medical / First Aid' | 'Compound Inspection' | 'Handover Note';
   note: string;
   timestamp: string;
 }
@@ -109,6 +109,57 @@ const TeachersOnDuty: React.FC<TeachersOnDutyProps> = ({ onNavigate, shiftFilter
   const [isHandoverModalOpen, setIsHandoverModalOpen] = useState(false);
   const [assignmentToHandover, setAssignmentToHandover] = useState<DutyAssignment | null>(null);
   const [replacementTeacherId, setReplacementTeacherId] = useState('');
+
+  // Quick Handover states
+  const [isQuickHandoverOpen, setIsQuickHandoverOpen] = useState(false);
+  const [quickHandoverNote, setQuickHandoverNote] = useState('');
+
+  const handleQuickHandoverSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickHandoverNote.trim()) return;
+
+    // Find the current active duty for the user
+    const currentDuty = roster.find(r => {
+      const isUser = (r.teacherName || '').toLowerCase() === (currentUser?.fullName || '').toLowerCase() || r.teacherId === currentUser?.id;
+      return isUser && r.status === 'On Duty';
+    });
+
+    if (!currentDuty) {
+      alert("No active 'On Duty' shift found to handover. Please ensure your status is set to 'On Duty' first.");
+      return;
+    }
+
+    // Mark as completed
+    const newRoster = roster.map(r => 
+      r.id === currentDuty.id ? { ...r, status: 'Completed' as const } : r
+    );
+    saveRoster(newRoster);
+
+    // Add handover log
+    const handoverLog: DutyLog = {
+      id: 'log-' + Date.now(),
+      date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+      teacherName: currentUser?.fullName || 'Duty Teacher',
+      category: 'Handover Note',
+      note: quickHandoverNote.trim(),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    saveLogs([handoverLog, ...dutyLogs]);
+
+    // Log activity
+    logActivity('general_change', `Shift Handover completed by ${currentUser?.fullName}. Note: ${quickHandoverNote.substring(0, 50)}...`, currentUser?.fullName || 'System');
+    
+    setQuickHandoverNote('');
+    setIsQuickHandoverOpen(false);
+    
+    confirmAction({
+      title: 'Handover Completed',
+      message: 'Your shift has been marked as completed and your handover note has been recorded in the duty logs.',
+      confirmText: 'OK',
+      variant: 'info',
+      onConfirm: () => {}
+    });
+  };
 
   const confirmHandover = () => {
     if (!assignmentToHandover || !replacementTeacherId) return;
@@ -606,6 +657,14 @@ const TeachersOnDuty: React.FC<TeachersOnDutyProps> = ({ onNavigate, shiftFilter
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5">
+              {isActiveTOD && (
+                <button
+                  onClick={() => setIsQuickHandoverOpen(true)}
+                  className="bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black px-4 py-2.5 rounded-xl transition flex items-center gap-2 cursor-pointer shadow-lg shadow-amber-500/20"
+                >
+                  <Sparkles className="w-4 h-4" /> Quick Handover
+                </button>
+              )}
               <button
                 onClick={() => setIsMonthlyManagerOpen(!isMonthlyManagerOpen)}
                 className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold px-3.5 py-2.5 rounded-xl transition flex items-center gap-2 cursor-pointer backdrop-blur-xs"
@@ -1257,6 +1316,7 @@ const TeachersOnDuty: React.FC<TeachersOnDutyProps> = ({ onNavigate, shiftFilter
                   <option value="Late Arrivals">Late Arrivals</option>
                   <option value="Medical / First Aid">Medical / First Aid</option>
                   <option value="Compound Inspection">Compound Inspection</option>
+                  <option value="Handover Note">Handover Note</option>
                 </select>
               </div>
 
@@ -1295,7 +1355,7 @@ const TeachersOnDuty: React.FC<TeachersOnDutyProps> = ({ onNavigate, shiftFilter
       {isHandoverModalOpen && assignmentToHandover && (
         <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4 animate-fadeIn">
           <div className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm space-y-4">
-            <h3 className="font-black text-slate-900">Handover Duty</h3>
+            <h3 className="font-black text-slate-900">Handover Duty (Substitute)</h3>
             <p className="text-xs text-slate-500">
               Transfer duty for {assignmentToHandover.day} to:
             </p>
@@ -1311,6 +1371,65 @@ const TeachersOnDuty: React.FC<TeachersOnDutyProps> = ({ onNavigate, shiftFilter
               <button onClick={() => setIsHandoverModalOpen(false)} className="flex-1 py-2 text-xs font-bold text-slate-600 bg-slate-100 rounded-xl">Cancel</button>
               <button onClick={confirmHandover} className="flex-1 py-2 text-xs font-bold text-white bg-blue-600 rounded-xl">Confirm Handover</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🤝 QUICK HANDOVER MODAL */}
+      {isQuickHandoverOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200">
+            <div className="bg-amber-600 text-white px-5 py-4 flex justify-between items-center">
+              <h3 className="font-bold text-sm uppercase tracking-wider flex items-center gap-2">
+                <Sparkles className="w-4 h-4" /> Quick Duty Handover
+              </h3>
+              <button 
+                onClick={() => setIsQuickHandoverOpen(false)}
+                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleQuickHandoverSubmit} className="p-5 space-y-4">
+              <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
+                <div className="flex items-start gap-3">
+                  <Info className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                  <p className="text-[11px] text-amber-800 font-bold leading-relaxed">
+                    By completing this handover, your shift status will be marked as <span className="underline">Completed</span>. 
+                    Please provide a brief note for the next teacher on duty regarding any pending tasks or observations.
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Handover Note for Next Teacher</label>
+                <textarea 
+                  required
+                  rows={4}
+                  placeholder="e.g. All gates locked, compound is clean, handover to Afternoon shift..."
+                  value={quickHandoverNote}
+                  onChange={(e) => setQuickHandoverNote(e.target.value)}
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-800 resize-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsQuickHandoverOpen(false)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white rounded-xl transition cursor-pointer shadow-sm"
+                >
+                  Complete Handover
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

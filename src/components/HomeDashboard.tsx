@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { getCurrentUser, getSchoolProfile, UserAccount, SchoolProfile, saveUsers, getUsers, setCurrentUser, getLearners, getAttendanceSheets, getStaffAttendanceSheets, saveStaffAttendanceSheets, StaffAttendanceSheet, StaffAttendanceRecord, secureGet, secureSet, deleteRecord, getSubjectAssignments, getClassTeacherAssignments } from '../utils/db';
+import React, { useState, useEffect, useMemo } from 'react';
+import { getCurrentUser, getSchoolProfile, UserAccount, SchoolProfile, saveUsers, getUsers, setCurrentUser, getLearners, getAttendanceSheets, getStaffAttendanceSheets, saveStaffAttendanceSheets, StaffAttendanceSheet, StaffAttendanceRecord, secureGet, secureSet, deleteRecord, getSubjectAssignments, getClassTeacherAssignments, getExams, getExamSubmissionStatuses } from '../utils/db';
 import { getAttendanceSettings } from '../utils/attendance';
-import { Calendar, Clock, GraduationCap, ShieldCheck, User, Camera, Upload, X, Link, Check, AlertCircle, Trash2, ArrowRight, LogIn, LogOut, Lock, Pencil, Zap, UserPlus, FileText, Settings, BookOpen, TrendingUp, PieChart, Bell, Megaphone, CheckCircle2, ListTodo, Plus, Activity, ChevronRight, UserCheck, GraduationCap as GradeIcon } from 'lucide-react';
+import { Calendar, Clock, GraduationCap, ShieldCheck, User, Camera, Upload, X, Link, Check, AlertCircle, Trash2, ArrowRight, LogIn, LogOut, Lock, Pencil, Zap, UserPlus, FileText, Settings, BookOpen, TrendingUp, PieChart, Bell, Megaphone, CheckCircle2, ListTodo, Plus, Activity, ChevronRight, UserCheck, GraduationCap as GradeIcon, AlertTriangle, Timer, Info } from 'lucide-react';
 import CurrentLocationDisplay from './CurrentLocationDisplay';
 import CloudStorageCard from './CloudStorageCard';
 
@@ -43,6 +43,7 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
   const [isUserTOD, setIsUserTOD] = useState(false);
   const [mySubjects, setMySubjects] = useState<any[]>([]);
   const [myClassTeacherRoles, setMyClassTeacherRoles] = useState<any[]>([]);
+  const [pendingTasks, setPendingTasks] = useState<any[]>([]);
 
   const handleSaveNotice = (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,6 +88,22 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
       setExams([]);
     }
   };
+
+  const nextExam = useMemo(() => {
+    if (!exams || exams.length === 0) return null;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0); // Start of today
+    
+    const upcoming = exams
+      .map(e => ({
+        ...e,
+        parsedDate: new Date(e.examDate || e.openingDate || e.created || 0)
+      }))
+      .filter(e => e.parsedDate >= now)
+      .sort((a, b) => a.parsedDate.getTime() - b.parsedDate.getTime());
+      
+    return upcoming.length > 0 ? upcoming[0] : null;
+  }, [exams]);
 
   const userRole = (user?.role || '').toLowerCase();
   const userSysRole = (user?.systemRole || '').toLowerCase();
@@ -485,6 +502,86 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
         );
         setMyClassTeacherRoles(teacherClassRoles);
 
+        // Compute Pending Tasks
+        const tasks: any[] = [];
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        // 1. Attendance Tasks
+        if (teacherClassRoles.length > 0) {
+          const sheets = getAttendanceSheets();
+          teacherClassRoles.forEach(role => {
+            const hasRecordToday = sheets.some(s => 
+              s.date === todayStr && 
+              s.gradeId === role.grade && 
+              s.streamId === role.stream
+            );
+            if (!hasRecordToday) {
+              tasks.push({
+                type: 'attendance',
+                title: 'Missing Attendance',
+                description: `You haven't recorded attendance for ${role.grade} ${role.stream} today.`,
+                priority: 'high',
+                view: 'Attendance Roll'
+              });
+            }
+          });
+        }
+
+        const now = new Date();
+
+        // 2. Mark Submission Tasks
+        if (teacherAssignments.length > 0) {
+          const allExams = getExams();
+          const submissionStatuses = getExamSubmissionStatuses();
+
+          allExams.forEach(exam => {
+            const examDate = new Date(exam.examDate || exam.openingDate || exam.created || 0);
+            if (examDate < now) {
+              // This exam is in the past, check if this teacher's assignments are submitted
+              teacherAssignments.forEach(assign => {
+                const statusKey = `${exam.id}_${assign.subject}_${assign.grade}`.toLowerCase().replace(/\s+/g, '_');
+                const status = submissionStatuses[statusKey];
+                if (status?.status !== 'Submitted') {
+                  tasks.push({
+                    type: 'marks',
+                    title: 'Pending Mark Submission',
+                    description: `Marks for ${assign.subject} (${assign.grade} ${assign.stream}) for ${exam.examName || exam.name} are pending.`,
+                    priority: 'medium',
+                    view: 'Mark Entry'
+                  });
+                }
+              });
+            }
+          });
+        }
+
+        // 3. Upcoming Duties
+        const rawRoster = secureGet('tod_duty_roster_v1');
+        if (rawRoster) {
+          try {
+            const roster = JSON.parse(rawRoster);
+            const userLower = (activeUser.fullName || '').toLowerCase();
+            const upcomingDuties = roster.filter((d: any) => {
+              const dutyDate = new Date(d.date);
+              const diff = dutyDate.getTime() - now.getTime();
+              const days = diff / (1000 * 60 * 60 * 24);
+              return days >= 0 && days <= 3 && d.teachers?.some((t: string) => t.toLowerCase().includes(userLower));
+            });
+
+            upcomingDuties.forEach((duty: any) => {
+              tasks.push({
+                type: 'duty',
+                title: 'Upcoming Duty',
+                description: `You are on duty on ${new Date(duty.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}.`,
+                priority: 'low',
+                view: 'Teachers On Duty'
+              });
+            });
+          } catch(e) {}
+        }
+
+        setPendingTasks(tasks);
+
         // Load TOD roster and check if user is TOD
         const savedRoster = secureGet('tod_duty_roster_v1');
         if (savedRoster) {
@@ -764,6 +861,105 @@ export default function HomeDashboard({ setActiveView }: HomeDashboardProps) {
             <Calendar className="w-3.5 h-3.5" /> {dayName}, {formattedDate}
           </div>
         </div>
+
+        {/* Next Upcoming Exam Card */}
+        {nextExam && (
+          <div 
+            onClick={() => setActiveView?.('Exams')}
+            className="bg-white p-4 rounded-xl shadow-xs border border-blue-100 flex items-center justify-between gap-4 cursor-pointer hover:bg-blue-50/30 transition group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex flex-col items-center justify-center shadow-xs">
+                <span className="text-[10px] font-black leading-none uppercase">
+                  {new Date(nextExam.parsedDate).toLocaleDateString('en-US', { month: 'short' })}
+                </span>
+                <span className="text-lg font-black leading-tight">
+                  {new Date(nextExam.parsedDate).getDate()}
+                </span>
+              </div>
+              <div>
+                <div className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-0.5">Next Upcoming Exam</div>
+                <h4 className="text-sm font-black text-slate-900 line-clamp-1">{nextExam.examName || nextExam.name}</h4>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  {nextExam.term} • {nextExam.academicYear || nextExam.year}
+                </p>
+              </div>
+            </div>
+            <div className="p-2 bg-slate-50 text-slate-400 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition shadow-xs">
+              <ChevronRight className="w-4 h-4" />
+            </div>
+          </div>
+        )}
+
+        {/* Pending Tasks Section */}
+        {pendingTasks.length > 0 && (
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-rose-100 text-rose-600 rounded-lg flex items-center justify-center">
+                  <ListTodo className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">Pending Tasks</h3>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Required Actions</p>
+                </div>
+              </div>
+              <span className="bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full text-[10px] font-black">
+                {pendingTasks.length} {pendingTasks.length === 1 ? 'Task' : 'Tasks'}
+              </span>
+            </div>
+
+            <div className="grid gap-3">
+              {pendingTasks.map((task, idx) => (
+                <div 
+                  key={idx}
+                  onClick={() => setActiveView?.(task.view)}
+                  className={`flex items-start gap-4 p-4 rounded-xl border transition cursor-pointer group ${
+                    task.priority === 'high' 
+                      ? 'bg-rose-50/50 border-rose-100 hover:bg-rose-50' 
+                      : task.priority === 'medium'
+                        ? 'bg-amber-50/50 border-amber-100 hover:bg-amber-50'
+                        : 'bg-blue-50/50 border-blue-100 hover:bg-blue-50'
+                  }`}
+                >
+                  <div className={`mt-0.5 p-2 rounded-lg ${
+                    task.priority === 'high'
+                      ? 'bg-rose-100 text-rose-600'
+                      : task.priority === 'medium'
+                        ? 'bg-amber-100 text-amber-600'
+                        : 'bg-blue-100 text-blue-600'
+                  }`}>
+                    {task.type === 'attendance' ? <UserCheck className="w-4 h-4" /> : 
+                     task.type === 'marks' ? <Pencil className="w-4 h-4" /> : 
+                     <Calendar className="w-4 h-4" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <h4 className={`text-xs font-black ${
+                        task.priority === 'high' ? 'text-rose-900' : 
+                        task.priority === 'medium' ? 'text-amber-900' : 
+                        'text-blue-900'
+                      }`}>
+                        {task.title}
+                      </h4>
+                      {task.priority === 'high' && (
+                        <span className="flex items-center gap-0.5 text-[9px] font-black text-rose-600 uppercase">
+                          <AlertTriangle className="w-2.5 h-2.5" /> Urgent
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-600 font-medium leading-relaxed line-clamp-2">
+                      {task.description}
+                    </p>
+                  </div>
+                  <div className="self-center p-1.5 bg-white rounded-lg border border-transparent group-hover:border-slate-200 group-hover:shadow-xs transition">
+                    <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* School Name Title */}
         <div className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2 px-1">
